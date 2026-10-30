@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: EUPL-1.2
 /*
  * Moteur de règles légales — Suivi-mesures-isocont
  * Reprise fidèle des calculs de la V1.3 (Module_Actualisation_V1_3) :

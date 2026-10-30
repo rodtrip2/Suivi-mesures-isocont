@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: EUPL-1.2
 /*
- * Interface — Suivi-mesures-isocont (prototype).
+ * Interface — Suivi-mesures-isocont.
  * Construction du DOM sans innerHTML : aucune donnée saisie n'est jamais
  * interprétée comme du HTML.
  */
@@ -62,7 +63,7 @@
     setTimeout(function () { t.remove(); }, 3500);
   }
 
-  var LIB_TIERS = { INFORME: 'Tiers informé', TENTATIVE: 'Tentative sans succès', PAS_DE_TIERS: 'Pas de tiers identifié', REFUS_PATIENT: 'Refus du patient' };
+  var LIB_TIERS = { INFORME: 'Tiers informé', TENTATIVE: 'Tentative sans succès', PAS_DE_TIERS: 'Pas de tiers identifié', REFUS_PATIENT: 'Refus du patient', AUTRE: 'Non informé — autre motif' };
   var LIB_NATURE = { INFO: 'Information du JLD', SAISINE: 'Saisine du JLD', DECISION: 'Décision reçue du JLD' };
   var LIB_EVT = {
     CONFIG: 'Paramétrage', PATIENT: 'Patient', MODE_HOSPI: "Mode d'hospitalisation", MESURE_DEBUT: 'Début de mesure',
@@ -79,12 +80,22 @@
 
   function st() { return App.session && App.session.etat; }
   function config() { return st() ? st().config : M.CONFIG_DEFAUT; }
-  function services() { return config().services || []; }
-  function libService(code) { var s = services().filter(function (x) { return x.code === code; })[0]; return s ? s.libelle : code; }
+  function tousServices() { return config().services || []; }
+  /** Services visibles par l'utilisateur connecté (tous pour un administrateur). */
+  function services() {
+    if (!App.session || !App.session.utilisateur || !st()) return tousServices();
+    var miens = App.session.mesServices();
+    return tousServices().filter(function (x) { return miens.indexOf(x.code) >= 0; });
+  }
+  function libService(code) { var s = tousServices().filter(function (x) { return x.code === code; })[0]; return s ? s.libelle : code; }
   function patient(id) { return st().patients[id] || { id: id, nom: '?', prenom: '', modes: [] }; }
   function nomPatient(id) { var p = patient(id); return (p.nom || '?') + ' ' + (p.prenom || ''); }
   function modeActuel(p) { return p.modes && p.modes.length ? p.modes[p.modes.length - 1].mode : ''; }
-  function dansService(m) { return App.service === '*' || m.service === App.service; }
+  function dansService(m) {
+    if (App.service !== '*') return m.service === App.service;
+    return App.session.mesServices().indexOf(m.service) >= 0;
+  }
+  function etablissement() { return config().etablissement || ''; }
 
   function erreurDans(zone, e) {
     vider(zone);
@@ -254,8 +265,8 @@
   var zoneContenu = null, zoneEntete = null;
 
   var ONGLETS = [
-    ['tableau', 'Tableau de bord'], ['mesures', 'Mesures'], ['jld', 'JLD'], ['surveillance', 'Surveillance CSI'],
-    ['registre', 'Registre anonymisé'], ['journal', 'Journal'], ['admin', 'Administration']
+    ['tableau', 'Tableau de bord'], ['mesures', 'Mesures'], ['patients', 'Patients'], ['jld', 'JLD'], ['surveillance', 'Surveillance CSI'],
+    ['registre', 'Registre anonymisé'], ['stats', 'Statistiques'], ['journal', 'Journal'], ['admin', 'Administration']
   ];
 
   function ecranApplication() {
@@ -275,15 +286,19 @@
     var conflits = st().conflits.length;
     var estAdmin = s.roles().indexOf('ADMIN') >= 0;
     if (!estAdmin && App.onglet === 'admin') App.onglet = 'tableau';
+    if (!s.utilisateur.actif) return verrouiller('Votre compte a été désactivé.');
+    var mesSv = services();
+    if (App.service !== '*' && !mesSv.some(function (x) { return x.code === App.service; })) App.service = '*';
+    if (mesSv.length === 1) App.service = mesSv[0].code;
 
     // En-tête
     vider(zoneEntete);
     var selService = h('select', { 'aria-label': 'Service', onchange: function () { App.service = selService.value; try { localStorage.setItem('sic-service', App.service); } catch (e) { /* */ } rendreContenu(); } },
-      h('option', { value: '*', text: 'Tous les services' }),
-      services().map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: App.service === x.code }); }));
+      mesSv.length > 1 ? h('option', { value: '*', text: estAdmin ? 'Tous les services' : 'Tous mes services' }) : null,
+      mesSv.map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: App.service === x.code }); }));
     if (App.service === '*') selService.value = '*';
     var age = s.derniereSynchro ? Math.round((maintenant - s.derniereSynchro) / 1000) : null;
-    zoneEntete.appendChild(h('div', { class: 'entete-haut' }, marque(App.dossier.nom), h('div', { class: 'espace' }), selService,
+    zoneEntete.appendChild(h('div', { class: 'entete-haut' }, marque(etablissement() || App.dossier.nom), h('div', { class: 'espace' }), mesSv.length ? selService : null,
       h('div', { class: 'statut-synchro', title: s.evts.length + ' saisies dans le journal' }, h('span', { class: 'point' }), age !== null ? 'Synchronisé' : '—'),
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.ROLES[r]; }).join(' · ')),
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
@@ -298,7 +313,9 @@
 
     vider(zoneContenu);
     var vues = { tableau: vueTableau, mesures: vueMesures, jld: vueJLD, surveillance: vueSurveillance, registre: vueRegistre, journal: vueJournal, admin: vueAdmin };
-    try { zoneContenu.appendChild(vues[App.onglet](maintenant)); }
+    var vue = vues[App.onglet] || SIC.ui.vues[App.onglet] || vueTableau;
+    if (!mesSv.length && !estAdmin) { zoneContenu.appendChild(h('div', { class: 'panneau vide', text: 'Aucun service ne vous est affecté. Demandez à l’administrateur de vous en attribuer un.' })); return; }
+    try { zoneContenu.appendChild(vue(maintenant)); }
     catch (e) { zoneContenu.appendChild(h('div', { class: 'erreur', text: 'Erreur d’affichage : ' + e.message })); console.error(e); }
   }
 
@@ -346,6 +363,17 @@
     });
     aVenir.sort(function (a, b) { return a.p.ech.echeance - b.p.ech.echeance; });
     var tiersARenseigner = enCours.filter(function (m) { return !M.tiersCycle(m); }).length;
+    var libres = enCours.filter(function (m) { return !M.estContrainte(config(), M.modeA(st(), m.patientId, maintenant) || m.modeHospi); });
+    var mineurs = enCours.filter(function (m) { return M.estMineur(st(), m.patientId, maintenant); });
+    var vigilance = [];
+    libres.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ', m.type.toLowerCase() + ' en cours alors que le patient est en ' + (M.modeA(st(), m.patientId, maintenant) || m.modeHospi) + ' (soins libres) : régulariser le mode d’hospitalisation ou mettre fin à la mesure.')); });
+    mineurs.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — patient mineur : vigilance renforcée.')); });
+    var vusRouge = {};
+    enCours.forEach(function (m) {
+      if (vusRouge[m.patientId]) return; vusRouge[m.patientId] = 1;
+      var c = M.cumulsPatient(st(), m.patientId, maintenant);
+      if (c.niveau === 'rouge') vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — cumul élevé sur 15 jours : isolement ' + duree(c.iso15) + ', contention ' + duree(c.cont15) + '.'));
+    });
     var postesIncomplets = [];
     services().forEach(function (sv) {
       if (App.service !== '*' && sv.code !== App.service) return;
@@ -382,7 +410,9 @@
         ind(proches, 'Échéances JLD dans les 12 h', proches ? 'warn' : 'ok'),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
         ind(postesIncomplets.length, 'Postes CSI incomplets (48 h)', postesIncomplets.length ? 'warn' : 'ok'),
-        ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok')),
+        ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok'),
+        ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok')),
+      vigilance.length ? h('section', { class: 'panneau' }, h('h2', { text: 'Points de vigilance' }), h('ul', { class: 'vigilance' }, vigilance)) : null,
       h('div', { class: 'deux-colonnes' },
         h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch),
         h('section', { class: 'panneau' }, h('h2', { text: 'Surveillance en CSI à compléter' }), listePostes)));
@@ -421,6 +451,7 @@
           enCours && App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { modaleJLD(m); } }, 'JLD') : null, ' ',
           App.session.peut('TIERS') ? h('button', { class: 'btn petit', onclick: function () { modaleTiers(m); } }, 'Tiers') : null, ' ',
           enCours && App.session.peut('MESURE_FIN') ? h('button', { class: 'btn petit danger', onclick: function () { modaleFin(m); } }, 'Fin') : null, ' ',
+          SIC.ui.actions.decompte && App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { SIC.ui.actions.decompte(m); } }, 'Décompte') : null, ' ',
           h('button', { class: 'btn petit', onclick: function () { modaleDetail(m); } }, 'Détail'))));
     });
     return h('div', {}, barre,
@@ -490,12 +521,12 @@
     var entrees = svCode ? M.registre(st(), svCode, anneeRegistre, maintenant) : [];
     var synthese = { A: 0, B: 0, C: 0, D: 0, E: 0 };
     entrees.forEach(function (e) { synthese[e.categorie]++; });
-    var LIB_CAT = { A: 'Isolement en espace dédié (CSI)', B: 'Isolement hors espace dédié', C: 'Contention en CSI', D: 'Contention hors espace d’isolement', E: 'Contention hors espace d’isolement (exception prévue)' };
+    var LIB_CAT = M.LIB_CATEGORIES;
 
     function exporterCSV() {
       var lignes = [['Numéro', 'Catégorie', 'Début', 'Fin', 'Durée (h)', "Mode d'hospitalisation", 'Lieu', 'Psychiatre', 'Professionnels chargés de la surveillance']];
       entrees.forEach(function (e) {
-        lignes.push([e.numero, LIB_CAT[e.categorie], date(e.debut), e.fin ? date(e.fin) : 'en cours', e.dureeHeures.toFixed(2).replace('.', ','), e.modeHospi, e.lieu, e.psychiatre, e.professionnels.join(', ')]);
+        lignes.push([e.numero || 'en cours', LIB_CAT[e.categorie], date(e.debut), e.fin ? date(e.fin) : 'en cours', e.dureeHeures.toFixed(2).replace('.', ','), e.modeHospi, e.lieu, e.psychiatre, e.professionnels.join(', ')]);
       });
       var csv = '\ufeff' + lignes.map(function (l) { return l.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
       var a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })), download: 'registre_' + svCode + '_' + anneeRegistre + '.csv' });
@@ -507,6 +538,7 @@
         h('label', {}, 'Année', selAn),
         h('button', { class: 'btn', disabled: !entrees.length, onclick: exporterCSV }, 'Exporter (CSV)'),
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),
+      h('div', { class: 'seulement-impression' }, h('h2', { text: (etablissement() ? etablissement() + ' — ' : '') + 'Registre des mesures d’isolement et de contention — ' + libService(svCode) + ' — ' + anneeRegistre }), h('p', { text: 'Article L. 3222-5-1 du code de la santé publique. Édité le ' + date(Date.now()) + '.' })),
       svCode ? h('p', { class: 'muted', text: libService(svCode) + ' — article L. 3222-5-1 du CSP. Aucune donnée nominative.' + (App.service === '*' ? ' Choisissez un service en haut de page pour changer de service.' : '') }) : null,
       h('div', { class: 'indicateurs' }, Object.keys(synthese).map(function (k) {
         return h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: synthese[k] }), h('div', { class: 'libelle', text: k + ' — ' + LIB_CAT[k] }));
@@ -515,7 +547,7 @@
         h('thead', {}, h('tr', {}, ['N°', 'Début', 'Fin', 'Durée', "Mode d'hosp.", 'Lieu', 'Psychiatre', 'Professionnels chargés de la surveillance'].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, entrees.map(function (e) {
           return h('tr', { class: e.fin ? '' : 'en-cours' },
-            h('td', {}, h('b', { text: e.numero })),
+            h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' })),
             h('td', { class: 'nowrap', text: date(e.debut) }),
             h('td', { class: 'nowrap', text: e.fin ? date(e.fin) : 'en cours' }),
             h('td', { class: 'nowrap', text: duree(e.dureeHeures) }),
@@ -543,6 +575,8 @@
       case 'ANNULATION': return 'Saisie ' + (d.cible || '').slice(-8) + ' annulée' + (d.motif ? ' : ' + d.motif : '');
       case 'COMPTE': return (LIB_COMPTE[d.action] || d.action) + (d.login ? ' — ' + d.login : '') + (d.roles ? ' (' + d.roles.map(function (r) { return M.ROLES[r]; }).join(', ') + ')' : '') + (d.libelle ? ' — ' + d.libelle : '');
       case 'CORRECTION': return qui + 'correction : ' + Object.keys(d.champs || {}).join(', ') + (d.motif ? ' — ' + d.motif : '');
+      case 'LOT': return (d.libelle || 'Lot de saisies') + ' — ' + (d.evenements || []).length + ' saisies';
+      case 'STATS': return 'Statistiques ' + libService(d.service) + ' ' + d.annee + ' : patients HC ' + (d.hc == null ? '—' : d.hc) + ', sous contrainte ' + (d.ssc == null ? '—' : d.ssc);
       default: return e.type;
     }
   }
@@ -707,7 +741,13 @@
         if (hors && !chambre.value.trim()) throw new Error('Indiquez la chambre.');
         if (!hors && !selLieu.value) throw new Error('Aucune CSI n’est paramétrée pour ce service.');
         var patientId = selPatient.value;
-        if (patientId === '__nouveau') {
+        var existant = patientId === '__nouveau' && ipp.value.trim() && Object.keys(st().patients).map(function (k) { return st().patients[k]; }).filter(function (p) { return p.ipp === ipp.value.trim(); })[0];
+        if (existant) {
+          if (!confirm('Un patient porte déjà l’IPP ' + existant.ipp + ' : ' + (existant.nom || '') + ' ' + (existant.prenom || '') + '. Utiliser sa fiche ?')) return false;
+          patientId = existant.id;
+          if (existant.service !== selSv.value) await s.enregistrer('PATIENT', { patientId: patientId, service: selSv.value });
+          if (modeActuel(existant) !== selMode.value) await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
+        } else if (patientId === '__nouveau') {
           if (!nom.value.trim()) throw new Error('Indiquez le nom du patient.');
           patientId = 'P' + C.hex(C.aleatoire(5));
           await s.enregistrer('PATIENT', { patientId: patientId, ipp: ipp.value.trim(), nom: nom.value.trim().toUpperCase(), prenom: prenom.value.trim(), protection: protection.value, service: selSv.value });
@@ -805,7 +845,8 @@
   // ---------------------------------------------------------------- Détail
   function modaleDetail(m) {
     var maintenant = Date.now(), j = M.suiviJLD(st(), m, maintenant);
-    var evts = st().journal.filter(function (e) { return e.data && e.data.mesureId === m.id; });
+    var evts = Object.keys(st().parId).map(function (k) { return st().parId[k]; }).filter(function (e) { return e.data && e.data.mesureId === m.id; })
+      .sort(function (a, b) { return a.at < b.at ? -1 : a.at > b.at ? 1 : (a.id < b.id ? -1 : 1); });
     var peutCorriger = App.session.peut('CORRECTION');
     var corps = h('div', { class: 'pile' }, recapMesure(m, maintenant),
       h('div', { class: 'recap' },
@@ -828,8 +869,35 @@
           } }, 'Annuler') : null));
       })))));
     var boutons = [{ texte: 'Fermer' }];
+    if (typeof m.fin !== 'number' && App.session.peut('MESURE_FIN') && App.session.peut('MESURE_DEBUT')) boutons.unshift({ texte: 'Changer de lieu…', action: function () { setTimeout(function () { modaleLieu(m); }, 0); return true; } });
     if (peutCorriger) boutons.unshift({ texte: 'Corriger…', action: function () { setTimeout(function () { modaleCorrection(m); }, 0); return true; } });
     modale('Détail de la mesure', corps, boutons);
+  }
+
+  /** Changement réel de lieu : la mesure en cours prend fin et une mesure du même type commence au nouveau lieu (comme en V1.3). */
+  function modaleLieu(m) {
+    var base = m.version;
+    var quand = h('input', { type: 'datetime-local', value: versSaisie(Date.now()) });
+    var lieux = (config().lieuxCSI || {})[m.service] || [];
+    var selLieu = h('select', {}, lieux.filter(function (l) { return l !== m.lieu; }).map(function (l) { return h('option', { value: l, text: l }); }), h('option', { value: '__hors', text: 'Hors CSI (chambre)' }));
+    var chambre = h('input', { type: 'text', placeholder: 'N° de chambre', hidden: selLieu.value !== '__hors' });
+    selLieu.addEventListener('change', function () { chambre.hidden = selLieu.value !== '__hors'; });
+    var psy = selectPsychiatre(m.psychiatreDebut);
+    modale('Changement de lieu', h('div', { class: 'pile' }, recapMesure(m),
+      h('div', { class: 'info', text: 'Pour une erreur de saisie, utilisez « Corriger » (cadre de santé). Un changement réel de lieu termine la mesure en cours et en ouvre une nouvelle du même type au nouveau lieu, à la même heure. Les échéances JLD de la nouvelle mesure tiennent compte du cumul des 15 derniers jours.' }),
+      h('div', { class: 'grille-2' }, h('label', {}, 'Date et heure du changement', quand), h('label', {}, 'Nouveau lieu', selLieu, chambre)),
+      h('label', {}, 'Psychiatre décisionnaire', psy)), [
+      { texte: 'Annuler' },
+      { texte: 'Enregistrer le changement', classe: 'primaire', action: async function () {
+        var t = depuisSaisie(quand.value), hors = selLieu.value === '__hors';
+        if (t <= m.debut) throw new Error('Le changement doit être postérieur au début de la mesure.');
+        if (t > Date.now() + 10 * 60000) throw new Error('La date ne peut pas être dans le futur.');
+        if (hors && !chambre.value.trim()) throw new Error('Indiquez la chambre.');
+        var nomPsy = psy.valeur();
+        await App.session.enregistrer('MESURE_FIN', { mesureId: m.id, fin: t, psychiatre: nomPsy, motif: 'Changement de lieu' }, base);
+        await App.session.enregistrer('MESURE_DEBUT', { mesureId: idMesure(), patientId: m.patientId, service: m.service, typeMesure: m.type, debut: t, lieu: hors ? 'Chambre ' + chambre.value.trim() : selLieu.value, csi: !hors, psychiatre: nomPsy, exception: false, modeHospi: m.modeHospi, suiteDe: m.id });
+        toast('Changement de lieu enregistré.');
+      } }]);
   }
 
   function modaleCorrection(m) {
@@ -897,19 +965,42 @@
   }
 
   // ================================================================ Administration
+  function lignesDe(t) { return t.value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean); }
+  function zoneTexte(valeur, lignes) { return h('textarea', { rows: lignes || 4, class: 'mono', spellcheck: 'false' }, valeur); }
+  async function enregistrerConfig(changements) {
+    var cfg = config(), n = 0;
+    for (var i = 0; i < changements.length; i++) {
+      if (JSON.stringify(cfg[changements[i][0]]) !== JSON.stringify(changements[i][1])) { await App.session.enregistrer('CONFIG', { cle: changements[i][0], valeur: changements[i][1] }); n++; }
+    }
+    toast(n ? 'Paramétrage enregistré (' + n + ' modification' + (n > 1 ? 's' : '') + ').' : 'Aucune modification.');
+  }
+  function boutonEnregistrer(fn) {
+    return h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: async function (ev) {
+      var b = ev.currentTarget; b.disabled = true;
+      try { await fn(); } catch (err) { alert(err.message); } finally { b.disabled = false; }
+    } }, 'Enregistrer'));
+  }
+  function periodeDepuis(x, l) {
+    if (x.length !== 4 || !/^\d\d:\d\d$/.test(x[2]) || !/^\d\d:\d\d$/.test(x[3])) throw new Error('Période mal formée : ' + l);
+    return { code: x[0], libelle: x[1], debut: x[2], fin: x[3] };
+  }
+
   function vueAdmin() {
-    var s = App.session;
+    var s = App.session, cfg = config();
     var comptes = h('section', { class: 'panneau' }, h('h2', { text: 'Comptes' }),
+      h('p', { class: 'muted', text: 'Un compte peut cumuler plusieurs rôles. Les services affectés limitent ce que l’agent voit, à la connexion comme à la création d’une mesure ; un administrateur voit tous les services.' }),
       h('div', { class: 'table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['Nom', 'Identifiant', 'Rôles', 'État', ''].map(function (t) { return h('th', { text: t }); }))),
+        h('thead', {}, h('tr', {}, ['Nom', 'Identifiant', 'Rôles', 'Services', 'État', ''].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, s.comptes.map(function (c) {
+          var admin = c.roles.indexOf('ADMIN') >= 0;
           return h('tr', { class: c.actif ? '' : 'ancienne' },
             h('td', { text: c.nom }), h('td', { class: 'mono', text: c.login }),
             h('td', { text: c.roles.map(function (r) { return M.ROLES[r]; }).join(', ') }),
+            h('td', {}, admin ? h('small', { text: 'Tous (administrateur)' }) : ((c.services || []).length ? (c.services || []).map(libService).join(', ') : h('span', { class: 'badge warn', text: 'aucun' }))),
             h('td', {}, h('span', { class: 'badge ' + (c.actif ? 'ok' : ''), text: c.actif ? 'actif' : 'désactivé' })),
             h('td', { class: 'actions-ligne' },
-              h('button', { class: 'btn petit', onclick: function () { modaleCompte(c); } }, 'Rôles'), ' ',
-              c.actif ? h('button', { class: 'btn petit', onclick: function () { modaleReinit(c); } }, 'Réinitialiser le mot de passe') : null));
+              h('button', { class: 'btn petit', onclick: function () { modaleCompte(c); } }, 'Modifier'), ' ',
+              h('button', { class: 'btn petit', onclick: function () { modaleReinit(c); } }, c.actif ? 'Réinitialiser le mot de passe' : 'Réactiver avec un mot de passe')));
         })))),
       h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: function () { modaleCompte(null); } }, '+ Nouveau compte')));
 
@@ -937,35 +1028,96 @@
         } }, 'Nouveau code de secours')),
       webauthn ? null : h('small', { class: 'muted', text: 'Les clés de sécurité nécessitent une page servie en HTTPS (GitHub Pages ou intranet).' }));
 
-    var cfg = config();
-    function zoneTexte(valeur, lignes) { return h('textarea', { rows: lignes || 4, class: 'mono' }, valeur); }
-    var tServices = zoneTexte((cfg.services || []).map(function (x) { return x.code + ' ; ' + x.libelle; }).join('\n'));
+    // -- Établissement et services
+    var etab = h('input', { type: 'text', value: cfg.etablissement || '', placeholder: 'Nom de l’établissement (en-tête des documents imprimés)' });
+    var tServices = zoneTexte(tousServices().map(function (x) { return x.code + ' ; ' + x.libelle; }).join('\n'));
     var tLieux = zoneTexte(Object.keys(cfg.lieuxCSI || {}).map(function (k) { return k + ' : ' + cfg.lieuxCSI[k].join(', '); }).join('\n'));
     var tPsy = zoneTexte((cfg.psychiatres || []).join('\n'), 5);
+    var pServices = h('section', { class: 'panneau' }, h('h2', { text: 'Établissement et services' }),
+      h('label', {}, 'Établissement', etab),
+      h('div', { class: 'grille-2' },
+        h('label', {}, 'Services (code ; libellé), un par ligne', tServices),
+        h('label', {}, 'Chambres de soins intensifs (code service : CSI 1, CSI 2)', tLieux)),
+      h('label', {}, 'Psychiatres proposés à la saisie (un par ligne)', tPsy),
+      boutonEnregistrer(async function () {
+        var svs = lignesDe(tServices).map(function (l) { var x = l.split(';'); if (x.length < 2 || !x[0].trim()) throw new Error('Service mal formé : ' + l); return { code: x[0].trim(), libelle: x.slice(1).join(';').trim() }; });
+        var codes = svs.map(function (x) { return x.code; });
+        if (codes.some(function (c, i) { return codes.indexOf(c) !== i; })) throw new Error('Deux services portent le même code.');
+        var utilises = M.listeMesures(st()).map(function (m) { return m.service; });
+        tousServices().forEach(function (x) { if (codes.indexOf(x.code) < 0 && utilises.indexOf(x.code) >= 0) throw new Error('Le service ' + x.code + ' a des mesures : il ne peut pas être supprimé (renommez son libellé).'); });
+        var lieux = {}; lignesDe(tLieux).forEach(function (l) { var x = l.split(':'); if (x.length < 2) throw new Error('Lieu mal formé : ' + l); lieux[x[0].trim()] = x.slice(1).join(':').split(',').map(function (v) { return v.trim(); }).filter(Boolean); });
+        await enregistrerConfig([['etablissement', etab.value.trim()], ['services', svs], ['lieuxCSI', lieux], ['psychiatres', lignesDe(tPsy)]]);
+      }));
+
+    // -- Surveillance
     var tPer = zoneTexte((cfg.periodes || []).map(function (p) { return p.code + ' ; ' + p.libelle + ' ; ' + p.debut + ' ; ' + p.fin; }).join('\n'), 3);
+    var lignesPS = [];
+    Object.keys(cfg.periodesService || {}).forEach(function (sv) { (cfg.periodesService[sv] || []).forEach(function (p) { lignesPS.push(sv + ' ; ' + p.code + ' ; ' + p.libelle + ' ; ' + p.debut + ' ; ' + p.fin); }); });
+    var tPerSv = zoneTexte(lignesPS.join('\n'), 3);
+    var pSurv = h('section', { class: 'panneau' }, h('h2', { text: 'Postes de surveillance en CSI' }),
+      h('div', { class: 'grille-2' },
+        h('label', {}, 'Postes par défaut (code ; libellé ; début ; fin)', tPer),
+        h('label', {}, 'Postes propres à un service (service ; code ; libellé ; début ; fin)', tPerSv)),
+      h('small', { class: 'muted', text: 'Un service qui a ses propres postes n’utilise pas les postes par défaut. Ne changez pas le code d’un poste déjà utilisé.' }),
+      boutonEnregistrer(async function () {
+        var pers = lignesDe(tPer).map(function (l) { return periodeDepuis(l.split(';').map(function (v) { return v.trim(); }), l); });
+        var parSv = {};
+        lignesDe(tPerSv).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length !== 5) throw new Error('Poste mal formé : ' + l); (parSv[x[0]] = parSv[x[0]] || []).push(periodeDepuis(x.slice(1), l)); });
+        await enregistrerConfig([['periodes', pers], ['periodesService', parSv]]);
+      }));
+
+    // -- Règles légales
+    var champs = [['seuilInfo15j', 'Information du JLD : seuil de cumul sur 15 jours (h)'], ['seuilSaisine15j', 'Saisine du JLD : seuil de cumul sur 15 jours (h)'], ['seuilDecision15j', 'Décision du JLD : seuil de cumul sur 15 jours (h)'],
+      ['intervalleCycle', 'Intervalle entre deux cycles (h)'], ['rythmeLongCycle', 'Rythme des mesures longues à partir du cycle (0 = désactivé)'], ['rythmeLongInfoSaisine', 'Rythme long : information et saisine (h)'], ['rythmeLongDecision', 'Rythme long : décision (h)'], ['seuilJaune', 'Alerte « échéance proche » (h avant)']];
+    var entrees = {};
+    var tbody = h('tbody', {}, champs.map(function (c) {
+      return h('tr', {}, h('td', { text: c[1] }), ['Isolement', 'Contention'].map(function (t) {
+        var p = R.params(t, cfg.parametres);
+        var inp = h('input', { type: 'number', min: 0, step: 1, value: p[c[0]], class: 'champ-court' });
+        entrees[t + c[0]] = inp;
+        return h('td', {}, inp, p[c[0]] !== R.PARAMETRES_DEFAUT[t][c[0]] ? h('small', { class: 'muted', text: ' (défaut ' + R.PARAMETRES_DEFAUT[t][c[0]] + ')' }) : null);
+      }));
+    }));
+    var delaiMode = h('input', { type: 'number', min: 0, max: 72, value: cfg.delaiModeHospiHeures == null ? 12 : cfg.delaiModeHospiHeures });
     var inact = h('input', { type: 'number', min: 2, max: 60, value: cfg.inactiviteMinutes || 10 });
-    var parametrage = h('section', { class: 'panneau' }, h('h2', { text: 'Paramétrage' }),
-      h('p', { class: 'muted', text: 'Chaque modification est une saisie tracée dans le journal.' }),
+    var pRegles = h('section', { class: 'panneau' }, h('h2', { text: 'Règles légales et sécurité' }),
+      h('div', { class: 'alerte', text: 'Les valeurs par défaut traduisent l’article L. 3222-5-1 du code de la santé publique et la circulaire du 25 mars 2022. Ne les modifiez qu’en cas d’évolution des textes, après avis de la direction.' }),
+      h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', { text: 'Paramètre' }), h('th', { text: 'Isolement' }), h('th', { text: 'Contention' }))), tbody)),
       h('div', { class: 'grille-2' },
-        h('label', {}, 'Services (code ; libellé)', tServices),
-        h('label', {}, 'Lieux de CSI (code service : CSI 1, CSI 2)', tLieux)),
-      h('div', { class: 'grille-2' },
-        h('label', {}, 'Psychiatres (un par ligne)', tPsy),
-        h('label', {}, 'Périodes de surveillance (code ; libellé ; début ; fin)', tPer)),
-      h('label', {}, 'Verrouillage après inactivité (minutes)', inact),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: async function () {
-        try {
-          var lignes = function (t) { return t.value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean); };
-          var svs = lignes(tServices).map(function (l) { var x = l.split(';'); if (x.length < 2) throw new Error('Service mal formé : ' + l); return { code: x[0].trim(), libelle: x.slice(1).join(';').trim() }; });
-          var lieux = {}; lignes(tLieux).forEach(function (l) { var x = l.split(':'); if (x.length < 2) throw new Error('Lieu mal formé : ' + l); lieux[x[0].trim()] = x.slice(1).join(':').split(',').map(function (v) { return v.trim(); }).filter(Boolean); });
-          var pers = lignes(tPer).map(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length !== 4 || !/^\d\d:\d\d$/.test(x[2]) || !/^\d\d:\d\d$/.test(x[3])) throw new Error('Période mal formée : ' + l); return { code: x[0], libelle: x[1], debut: x[2], fin: x[3] }; });
-          var changements = [['services', svs], ['lieuxCSI', lieux], ['psychiatres', lignes(tPsy)], ['periodes', pers], ['inactiviteMinutes', Math.max(2, Math.min(60, +inact.value || 10))]];
-          for (var i = 0; i < changements.length; i++) {
-            if (JSON.stringify(cfg[changements[i][0]]) !== JSON.stringify(changements[i][1])) await s.enregistrer('CONFIG', { cle: changements[i][0], valeur: changements[i][1] });
-          }
-          toast('Paramétrage enregistré.');
-        } catch (err) { alert(err.message); }
-      } }, 'Enregistrer le paramétrage')));
+        h('label', {}, 'Registre : passage des soins libres à une hospitalisation sous contrainte retenu s’il survient dans les … heures suivant le début', delaiMode),
+        h('label', {}, 'Verrouillage automatique après inactivité (minutes)', inact)),
+      boutonEnregistrer(async function () {
+        var par = {};
+        ['Isolement', 'Contention'].forEach(function (t) {
+          champs.forEach(function (c) {
+            var v = +entrees[t + c[0]].value;
+            if (!isFinite(v) || v < 0) throw new Error('Valeur invalide : ' + c[1] + ' (' + t + ')');
+            if (v !== R.PARAMETRES_DEFAUT[t][c[0]]) { par[t] = par[t] || {}; par[t][c[0]] = v; }
+          });
+        });
+        await enregistrerConfig([['parametres', par], ['delaiModeHospiHeures', Math.max(0, +delaiMode.value || 0)], ['inactiviteMinutes', Math.max(2, Math.min(60, +inact.value || 10))]]);
+      }));
+
+    // -- Registre et décompte
+    var lignesC = [];
+    Object.keys(cfg.compteursRegistre || {}).forEach(function (sv) { Object.keys(cfg.compteursRegistre[sv]).forEach(function (an) { lignesC.push(sv + ' ; ' + an + ' ; ' + cfg.compteursRegistre[sv][an]); }); });
+    var tComp = zoneTexte(lignesC.join('\n'), 3);
+    var lignesD = Object.keys(cfg.decompte || {}).map(function (sv) { var d = cfg.decompte[sv]; return [sv, d.titreIsolement || '', d.titreContention || '', d.sousTitre || '', (d.masquer || []).join(',')].join(' ; '); });
+    var tDec = zoneTexte(lignesD.join('\n'), 3);
+    var pDocs = h('section', { class: 'panneau' }, h('h2', { text: 'Registre et décompte JLD' }),
+      h('label', {}, 'Dernier numéro utilisé dans le registre antérieur à l’outil (service ; année ; numéro)', tComp),
+      h('label', {}, 'Décompte JLD par service (service ; titre isolement ; titre contention ; sous-titre ; colonnes masquées parmi N,Debut,Fin,Duree,Cumul)', tDec),
+      boutonEnregistrer(async function () {
+        var comp = {};
+        lignesDe(tComp).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length !== 3 || !/^\d{4}$/.test(x[1]) || !/^\d+$/.test(x[2])) throw new Error('Ligne mal formée : ' + l); comp[x[0]] = comp[x[0]] || {}; comp[x[0]][x[1]] = +x[2]; });
+        var dec = {};
+        lignesDe(tDec).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length < 2) throw new Error('Ligne mal formée : ' + l); dec[x[0]] = { titreIsolement: x[1] || '', titreContention: x[2] || '', sousTitre: x[3] || '', masquer: (x[4] || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean) }; });
+        await enregistrerConfig([['compteursRegistre', comp], ['decompte', dec]]);
+      }));
+
+    var pImport = SIC.ui.actions.importer ? h('section', { class: 'panneau' }, h('h2', { text: 'Reprise des données du classeur Excel (V1.3)' }),
+      h('p', { class: 'muted', text: 'Lit le classeur directement dans ce navigateur (rien n’est envoyé), affiche un rapport, puis enregistre les mesures, patients, cycles JLD, tiers et professionnels. Un import relancé ne crée pas de doublon.' }),
+      h('button', { class: 'btn', onclick: SIC.ui.actions.importer }, 'Importer un classeur…')) : null;
 
     var demo = App.dossier.mode === 'demo' ? h('section', { class: 'panneau' }, h('h2', { text: 'Démonstration' }),
       h('p', { class: 'muted', text: 'Efface toutes les données de démonstration de ce navigateur et revient à l’accueil.' }),
@@ -978,11 +1130,12 @@
       h('div', { class: 'recap' },
         h('div', { text: 'Version : ' + SIC.VERSION }),
         h('div', { text: 'Dossier : ' + App.dossier.nom + ' (' + (App.dossier.mode === 'demo' ? 'démonstration' : 'réseau') + ')' }),
-        h('div', { text: 'Saisies dans le journal : ' + s.evts.length }),
+        h('div', { text: 'Saisies dans le journal : ' + s.evts.length + (s.rejetes.length ? ' — ' + s.rejetes.length + ' fichier(s) illisible(s)' : '') }),
         h('div', { text: 'Coffre : révision ' + s.coffre.rev + ', ' + embs.length + ' moyen(s) de déblocage' }),
-        h('div', { text: 'Adresse : ' + location.protocol + '//' + (location.host || '(fichier local)') })));
+        h('div', { text: 'Adresse : ' + location.protocol + '//' + (location.host || '(fichier local)') }),
+        h('div', { text: 'Licence : EUPL-1.2 — code source : github.com/rodtrip2/Suivi-mesures-isocont' })));
 
-    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, parametrage, demo, infos);
+    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, pServices, pSurv, pRegles, pDocs, pImport, demo, infos);
   }
 
   function casesRoles(actuels) {
@@ -990,23 +1143,51 @@
     var cases = {};
     Object.keys(M.ROLES).forEach(function (r) {
       cases[r] = h('input', { type: 'checkbox', checked: actuels.indexOf(r) >= 0 });
-      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre', ADMIN: 'comptes, clés, paramétrage' })[r] })));
+      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
     });
+    bloc.cases = cases;
     bloc.valeur = function () { var v = Object.keys(cases).filter(function (r) { return cases[r].checked; }); if (!v.length) throw new Error('Choisissez au moins un rôle.'); return v; };
+    return bloc;
+  }
+
+  function casesServices(actuels, roles) {
+    var bloc = h('div', { class: 'pile' });
+    var cases = {};
+    var note = h('small', { class: 'muted', text: 'Administrateur : accès à tous les services.' });
+    tousServices().forEach(function (x) {
+      cases[x.code] = h('input', { type: 'checkbox', checked: actuels.indexOf(x.code) >= 0 });
+      bloc.appendChild(h('label', { class: 'case' }, cases[x.code], h('span', { text: x.libelle + ' (' + x.code + ')' })));
+    });
+    bloc.appendChild(note);
+    function maj() {
+      var admin = roles.cases.ADMIN.checked;
+      note.hidden = !admin;
+      Object.keys(cases).forEach(function (k) { cases[k].disabled = admin; });
+    }
+    roles.cases.ADMIN.addEventListener('change', maj); maj();
+    bloc.valeur = function (rolesChoisis) {
+      var v = Object.keys(cases).filter(function (k) { return cases[k].checked; });
+      if (rolesChoisis.indexOf('ADMIN') < 0 && !v.length) throw new Error('Affectez au moins un service.');
+      return v;
+    };
     return bloc;
   }
 
   function modaleCompte(c) {
     var s = App.session;
     var roles = casesRoles(c ? c.roles : ['IDE']);
+    var svs = casesServices(c ? (c.services || []) : (App.service !== '*' ? [App.service] : []), roles);
     if (c) {
       var actif = h('input', { type: 'checkbox', checked: c.actif });
-      return modale('Rôles — ' + c.nom, h('div', { class: 'pile' }, roles, h('label', { class: 'case' }, actif, h('span', { text: 'Compte actif (désactiver retire son mot de passe du coffre)' }))), [
+      return modale('Compte — ' + c.nom, h('div', { class: 'pile' },
+        h('div', {}, h('b', { text: 'Rôles' }), roles), h('div', {}, h('b', { text: 'Services affectés' }), svs),
+        h('label', { class: 'case' }, actif, h('span', { text: 'Compte actif (désactiver retire son mot de passe du coffre)' }))), [
         { texte: 'Annuler' },
         { texte: 'Enregistrer', classe: 'primaire', action: async function () {
-          var r = roles.valeur();
+          var r = roles.valeur(), sv = svs.valeur(r);
           if (c.id === s.utilisateur.id && r.indexOf('ADMIN') < 0 && !confirm('Vous retirez votre propre rôle d’administrateur. Continuer ?')) return false;
-          await s.modifierRoles(c.id, r, actif.checked); toast('Compte mis à jour.');
+          if (r.indexOf('ADMIN') >= 0 && !actif.checked && s.comptes.filter(function (x) { return x.actif && x.roles.indexOf('ADMIN') >= 0 && x.id !== c.id; }).length === 0) throw new Error('Il doit rester au moins un administrateur actif.');
+          await s.modifierRoles(c.id, r, actif.checked, sv); toast('Compte mis à jour.');
         } }]);
     }
     var nom = h('input', { type: 'text' }), login = h('input', { type: 'text', placeholder: 'prenom.nom' }), mdp = h('input', { type: 'password', autocomplete: 'new-password' });
@@ -1014,29 +1195,52 @@
       h('div', { class: 'grille-2' }, h('label', {}, 'Nom affiché', nom), h('label', {}, 'Identifiant', login)),
       h('label', {}, 'Mot de passe provisoire (12 caractères minimum)', mdp),
       h('div', {}, h('b', { text: 'Rôles' }), roles),
+      h('div', {}, h('b', { text: 'Services affectés' }), svs),
       h('small', { class: 'muted', text: 'Communiquez le mot de passe provisoire en main propre ; l’agent le change depuis le bouton « Mot de passe ».' })), [
       { texte: 'Annuler' },
       { texte: 'Créer le compte', classe: 'primaire', action: async function () {
         if (!nom.value.trim()) throw new Error('Indiquez le nom.');
         if (mdp.value.length < 12) throw new Error('12 caractères minimum.');
-        await s.creerCompte({ nom: nom.value, login: login.value, motDePasse: mdp.value, roles: roles.valeur() });
+        var r = roles.valeur();
+        await s.creerCompte({ nom: nom.value, login: login.value, motDePasse: mdp.value, roles: r, services: svs.valeur(r) });
         toast('Compte créé.');
       } }], { focus: nom });
   }
 
   function modaleReinit(c) {
     var mdp = h('input', { type: 'password', autocomplete: 'new-password' });
-    modale('Réinitialiser le mot de passe — ' + c.nom, h('div', { class: 'pile' },
+    modale((c.actif ? 'Réinitialiser le mot de passe — ' : 'Réactiver — ') + c.nom, h('div', { class: 'pile' },
       h('p', { text: 'Le nouveau mot de passe remplace l’ancien. L’opération est tracée.' }),
       h('label', {}, 'Mot de passe provisoire (12 caractères minimum)', mdp)), [
       { texte: 'Annuler' },
-      { texte: 'Réinitialiser', classe: 'primaire', action: async function () {
+      { texte: c.actif ? 'Réinitialiser' : 'Réactiver', classe: 'primaire', action: async function () {
         if (mdp.value.length < 12) throw new Error('12 caractères minimum.');
+        if (!c.actif) await App.session.modifierRoles(c.id, c.roles, true, c.services || []);
         await App.session.reinitialiserMotDePasse(c.id, mdp.value);
-        toast('Mot de passe réinitialisé.');
+        toast(c.actif ? 'Mot de passe réinitialisé.' : 'Compte réactivé.');
       } }], { focus: mdp });
   }
 
-  // ================================================================ Démarrage
-  rendre();
+  // ================================================================ Impression
+  /** Imprime un document construit à part (décompte, rapport), sans l'interface autour. */
+  function imprimer(noeud) {
+    var zone = document.getElementById('zone-impression') || document.body.appendChild(h('div', { id: 'zone-impression' }));
+    vider(zone).appendChild(noeud);
+    document.body.classList.add('mode-impression');
+    var fin = function () { document.body.classList.remove('mode-impression'); vider(zone); window.removeEventListener('afterprint', fin); };
+    window.addEventListener('afterprint', fin);
+    window.print();
+  }
+
+  // ================================================================ Partage avec les autres modules
+  SIC.ui = {
+    vues: (SIC.ui && SIC.ui.vues) || {}, actions: (SIC.ui && SIC.ui.actions) || {},
+    h: h, vider: vider, date: date, court: court, duree: duree, relatif: relatif, versSaisie: versSaisie, depuisSaisie: depuisSaisie,
+    toast: toast, modale: modale, imprimer: imprimer, erreurDans: erreurDans, fmtJour: fmtJour,
+    App: App, st: st, config: config, services: services, tousServices: tousServices, libService: libService, etablissement: etablissement,
+    patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
+    badgeType: badgeType, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
+    LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
+    demarrer: rendre
+  };
 })();

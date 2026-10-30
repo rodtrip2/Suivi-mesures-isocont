@@ -166,3 +166,48 @@ dialog .pied { padding: 12px 20px; border-top: 1px solid var(--line); display: f
   .entete, .barre .btn, .actions-ligne, .bandeau-demo { display: none !important; }
   body { background: #fff; }
 }
+
+/* ---------- Champs */
+.champ-court { max-width: 120px; }
+.champ-moyen { max-width: 280px; }
+fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 8px; }
+legend { font-weight: 600; padding: 0 4px; }
+details summary { cursor: pointer; font-weight: 500; }
+ul.vigilance { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+/* ---------- Statistiques */
+table.stats td.num, table.stats th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.figure { margin: 0; }
+.graphique { width: 100%; height: auto; max-height: 260px; }
+.graphique .grille { stroke: var(--line); stroke-width: 1; }
+.graphique .axe { fill: var(--ink-2); font-size: 11px; }
+.graphique .barre-n { fill: var(--accent); }
+.graphique .barre-n1 { fill: var(--ink-2); opacity: .4; }
+figcaption { font-size: .85rem; color: var(--ink-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.puce { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.puce.n { background: var(--accent); }
+.puce.n1 { background: var(--ink-2); opacity: .4; }
+
+/* ---------- Document du décompte JLD */
+.apercu-document { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: #fff; color: #111; max-height: 45vh; overflow: auto; }
+.document-jld { font-size: 12.5px; color: #111; }
+.document-jld h1 { font-size: 17px; margin: 4px 0; }
+.document-jld .doc-etab { font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: .04em; }
+.document-jld .doc-sous-titre { color: #444; margin-bottom: 8px; }
+.document-jld table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+.document-jld th, .document-jld td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; position: static; background: none; color: #111; white-space: normal; }
+.document-jld .doc-identite th { width: 150px; background: #f1f1f1; }
+.document-jld .doc-tableau th { background: #f1f1f1; }
+.document-jld footer { margin-top: 14px; font-size: 10.5px; color: #555; border-top: 1px solid #ccc; padding-top: 6px; }
+
+/* ---------- Impression */
+.seulement-impression { display: none; }
+#zone-impression { display: none; }
+@media print {
+  .seulement-impression { display: block; }
+  body.mode-impression > *:not(#zone-impression) { display: none !important; }
+  body.mode-impression #zone-impression { display: block; }
+  .panneau, .indicateur, .table-wrap { break-inside: avoid; border-color: #bbb; }
+  th { position: static; }
+  main { padding: 0; }
+}

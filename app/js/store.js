@@ -1,9 +1,17 @@
+// SPDX-License-Identifier: EUPL-1.2
 /*
  * Stockage — dossier réseau (API File System Access) ou stockage privé du
  * navigateur (mode démonstration, même API via navigator.storage.getDirectory).
  *
  *   coffre.json                       copies emballées de la clé + comptes chiffrés
  *   evenements/AAAA/MM/<nom>.enc      une saisie = un fichier chiffré, jamais modifié
+ *   instantanes/AAAA-MM.enc           copie consolidée des saisies d'un mois clos
+ *
+ * Instantanés : les saisies sont rangées par mois de saisie. Un mois clos
+ * (antérieur au mois précédent) ne reçoit plus de fichiers ; ses saisies sont
+ * regroupées dans un instantané, lu en une seule fois au lieu de centaines de
+ * petits fichiers. Les fichiers d'origine ne sont jamais supprimés : si un
+ * instantané ne couvre pas tous les fichiers du mois, il est complété.
  *
  * Écriture atomique : createWritable() écrit dans un fichier temporaire et ne
  * remplace la cible qu'à la fermeture ; un fichier interrompu n'apparaît jamais.
@@ -128,30 +136,79 @@
     return nom;
   };
 
-  /** Liste les fichiers d'événements absents de `connus` et les déchiffre. */
-  Dossier.prototype.lireNouveaux = async function (cle, connus) {
-    var res = { evenements: [], rejetes: [] };
+  function moisClos(cle, maintenant) {
+    var d = new Date(maintenant); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
+    return cle < d.toISOString().slice(0, 7);
+  }
+
+  async function lireEvenement(cle, fichier) {
+    var octets = new Uint8Array(await (await fichier.getFile()).arrayBuffer());
+    var e = await C.dechiffrerJSON(cle, octets, 'evt:' + fichier.name);
+    if (e.id + '.enc' !== fichier.name) throw new Error('nom incohérent');
+    return e;
+  }
+
+  /**
+   * Lit les saisies absentes de `connus` (noms de fichiers déjà chargés) :
+   * instantané du mois s'il existe, puis fichiers individuels restants.
+   * Écrit les instantanés manquants ou incomplets des mois clos.
+   */
+  Dossier.prototype.lireNouveaux = async function (cle, connus, options) {
+    var res = { evenements: [], rejetes: [], instantanes: 0 };
     var racine;
     try { racine = await this.sousDossier(['evenements'], false); } catch (e) { return res; }
+    var maintenant = Date.now();
     for await (var an of racine.values()) {
       if (an.kind !== 'directory') continue;
       for await (var mois of an.values()) {
         if (mois.kind !== 'directory') continue;
-        for await (var f of mois.values()) {
-          if (f.kind !== 'file' || !/\.enc$/.test(f.name) || connus.has(f.name)) continue;
-          connus.add(f.name);
-          try {
-            var octets = new Uint8Array(await (await f.getFile()).arrayBuffer());
-            var e = await C.dechiffrerJSON(cle, octets, 'evt:' + f.name);
-            if (e.id + '.enc' !== f.name) throw new Error('nom incohérent');
-            res.evenements.push(e);
-          } catch (err) {
-            res.rejetes.push({ nom: f.name, raison: err.message || String(err) });
+        var cleMois = an.name + '-' + mois.name;
+        var fichiers = [];
+        for await (var f of mois.values()) if (f.kind === 'file' && /\.enc$/.test(f.name)) fichiers.push(f);
+        var nouveaux = fichiers.filter(function (x) { return !connus.has(x.name); });
+        if (!nouveaux.length) continue;
+        var clos = moisClos(cleMois, maintenant) && !(options && options.sansInstantanes);
+        var duMois = {}, rejetsMois = 0;
+        if (clos) {
+          var snap = await this.lireInstantane(cle, cleMois);
+          if (snap) snap.evenements.forEach(function (e) { duMois[e.id + '.enc'] = e; });
+        }
+        for (var i = 0; i < fichiers.length; i++) {
+          var nom = fichiers[i].name;
+          if (duMois[nom] || connus.has(nom)) continue; // déjà lu (instantané ou session en cours)
+          try { duMois[nom] = await lireEvenement(cle, fichiers[i]); }
+          catch (err) { rejetsMois++; res.rejetes.push({ nom: nom, raison: err.message || String(err) }); }
+        }
+        nouveaux.forEach(function (x) {
+          connus.add(x.name);
+          if (duMois[x.name]) res.evenements.push(duMois[x.name]);
+        });
+        // Instantané : seulement si tous les fichiers du mois sont lisibles et en main.
+        if (clos && !rejetsMois && fichiers.every(function (x) { return duMois[x.name]; })) {
+          var evts = fichiers.map(function (x) { return duMois[x.name]; });
+          if (!snap || snap.evenements.length !== evts.length) {
+            try { await this.ecrireInstantane(cle, cleMois, evts); res.instantanes++; } catch (err) { /* sans conséquence */ }
           }
         }
       }
     }
     return res;
+  };
+
+  Dossier.prototype.lireInstantane = async function (cle, cleMois) {
+    try {
+      var dir = await this.sousDossier(['instantanes'], false);
+      var o = await this.lireFichier(dir, cleMois + '.enc');
+      if (!o) return null;
+      var snap = await C.dechiffrerJSON(cle, o, 'snap:' + cleMois);
+      return snap && snap.mois === cleMois && Array.isArray(snap.evenements) ? snap : null;
+    } catch (e) { return null; }
+  };
+
+  Dossier.prototype.ecrireInstantane = async function (cle, cleMois, evts) {
+    var dir = await this.sousDossier(['instantanes'], true);
+    var octets = await C.chiffrerJSON(cle, { mois: cleMois, creeLe: new Date().toISOString(), evenements: evts }, 'snap:' + cleMois);
+    await this.ecrireFichier(dir, cleMois + '.enc', octets);
   };
 
   Dossier.prototype.vider = async function () {

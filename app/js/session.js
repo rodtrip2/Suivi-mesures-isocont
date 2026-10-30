@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: EUPL-1.2
 /*
  * Session — coffre de clés, comptes, journal et synchronisation.
  */
@@ -117,24 +118,25 @@
     if (!/^[a-z0-9._-]{2,40}$/.test(login)) throw new Error('Identifiant : lettres minuscules, chiffres, point, tiret (2 à 40 caractères).');
     await this.modifierCoffre(async function (coffre, comptes) {
       if (comptes.some(function (x) { return x.login === login; })) throw new Error('Cet identifiant existe déjà.');
-      var compte = { id: 'u' + id8(), login: login, nom: c.nom.trim(), roles: c.roles, actif: true };
+      var compte = { id: 'u' + id8(), login: login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true };
       comptes.push(compte);
       var emb = await C.emballerMotDePasse(s.cle, c.motDePasse);
       emb.id = 'k' + id8(); emb.userId = compte.id; emb.login = login;
       coffre.emballages.push(emb);
     });
-    await this.tracer('CREATION', { login: login, roles: c.roles });
+    await this.tracer('CREATION', { login: login, roles: c.roles, services: c.services || [] });
   };
 
-  Session.prototype.modifierRoles = async function (userId, roles, actif) {
+  Session.prototype.modifierRoles = async function (userId, roles, actif, services) {
     await this.modifierCoffre(async function (coffre, comptes) {
       var c = comptes.filter(function (x) { return x.id === userId; })[0];
       if (!c) throw new Error('Compte introuvable.');
-      c.roles = roles; c.actif = actif;
+      c.roles = roles; c.actif = actif; c.services = services || [];
       if (!actif) coffre.emballages = coffre.emballages.filter(function (e) { return e.userId !== userId; });
     });
     var c2 = this.comptes.filter(function (x) { return x.id === userId; })[0];
-    await this.tracer('ROLES', { login: c2 ? c2.login : userId, roles: roles, actif: actif });
+    await this.tracer('ROLES', { login: c2 ? c2.login : userId, roles: roles, actif: actif, services: services || [] });
+    if (userId === this.utilisateur.id && c2) this.utilisateur = c2;
   };
 
   Session.prototype.reinitialiserMotDePasse = async function (userId, motDePasse) {
@@ -184,6 +186,8 @@
 
   // ---------------------------------------------------------- Journal
   Session.prototype.roles = function () { return this.utilisateur ? this.utilisateur.roles : []; };
+  /** Codes des services que l'utilisateur connecté peut voir (tous pour un administrateur). */
+  Session.prototype.mesServices = function () { return this.etat ? M.servicesDe(this.utilisateur, this.etat.config) : []; };
   Session.prototype.peut = function (type) { return M.peut(this.roles(), type); };
 
   Session.prototype.nomAuteur = function (userId) {
@@ -211,6 +215,11 @@
     return evt;
   };
 
+  /** Enregistre plusieurs saisies dans un seul fichier (import, données de démonstration). */
+  Session.prototype.enregistrerLot = function (evenements, options) {
+    return this.enregistrer('LOT', { evenements: evenements, libelle: (options && options.libelle) || '' }, undefined, options);
+  };
+
   Session.prototype.recalculer = function () {
     this.etat = M.reduire(this.evts);
     this.notifier();
@@ -218,6 +227,17 @@
 
   Session.prototype.synchroniser = async function () {
     if (!this.cle) return 0;
+    if (this.derniereSynchro && Date.now() - (this.dernierCoffre || 0) > 60000) {
+      this.dernierCoffre = Date.now();
+      try {
+        var coffre = await this.dossier.lireCoffre();
+        if (coffre && this.coffre && coffre.rev !== this.coffre.rev) {
+          this.coffre = coffre; await lireComptes(this);
+          var moi = this.utilisateur && this.comptes.filter(function (c) { return c.id === this.utilisateur.id; }, this)[0];
+          if (moi) this.utilisateur = moi;
+        }
+      } catch (e) { /* coffre momentanément illisible : nouvelle tentative plus tard */ }
+    }
     var r = await this.dossier.lireNouveaux(this.cle, this.connus);
     this.rejetes = this.rejetes.concat(r.rejetes);
     this.derniereSynchro = Date.now();

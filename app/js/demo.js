@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: EUPL-1.2
 /*
  * Données fictives de démonstration. Aucun nom réel : patients, soignants et
  * psychiatres sont inventés et marqués comme tels.
@@ -17,6 +18,7 @@
 
     var cfg = function (cle, valeur) { ajouter(t(-24 * 300), 'CONFIG', { cle: cle, valeur: valeur }); };
     cfg('services', [{ code: 'U1', libelle: 'Unité 1 (fictive)' }, { code: 'U2', libelle: 'Unité 2 (fictive)' }]);
+    cfg('etablissement', 'Établissement fictif de démonstration');
     cfg('lieuxCSI', { U1: ['CSI 1', 'CSI 2'], U2: ['CSI A'] });
     cfg('psychiatres', ['Dr Arnaud (fictif)', 'Dr Benoît (fictif)', 'Dr Chen (fictif)', 'Dr Diallo (fictif)']);
 
@@ -90,9 +92,7 @@
     }
 
     file.sort(function (a, b) { return a.at - b.at || a.n - b.n; });
-    for (var i = 0; i < file.length; i++) {
-      var at = new Date(Math.min(file[i].at, now) + i).toISOString();
-      await session.enregistrer(file[i].type, file[i].data, undefined, { at: at, by: 'demo', sansControle: true });
-    }
+    var lot = file.map(function (x, i) { return { at: new Date(Math.min(x.at, now) + i).toISOString(), by: 'demo', type: x.type, data: x.data }; });
+    await session.enregistrerLot(lot, { libelle: 'Données fictives de démonstration', by: 'demo', sansControle: true });
   };
 })(typeof self !== 'undefined' ? self : this);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: EUPL-1.2
 /*
  * Chiffrement — Web Crypto API uniquement (aucune bibliothèque externe).
  *  - Clé de données : AES-GCM 256 bits, tirée au hasard à l'initialisation.
