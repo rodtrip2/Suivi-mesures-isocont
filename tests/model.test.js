@@ -101,3 +101,12 @@ test('Postes de surveillance propres à un service', () => {
   assert.ok(postes.length >= 3);
   assert.ok(postes.every(p => p.periode === 'J' || p.periode === 'N'));
 });
+
+test('Chaînage : une saisie supprimée du dossier est signalée', () => {
+  const a = evt('PATIENT', { patientId: 'P1' });
+  const b = evt('PATIENT', { patientId: 'P2' }, { prec: a.id });
+  const c = evt('PATIENT', { patientId: 'P3' }, { prec: b.id });
+  assert.equal(M.reduire([a, b, c]).manquants.length, 0);
+  const st = M.reduire([a, c]);
+  assert.deepEqual(st.manquants.map(x => x.manque), [b.id]);
+});

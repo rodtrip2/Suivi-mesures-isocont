@@ -1,78 +1,67 @@
-# Architecture — Suivi-mesures-isocont
+# Architecture — Suivi-mesures-isocont 1.0
 
-Version de travail du 30/10/2026. Le document de référence, avec schémas et tableau de conformité, est tenu à jour en ligne (Claude Docs, « Suivi iso/cont Web – Document d'architecture ») ; ce fichier en reprend les décisions techniques utiles au développement.
+Document de référence pour les développeurs. La présentation destinée à la DSI est dans [kit/02-fiche-technique-dsi.md](../kit/02-fiche-technique-dsi.md).
 
 ## 1. Périmètre fonctionnel
 
-- Outil parallèle au DPI : suivi des durées, saisine JLD, registre anonymisé, statistiques.
-- L'IDE reporte uniquement les décisions médicales de début et de fin de mesure (psychiatre décisionnaire, date, heure). Les psychiatres ne sont pas utilisateurs.
-- Rôles (un utilisateur peut en cumuler plusieurs) :
-  - **IDE** : report des décisions de début et de fin, traçabilité des agents par demi-journée, report de l'information des tiers, envois et suivi JLD le week-end ;
-  - **Secrétaire** : envois et suivi JLD en semaine ;
-  - **Cadre de santé** : pilotage, tableau de bord, registre anonymisé, statistiques, comptes du service ;
-  - **Administrateur** : paramétrage, services, clés de secours, rotation de clé (porté actuellement par le cadre, séparable).
-- Information des tiers : faite par le psychiatre, en dernier recours par l'IDE ; l'événement enregistre qui l'a faite (psychiatre nommé ou IDE).
-- Envois JLD : l'IDE dispose en permanence des mêmes actions JLD que la secrétaire (usage prévu le week-end et en cas d'absence de la secrétaire) ; chaque action est tracée nominativement.
-- Repris de la V1.3 : traçabilité des agents présents par demi-journée avec créneaux paramétrables (nécessaire au registre anonymisé), lieux de CSI par service, modes d'hospitalisation (SDT, SDTU, SPI, SDRE, SL, SL mineur) et alertes soins libres, mesure de protection juridique, information des tiers et motifs de refus, échéances et export JLD avec colonnes masquables par service, tableau de bord, registre anonymisé (catégories A à E, numérotation par service et par année), historique des changements de mode d'hospitalisation, création de service, verrouillage automatique.
+- Outil parallèle au DPI : suivi des durées, calendrier JLD, registre anonymisé, statistiques.
+- L'IDE reporte les décisions médicales de début et de fin (psychiatre décisionnaire, date, heure). Les psychiatres ne sont pas utilisateurs.
+- Rôles cumulables : **IDE** (début, fin, tiers, professionnels en CSI, JLD en permanence) ; **secrétaire** (JLD) ; **cadre** (idem IDE + corrections, annulations, statistiques) ; **administrateur** (paramétrage, comptes, clés, import).
+- **Services affectés** : chaque compte non administrateur porte une liste de services ; l'interface ne montre que ceux-ci (sélecteur d'en-tête, listes, création de mesure). `model.servicesDe(compte, config)`.
+- Information des tiers : faite par le psychiatre, en dernier recours par l'IDE ; l'événement enregistre qui l'a faite.
+- Reprise intégrale de la V1.3, y compris la traçabilité des professionnels par poste (nécessaire au registre). La réévaluation médicale optionnelle de la V1.3 n'est pas reprise (elle relève du DPI).
 
-## 2. Déploiement
+## 2. Modules
 
-| Mode | YubiKey | Usage |
+| Fichier | Rôle | Testé sous Node |
 | --- | --- | --- |
-| GitHub Pages | Oui | Démonstration, données fictives |
-| Intranet HTTPS | Oui (nom de domaine requis) | Production |
-| Partage réseau (`file://`) | Non | Repli, accès au dossier à vérifier |
-
-Une YubiKey est liée au nom de domaine : l'enregistrer dans chaque mode utilisé.
+| `rules.js` | Cumuls glissants, échéances JLD par cycle, statuts | oui |
+| `model.js` | Réduction du journal en état, droits, conflits, chaînage, registre, statistiques, décompte, postes | oui |
+| `crypto.js` | AES-GCM, PBKDF2, HKDF, WebAuthn PRF, code de secours | oui (hors WebAuthn) |
+| `store.js` | Dossier (File System Access ou stockage privé du navigateur), lecture incrémentale, instantanés | oui (dossier simulé) |
+| `session.js` | Coffre, comptes, connexion, enregistrement, lots, synchronisation | oui (dossier simulé) |
+| `xlsx.js`, `import-v13.js` | Lecture d'un classeur Excel sans bibliothèque ; conversion V1.3 → événements | oui |
+| `ui.js`, `ui-*.js`, `main.js` | Interface (DOM construit sans `innerHTML`) | test de bout en bout manuel/Playwright |
 
 ## 3. Stockage
 
 ```
 SuiviIsoCont/
-  coffre.json      copies emballées de la clé de données, comptes, rôles
-  config/          paramétrage chiffré par service
-  evenements/AAAA/MM/<horodatage>_<utilisateur>_<aléa>.enc
-  instantanes/     états consolidés chiffrés
-  verrous/         verrous de consolidation (avec expiration)
+  coffre.json                      emballages de la clé de données, comptes chiffrés, révision
+  evenements/AAAA/MM/<id>.enc      une saisie (ou un lot) par fichier, mois UTC de la saisie
+  instantanes/AAAA-MM.enc          copie consolidée d'un mois clos (régénérable)
 ```
 
-- Journal d'événements en **ajout seul** ; écriture dans un fichier temporaire puis renommage.
-- État des mesures = relecture des événements (à partir du dernier instantané).
-- Chaque événement porte : id, type, auteur, horodatage, id de mesure, version de mesure de base, données, empreinte de l'événement précédent du même poste.
-- Conflit = deux événements modifiant le même champ d'une mesure depuis la même version → arbitrage manuel, les deux restent au journal.
-- Correction = nouvel événement référençant l'original (jamais de modification en place).
-- Relecture périodique du dossier (délai à calibrer sur le partage réseau réel).
+- Identifiant d'événement : `AAAAMMJJTHHMMSSZ_<auteur>_<aléa>` ; écriture exclusive (refus si le nom existe), atomique (`createWritable`).
+- Événement : `{ v, id, at, by, type, data, base?, prec }`. `base` = version de la mesure vue par l'auteur ; `prec` = identifiant de sa saisie précédente (chaînage).
+- **Lot** (`type: LOT`) : un fichier contenant plusieurs saisies (`data.evenements`), dépliées à la lecture avec les identifiants `<lot>.<n°>` ; annulable en bloc ou saisie par saisie. Utilisé par l'import et les données de démonstration.
+- **Instantanés** : un mois est clos s'il est antérieur au mois précédent. À la lecture, l'instantané fournit les saisies du mois ; les fichiers absents de l'instantané sont lus un à un, puis l'instantané est réécrit. Les fichiers individuels font foi : une saisie présente dans l'instantané sans fichier correspondant est ignorée.
 
-## 4. Chiffrement
+## 4. Réduction et conflits
 
-- Clé de données AES-GCM 256 bits générée aléatoirement (Web Crypto). IV aléatoire de 96 bits par fichier.
-- `coffre.json` : une copie de la clé par moyen de déblocage :
-  - mot de passe → PBKDF2-SHA256 (nombre d'itérations élevé) ou Argon2id (WASM embarqué) ;
-  - YubiKey → secret WebAuthn PRF (YubiKey 5, firmware ≥ 5.2, Chrome/Edge récents) ;
-  - code de secours papier (aléa long, imprimé à l'initialisation).
-- Au moins deux YubiKeys d'administration, dont une au coffre.
-- Clé en mémoire uniquement pendant la session ; effacée au verrouillage.
-- Rotation : nouvelle clé + rechiffrement, opération tracée.
+- Tri par `at` puis `id` ; annulations appliquées d'abord (elles neutralisent leur cible quelle que soit leur date).
+- Conflit : deux saisies du même champ logique d'une mesure (`fin`, `jld:<cycle>:<nature>`, `corr:<champs>`) dont la seconde a une `base` antérieure à la version produite par la première et un auteur différent. La seconde n'est pas appliquée, elle est listée dans `st.conflits` ; l'arbitrage consiste à annuler l'une des deux.
+- Chaînage : un `prec` introuvable est listé dans `st.manquants` (fichier supprimé ou non restauré).
 
-## 5. Sécurité applicative
+## 5. Règles légales (tests de référence)
 
-- CSP stricte dans la page : `connect-src 'none'`, aucun script ni police externe.
-- Aucune dépendance chargée à distance ; bibliothèques embarquées.
-- Empreinte SHA-256 publiée pour chaque version.
-- Rôles appliqués par l'interface (pas de serveur) : contournement possible mais détectable via la traçabilité nominative et le chaînage.
+- Échéances du cycle 1 : début + (seuil sur 15 jours − cumul du même type dans les 15 jours précédant le début). Seuils par défaut : isolement 48/72/96 h, contention 24/48/72 h.
+- Cycles suivants : + (n − 1) × intervalle (96 h isolement, 72 h contention), **toujours depuis le début de la mesure**, jamais depuis la date des décisions du juge.
+- Rythme des mesures longues (isolement, à partir du cycle 3) : chaque cycle part de l'échéance de décision du précédent ; information et saisine à + 144 h, décision à + 168 h.
+- Mainlevée du JLD : indicateur légal, ne clôt pas la mesure ; les cumuls ultérieurs repartent de la fin de la mesure levée.
+- Périodes qui se chevauchent comptées une fois. Paramètres modifiables par l'administrateur (`config.parametres`).
 
-## 6. Règles métier à tester (cas de référence)
+## 6. Registre et statistiques
 
-- Échéances JLD des cycles 2 et suivants calculées depuis la date et l'heure de **début de mesure**, jamais depuis les décisions du JLD ; rythmes particuliers des mesures longues conservés.
-- Levée JLD = indicateur légal, ne clôt pas la mesure.
-- Cumuls remis à zéro uniquement à la fin de mesure.
-- Début et fin saisis uniquement comme report d'une décision médicale.
-- Un seul chemin de calcul par donnée.
+- Catégories : A isolement en CSI, B isolement hors CSI, C contention en CSI, D contention hors espace d'isolement, E idem avec exception. Une contention en CSI couvre l'isolement concomitant ; seules les portions d'isolement non couvertes deviennent des entrées A.
+- Année d'une entrée : année de son début. Numérotation commune A–E par service et par année, attribuée aux entrées terminées dans l'ordre de leur fin, à la suite de `config.compteursRegistre[service][année]`. Une saisie rétroactive peut décaler les numéros suivants : le registre transmis est celui imprimé à la date d'édition.
+- Mode d'hospitalisation retenu : celui en vigueur au début ; si le patient était en soins libres et passe sous contrainte dans les `delaiModeHospiHeures` (12 h), le nouveau mode est retenu.
+- Statistiques : une mesure = une entrée terminée ; données HC/SSC saisies par le cadre (événement `STATS`).
 
-## 7. Migration depuis la V1.3
+## 7. Sécurité
 
-Import du classeur dans le navigateur → conversion en événements marqués « import Excel » → rapport de comparaison des échéances et cumuls recalculés → archivage du classeur en lecture seule.
+Voir la fiche technique : chiffrement, politique de sécurité du contenu, modèle de menace, limites (contrôle des rôles côté poste, pas de rotation automatique de la clé en 1.0).
 
-## 8. Points ouverts
+## 8. Évolutions envisagées
 
-Navigateur des postes, hébergement intranet HTTPS, autorisation des clés USB, dossier réseau et sauvegardes (DSI) ; analyse HDS, AIPD, durée de conservation (DPO) ; statut de registre officiel (direction) ; détention des clés de secours et continuité de maintenance (encadrement).
+Rotation de la clé de données, export du registre au format tableur natif, interopérabilité avec le DPI (lecture des décisions), notifications.

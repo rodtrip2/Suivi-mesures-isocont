@@ -120,7 +120,7 @@
     var st = {
       config: cloner(CONFIG_DEFAUT),
       patients: {}, mesures: {}, professionnels: [], saisiesStats: {},
-      conflits: [], annules: {}, journal: [], parId: {}
+      conflits: [], annules: {}, journal: [], parId: {}, manquants: []
     };
     var tries = trierEvenements(deplier(evts));
 
@@ -130,7 +130,12 @@
       if (e.type === 'ANNULATION' && e.data && e.data.cible) st.annules[e.data.cible] = e;
     });
 
-    // 2) Application dans l'ordre chronologique de saisie.
+    // Chaînage : chaque saisie cite la précédente du même agent ; un maillon absent signale un fichier supprimé.
+    tries.forEach(function (e) {
+      if (!e.lot && e.prec && !st.parId[e.prec]) st.manquants.push({ evt: e.id, manque: e.prec, by: e.by });
+    });
+
+        // 2) Application dans l'ordre chronologique de saisie.
     tries.forEach(function (e) {
       if (!e.lot) st.journal.push(e);
       if (e.type === 'ANNULATION' || e.type === 'LOT' || st.annules[e.id] || (e.lot && st.annules[e.lot])) return;

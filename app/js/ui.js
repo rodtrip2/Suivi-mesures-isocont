@@ -601,12 +601,13 @@
           h('div', {}, h('b', { text: 'Appliquée : ' }), resumeEvt(a), ' — ', App.session.nomAuteur(a.by), ' ', choix(a, b)),
           h('div', {}, h('b', { text: 'Concurrente : ' }), resumeEvt(b), ' — ', App.session.nomAuteur(b.by), ' ', choix(b, a)));
       })) : null;
-    var rejetes = App.session.rejetes.length ? h('div', { class: 'erreur', text: App.session.rejetes.length + ' fichier(s) illisible(s) ou altéré(s) ignoré(s) : ' + App.session.rejetes.map(function (r) { return r.nom; }).join(', ') }) : null;
+    var manquants = etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Restaurez-les depuis la sauvegarde.' }) : null;
+        var rejetes = App.session.rejetes.length ? h('div', { class: 'erreur', text: App.session.rejetes.length + ' fichier(s) illisible(s) ou altéré(s) ignoré(s) : ' + App.session.rejetes.map(function (r) { return r.nom; }).join(', ') }) : null;
 
     var lignes = etat.journal.slice().reverse().slice(0, 400);
     return h('div', {},
       h('div', { class: 'barre' }, h('h1', { text: 'Journal des saisies' }), h('div', { class: 'espace' }), h('small', { class: 'muted', text: etat.journal.length + ' saisies, chacune dans un fichier chiffré distinct, jamais modifié.' })),
-      rejetes, blocConflits,
+      rejetes, manquants, blocConflits,
       h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Saisi le', 'Auteur', 'Action', 'Détail', ''].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, lignes.map(function (e) {
@@ -860,8 +861,8 @@
           h('td', { class: 'nowrap', text: date(Date.parse(e.at)) }),
           h('td', { text: App.session.nomAuteur(e.by) }),
           h('td', {}, resumeEvt(e), annule ? h('span', { class: 'badge', text: ' annulée' }) : null),
-          h('td', { class: 'actions-ligne' }, App.session.peut('ANNULATION') && !annule && e.type !== 'MESURE_DEBUT' ? h('button', { class: 'btn petit', onclick: async function () {
-            var motif = prompt('Motif de l’annulation de cette saisie :');
+          h('td', { class: 'actions-ligne' }, App.session.peut('ANNULATION') && !annule ? h('button', { class: 'btn petit', onclick: async function () {
+            var motif = prompt(e.type === 'MESURE_DEBUT' ? 'Annuler le début annule toute la mesure (doublon, mauvais patient…). Motif :' : 'Motif de l’annulation de cette saisie :');
             if (!motif) return;
             await App.session.enregistrer('ANNULATION', { cible: e.id, motif: motif });
             toast('Saisie annulée.');
