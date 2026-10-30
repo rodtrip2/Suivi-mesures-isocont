@@ -6,8 +6,14 @@ Version de travail du 30/10/2026. Le document de référence, avec schémas et t
 
 - Outil parallèle au DPI : suivi des durées, saisine JLD, registre anonymisé, statistiques.
 - L'IDE reporte uniquement les décisions médicales de début et de fin de mesure (psychiatre décisionnaire, date, heure). Les psychiatres ne sont pas utilisateurs.
-- Non repris de la V1.3 : traçabilité des surveillances par demi-journée (relève du DPI).
-- Repris de la V1.3 : lieux de CSI par service, modes d'hospitalisation (SDT, SDTU, SPI, SDRE, SL, SL mineur) et alertes soins libres, mesure de protection juridique, information des tiers et motifs de refus, échéances et export JLD avec colonnes masquables par service, tableau de bord, registre anonymisé (catégories A à E, numérotation par service et par année), historique des changements de mode d'hospitalisation, création de service, verrouillage automatique.
+- Rôles (un utilisateur peut en cumuler plusieurs) :
+  - **IDE** : report des décisions de début et de fin, traçabilité des agents par demi-journée, report de l'information des tiers, envois et suivi JLD le week-end ;
+  - **Secrétaire** : envois et suivi JLD en semaine ;
+  - **Cadre de santé** : pilotage, tableau de bord, registre anonymisé, statistiques, comptes du service ;
+  - **Administrateur** : paramétrage, services, clés de secours, rotation de clé (porté actuellement par le cadre, séparable).
+- Information des tiers : faite par le psychiatre, en dernier recours par l'IDE ; l'événement enregistre qui l'a faite (psychiatre nommé ou IDE).
+- Envois JLD : le week-end, l'IDE dispose des mêmes actions JLD que la secrétaire (modalité à trancher : restriction par jour paramétrable, ou droit permanent avec usage prévu le week-end).
+- Repris de la V1.3 : traçabilité des agents présents par demi-journée avec créneaux paramétrables (nécessaire au registre anonymisé), lieux de CSI par service, modes d'hospitalisation (SDT, SDTU, SPI, SDRE, SL, SL mineur) et alertes soins libres, mesure de protection juridique, information des tiers et motifs de refus, échéances et export JLD avec colonnes masquables par service, tableau de bord, registre anonymisé (catégories A à E, numérotation par service et par année), historique des changements de mode d'hospitalisation, création de service, verrouillage automatique.
 
 ## 2. Déploiement
 

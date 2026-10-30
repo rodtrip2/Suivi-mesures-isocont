@@ -12,17 +12,20 @@ Le DPI de l'établissement couvrira la prescription médicale et la surveillance
 2. **Saisine du JLD** : anticipation des échéances, préparation et export.
 3. **Registre anonymisé** (art. L3222-5-1 CSP) et statistiques présentables aux instances.
 
-Il ne remplace pas le DPI et ne trace pas les surveillances infirmières.
+Il ne remplace pas le DPI : la surveillance clinique reste dans le DPI. L'outil conserve en revanche la traçabilité des agents présents par demi-journée, nécessaire au registre anonymisé.
 
 ## Utilisateurs
 
 | Rôle | Actions |
 | --- | --- |
-| IDE | Report des décisions médicales de **début** et de **fin** de mesure (psychiatre décisionnaire, date, heure), information des tiers, consultation |
-| Cadre de santé | Tableau de bord, suivi des durées et échéances, saisines et export JLD, registre anonymisé, statistiques, comptes du service |
+| IDE | Report des décisions médicales de **début** et de **fin** de mesure (psychiatre décisionnaire, date, heure), traçabilité des agents par demi-journée, report de l'information des tiers, envois et suivi JLD **le week-end** |
+| Secrétaire | Envois et suivi JLD (saisines, décisions reçues, export) en semaine |
+| Cadre de santé | Tableau de bord, suivi des durées et échéances, registre anonymisé, statistiques, comptes du service |
 | Administrateur | Paramétrage, création de service, clés de secours, rotation de clé |
 
-Les psychiatres ne sont pas utilisateurs à ce stade.
+- Les psychiatres ne sont pas utilisateurs à ce stade.
+- L'information des tiers est faite par le psychiatre, en dernier recours par l'IDE : l'IDE la reporte en précisant qui l'a faite.
+- Le cadre de santé cumule actuellement le rôle d'administrateur ; les deux rôles restent séparables (un utilisateur peut porter plusieurs rôles).
 
 ## Principes d'architecture
 
