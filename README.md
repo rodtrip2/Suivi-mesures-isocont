@@ -1,0 +1,51 @@
+# Suivi-mesures-isocont
+
+Application web de suivi des mesures d'isolement et de contention en psychiatrie, successeur web du classeur Excel/VBA [Suivi_Isolement_Contention](https://github.com/rodtrip2/Suivi_Isolement_Contention) (V1.3).
+
+> Statut : cadrage. Aucune donnée réelle ne doit être utilisée avant validation par la DSI et le DPO de l'établissement.
+
+## Positionnement
+
+Le DPI de l'établissement couvrira la prescription médicale et la surveillance infirmière des mesures. Cet outil est un **outil parallèle**, centré sur ce que le DPI ne fait pas correctement :
+
+1. **Suivi des durées** des mesures et des cumuls.
+2. **Saisine du JLD** : anticipation des échéances, préparation et export.
+3. **Registre anonymisé** (art. L3222-5-1 CSP) et statistiques présentables aux instances.
+
+Il ne remplace pas le DPI et ne trace pas les surveillances infirmières.
+
+## Utilisateurs
+
+| Rôle | Actions |
+| --- | --- |
+| IDE | Report des décisions médicales de **début** et de **fin** de mesure (psychiatre décisionnaire, date, heure), information des tiers, consultation |
+| Cadre de santé | Tableau de bord, suivi des durées et échéances, saisines et export JLD, registre anonymisé, statistiques, comptes du service |
+| Administrateur | Paramétrage, création de service, clés de secours, rotation de clé |
+
+Les psychiatres ne sont pas utilisateurs à ce stade.
+
+## Principes d'architecture
+
+- **Application statique** (HTML/CSS/JavaScript, sans serveur), déployable au choix sur GitHub Pages (démonstration), l'intranet de l'établissement en HTTPS (production) ou un partage réseau (repli).
+- **Les données ne quittent jamais le réseau de l'établissement** : elles sont stockées dans un dossier du partage réseau, lu et écrit par le navigateur (API File System Access, Edge ou Chrome).
+- **Chiffrement côté poste** (Web Crypto, AES-GCM 256) avec chiffrement en enveloppe : déblocage par mot de passe, YubiKey (WebAuthn PRF) ou code de secours papier.
+- **Saisie simultanée sans perte** : journal d'événements en ajout seul, un fichier chiffré par saisie, détection des conflits, instantanés consolidés.
+- **Règles légales isolées et testées** : échéances JLD calculées depuis le début de la mesure, levée JLD sans clôture automatique, remise à zéro des cumuls uniquement en fin de mesure.
+
+Détails : [docs/architecture.md](docs/architecture.md).
+
+## Arborescence prévue
+
+```
+app/        application statique (index.html, modules JS, styles)
+  core/     moteur de règles (échéances, cumuls, registre) — sans dépendance à l'interface
+  store/    journal d'événements, instantanés, accès au dossier réseau
+  crypto/   chiffrement, coffre de clés, WebAuthn PRF
+  ui/       écrans
+tests/      tests automatiques des règles métier (cas de référence)
+docs/       documentation d'architecture et d'exploitation
+```
+
+## Licence
+
+Dépôt privé, tous droits réservés, en attendant une décision sur la licence.

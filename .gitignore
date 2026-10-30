@@ -1,0 +1,10 @@
+# Données réelles : jamais dans le dépôt
+*.enc
+coffre.json
+SuiviIsoCont/
+*.xlsx
+*.xlsm
+# Divers
+node_modules/
+.DS_Store
+Thumbs.db
