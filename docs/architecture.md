@@ -12,7 +12,7 @@ Version de travail du 30/10/2026. Le document de référence, avec schémas et t
   - **Cadre de santé** : pilotage, tableau de bord, registre anonymisé, statistiques, comptes du service ;
   - **Administrateur** : paramétrage, services, clés de secours, rotation de clé (porté actuellement par le cadre, séparable).
 - Information des tiers : faite par le psychiatre, en dernier recours par l'IDE ; l'événement enregistre qui l'a faite (psychiatre nommé ou IDE).
-- Envois JLD : le week-end, l'IDE dispose des mêmes actions JLD que la secrétaire (modalité à trancher : restriction par jour paramétrable, ou droit permanent avec usage prévu le week-end).
+- Envois JLD : l'IDE dispose en permanence des mêmes actions JLD que la secrétaire (usage prévu le week-end et en cas d'absence de la secrétaire) ; chaque action est tracée nominativement.
 - Repris de la V1.3 : traçabilité des agents présents par demi-journée avec créneaux paramétrables (nécessaire au registre anonymisé), lieux de CSI par service, modes d'hospitalisation (SDT, SDTU, SPI, SDRE, SL, SL mineur) et alertes soins libres, mesure de protection juridique, information des tiers et motifs de refus, échéances et export JLD avec colonnes masquables par service, tableau de bord, registre anonymisé (catégories A à E, numérotation par service et par année), historique des changements de mode d'hospitalisation, création de service, verrouillage automatique.
 
 ## 2. Déploiement

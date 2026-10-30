@@ -18,7 +18,7 @@ Il ne remplace pas le DPI : la surveillance clinique reste dans le DPI. L'outil 
 
 | Rôle | Actions |
 | --- | --- |
-| IDE | Report des décisions médicales de **début** et de **fin** de mesure (psychiatre décisionnaire, date, heure), traçabilité des agents par demi-journée, report de l'information des tiers, envois et suivi JLD **le week-end** |
+| IDE | Report des décisions médicales de **début** et de **fin** de mesure (psychiatre décisionnaire, date, heure), traçabilité des agents par demi-journée, report de l'information des tiers, envois et suivi JLD (droit permanent, usage prévu le week-end et en l'absence de la secrétaire) |
 | Secrétaire | Envois et suivi JLD (saisines, décisions reçues, export) en semaine |
 | Cadre de santé | Tableau de bord, suivi des durées et échéances, registre anonymisé, statistiques, comptes du service |
 | Administrateur | Paramétrage, création de service, clés de secours, rotation de clé |
