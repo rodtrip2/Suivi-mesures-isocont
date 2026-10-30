@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Aucune connexion sortante, aucun script externe : même un code altéré ne peut rien envoyer sur Internet. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' data: file:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Suivi mesures iso/cont</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <noscript>Cette application nécessite JavaScript.</noscript>
+  <div id="app"><div class="chargement">Chargement…</div></div>
+  <script src="js/version.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/crypto.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
