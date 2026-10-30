@@ -70,7 +70,7 @@
     MESURE_FIN: 'Fin de mesure', TIERS: 'Information du tiers', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés'
   };
-  var LIB_COMPTE = { CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var LIB_COMPTE = { CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -109,6 +109,7 @@
     if (!App.dossier) return racine.appendChild(ecranAccueil());
     if (!App.session.coffre) return racine.appendChild(ecranInitialisation());
     if (!App.session.cle) return racine.appendChild(ecranConnexion());
+    if (App.session.utilisateur && App.session.utilisateur.mdpProvisoire) return racine.appendChild(ecranMotDePasseObligatoire());
     racine.appendChild(ecranApplication());
   }
 
@@ -203,7 +204,7 @@
     async function apres() { demarrerMinuteurs(); rendre(); }
     var form = h('form', { class: 'pile', onsubmit: async function (ev) {
       ev.preventDefault(); erreurDans(zoneErr, null); bouton.disabled = true; bouton.textContent = 'Déverrouillage…';
-      try { await App.session.connexionMotDePasse(login.value, mdp.value); await apres(); }
+      try { await App.session.connexionMotDePasse(login.value, mdp.value); App.mdpProvisoireSaisi = mdp.value; await apres(); }
       catch (e) { bouton.disabled = false; bouton.textContent = 'Se connecter'; erreurDans(zoneErr, e); }
     } }, h('label', {}, 'Identifiant', login), h('label', {}, 'Mot de passe', mdp), bouton);
 
@@ -229,6 +230,41 @@
     return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), zoneErr, form,
       h('div', { class: 'separateur', text: 'secours' }), autres,
       h('div', { class: 'actions' }, h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier'))));
+  }
+
+  /** Première connexion ou mot de passe réinitialisé : changement obligatoire avant tout accès. */
+  function ecranMotDePasseObligatoire() {
+    var zoneErr = h('div');
+    var a = h('input', { type: 'password', required: true, autocomplete: 'new-password' });
+    var b = h('input', { type: 'password', required: true, autocomplete: 'new-password' });
+    var bouton = h('button', { class: 'btn primaire', type: 'submit' }, 'Enregistrer et continuer');
+    var form = h('form', { class: 'pile', onsubmit: async function (ev) {
+      ev.preventDefault(); erreurDans(zoneErr, null);
+      try {
+        verifierNouveauMotDePasse(a.value, b.value);
+        if (App.mdpProvisoireSaisi && a.value === App.mdpProvisoireSaisi) throw new Error('Choisissez un mot de passe différent du mot de passe provisoire.');
+        bouton.disabled = true; bouton.textContent = 'Chiffrement en cours…';
+        await App.session.changerMonMotDePasse(a.value);
+        App.mdpProvisoireSaisi = null;
+        toast('Mot de passe enregistré.');
+        rendre();
+      } catch (e) { bouton.disabled = false; bouton.textContent = 'Enregistrer et continuer'; erreurDans(zoneErr, e); }
+    } },
+      h('h1', { text: 'Choisissez votre mot de passe' }),
+      h('p', { text: 'Bonjour ' + App.session.utilisateur.nom + '. Vous vous êtes connecté avec un mot de passe provisoire : vous devez le remplacer par un mot de passe personnel avant de continuer.' }),
+      zoneErr,
+      h('label', {}, 'Nouveau mot de passe (12 caractères minimum)', a),
+      h('label', {}, 'Confirmation', b),
+      h('small', { class: 'muted', text: 'Conseil : une courte phrase facile à retenir, par exemple quatre mots séparés par des espaces. Ne la notez pas près du poste.' }),
+      h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: function () { App.mdpProvisoireSaisi = null; verrouiller(); } }, 'Se déconnecter'), bouton));
+    setTimeout(function () { a.focus(); }, 30);
+    return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(etablissement() || App.dossier.nom), form));
+  }
+
+  function verifierNouveauMotDePasse(a, b) {
+    if (a.length < 12) throw new Error('Le mot de passe doit comporter au moins 12 caractères.');
+    if (a !== b) throw new Error('Les deux saisies diffèrent.');
+    if (/^(.)\1+$/.test(a)) throw new Error('Ce mot de passe est trop simple.');
   }
 
   async function changerDossier() {
@@ -282,6 +318,7 @@
     var s = App.session;
     var focus = document.activeElement && document.activeElement.closest && document.activeElement.closest('dialog');
     if (focus) return; // ne pas reconstruire derrière une fenêtre ouverte
+    if (s.utilisateur && s.utilisateur.mdpProvisoire) return rendre();
     var maintenant = Date.now();
     var conflits = st().conflits.length;
     var estAdmin = s.roles().indexOf('ADMIN') >= 0;
@@ -573,7 +610,8 @@
       case 'MODE_HOSPI': return nomPatient(d.patientId) + ' — ' + d.mode + ' à partir du ' + date(d.date);
       case 'CONFIG': return 'Paramètre « ' + d.cle + ' » modifié';
       case 'ANNULATION': return 'Saisie ' + (d.cible || '').slice(-8) + ' annulée' + (d.motif ? ' : ' + d.motif : '');
-      case 'COMPTE': return (LIB_COMPTE[d.action] || d.action) + (d.login ? ' — ' + d.login : '') + (d.roles ? ' (' + d.roles.map(function (r) { return M.ROLES[r]; }).join(', ') + ')' : '') + (d.libelle ? ' — ' + d.libelle : '');
+      case 'COMPTE': if (d.comptes) return LIB_COMPTE[d.action] + ' : ' + d.comptes.length + ' — ' + d.comptes.map(function (x) { return x.login; }).join(', ');
+        return (LIB_COMPTE[d.action] || d.action) + (d.login ? ' — ' + d.login : '') + (d.roles ? ' (' + d.roles.map(function (r) { return M.ROLES[r]; }).join(', ') + ')' : '') + (d.libelle ? ' — ' + d.libelle : '');
       case 'CORRECTION': return qui + 'correction : ' + Object.keys(d.champs || {}).join(', ') + (d.motif ? ' — ' + d.motif : '');
       case 'LOT': return (d.libelle || 'Lot de saisies') + ' — ' + (d.evenements || []).length + ' saisies';
       case 'STATS': return 'Statistiques ' + libService(d.service) + ' ' + d.annee + ' : patients HC ' + (d.hc == null ? '—' : d.hc) + ', sous contrainte ' + (d.ssc == null ? '—' : d.ssc);
@@ -958,8 +996,7 @@
     modale('Changer mon mot de passe', h('div', { class: 'pile' }, h('label', {}, 'Nouveau mot de passe (12 caractères minimum)', a), h('label', {}, 'Confirmation', b)), [
       { texte: 'Annuler' },
       { texte: 'Changer', classe: 'primaire', action: async function () {
-        if (a.value.length < 12) throw new Error('12 caractères minimum.');
-        if (a.value !== b.value) throw new Error('Les deux saisies diffèrent.');
+        verifierNouveauMotDePasse(a.value, b.value);
         await App.session.changerMonMotDePasse(a.value);
         toast('Mot de passe modifié.');
       } }], { focus: a });
@@ -998,12 +1035,14 @@
             h('td', { text: c.nom }), h('td', { class: 'mono', text: c.login }),
             h('td', { text: c.roles.map(function (r) { return M.ROLES[r]; }).join(', ') }),
             h('td', {}, admin ? h('small', { text: 'Tous (administrateur)' }) : ((c.services || []).length ? (c.services || []).map(libService).join(', ') : h('span', { class: 'badge warn', text: 'aucun' }))),
-            h('td', {}, h('span', { class: 'badge ' + (c.actif ? 'ok' : ''), text: c.actif ? 'actif' : 'désactivé' })),
+            h('td', {}, h('span', { class: 'badge ' + (c.actif ? 'ok' : ''), text: c.actif ? 'actif' : 'désactivé' }), c.actif && c.mdpProvisoire ? h('div', {}, h('span', { class: 'badge warn', title: 'Le mot de passe sera changé à la prochaine connexion', text: 'mot de passe provisoire' })) : null),
             h('td', { class: 'actions-ligne' },
               h('button', { class: 'btn petit', onclick: function () { modaleCompte(c); } }, 'Modifier'), ' ',
               h('button', { class: 'btn petit', onclick: function () { modaleReinit(c); } }, c.actif ? 'Réinitialiser le mot de passe' : 'Réactiver avec un mot de passe')));
         })))),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: function () { modaleCompte(null); } }, '+ Nouveau compte')));
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', onclick: function () { if (SIC.ui.actions.comptesEnLot) SIC.ui.actions.comptesEnLot(); } }, 'Créer des comptes en lot…'),
+        h('button', { class: 'btn primaire', onclick: function () { modaleCompte(null); } }, '+ Nouveau compte')));
 
     var embs = s.coffre.emballages;
     var webauthn = C.webauthnDisponible();
@@ -1144,7 +1183,7 @@
     var cases = {};
     Object.keys(M.ROLES).forEach(function (r) {
       cases[r] = h('input', { type: 'checkbox', checked: actuels.indexOf(r) >= 0 });
-      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
+      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
     });
     bloc.cases = cases;
     bloc.valeur = function () { var v = Object.keys(cases).filter(function (r) { return cases[r].checked; }); if (!v.length) throw new Error('Choisissez au moins un rôle.'); return v; };
@@ -1191,35 +1230,44 @@
           await s.modifierRoles(c.id, r, actif.checked, sv); toast('Compte mis à jour.');
         } }]);
     }
-    var nom = h('input', { type: 'text' }), login = h('input', { type: 'text', placeholder: 'prenom.nom' }), mdp = h('input', { type: 'password', autocomplete: 'new-password' });
+    var nom = h('input', { type: 'text' }), login = h('input', { type: 'text', placeholder: 'prenom.nom' });
+    var genere = C.nouveauMotDePasseProvisoire();
+    var mdp = h('input', { type: 'text', class: 'mono', value: genere, autocomplete: 'off', spellcheck: 'false' });
+    nom.addEventListener('input', function () { if (!login.dataset.modifie) login.value = SIC.comptes.identifiantDepuisNom(nom.value); });
+    login.addEventListener('input', function () { login.dataset.modifie = '1'; });
     modale('Nouveau compte', h('div', { class: 'pile' },
       h('div', { class: 'grille-2' }, h('label', {}, 'Nom affiché', nom), h('label', {}, 'Identifiant', login)),
-      h('label', {}, 'Mot de passe provisoire (12 caractères minimum)', mdp),
+      h('label', {}, 'Mot de passe provisoire', mdp),
       h('div', {}, h('b', { text: 'Rôles' }), roles),
       h('div', {}, h('b', { text: 'Services affectés' }), svs),
-      h('small', { class: 'muted', text: 'Communiquez le mot de passe provisoire en main propre ; l’agent le change depuis le bouton « Mot de passe ».' })), [
+      h('small', { class: 'muted', text: 'Notez le mot de passe provisoire et remettez-le en main propre : l’agent devra obligatoirement le remplacer à sa première connexion.' })), [
       { texte: 'Annuler' },
       { texte: 'Créer le compte', classe: 'primaire', action: async function () {
         if (!nom.value.trim()) throw new Error('Indiquez le nom.');
-        if (mdp.value.length < 12) throw new Error('12 caractères minimum.');
+        if (mdp.value.length < 12) throw new Error('Mot de passe provisoire : 12 caractères minimum.');
         var r = roles.valeur();
-        await s.creerCompte({ nom: nom.value, login: login.value, motDePasse: mdp.value, roles: r, services: svs.valeur(r) });
-        toast('Compte créé.');
+        var c2 = { nom: nom.value, login: login.value || SIC.comptes.identifiantDepuisNom(nom.value), motDePasse: mdp.value, roles: r, services: svs.valeur(r), aleatoire: mdp.value === genere };
+        await s.creerCompte(c2);
+        setTimeout(function () { if (SIC.ui.actions.fichesRemise) SIC.ui.actions.fichesRemise([c2], 'Compte créé'); }, 0);
       } }], { focus: nom });
   }
 
   function modaleReinit(c) {
-    var mdp = h('input', { type: 'password', autocomplete: 'new-password' });
+    var genere = C.nouveauMotDePasseProvisoire();
+    var mdp = h('input', { type: 'text', class: 'mono', value: genere, autocomplete: 'off', spellcheck: 'false' });
+    var soi = c.id === App.session.utilisateur.id;
+    if (soi) return modaleMonMotDePasse();
     modale((c.actif ? 'Réinitialiser le mot de passe — ' : 'Réactiver — ') + c.nom, h('div', { class: 'pile' },
-      h('p', { text: 'Le nouveau mot de passe remplace l’ancien. L’opération est tracée.' }),
-      h('label', {}, 'Mot de passe provisoire (12 caractères minimum)', mdp)), [
+      h('p', { text: 'En cas de perte du mot de passe : l’ancien mot de passe cesse de fonctionner et un mot de passe provisoire le remplace. L’agent devra le changer à sa prochaine connexion. L’opération est tracée.' }),
+      h('label', {}, 'Mot de passe provisoire', mdp)), [
       { texte: 'Annuler' },
       { texte: c.actif ? 'Réinitialiser' : 'Réactiver', classe: 'primaire', action: async function () {
-        if (mdp.value.length < 12) throw new Error('12 caractères minimum.');
+        if (mdp.value.length < 12) throw new Error('Mot de passe provisoire : 12 caractères minimum.');
         if (!c.actif) await App.session.modifierRoles(c.id, c.roles, true, c.services || []);
-        await App.session.reinitialiserMotDePasse(c.id, mdp.value);
-        toast(c.actif ? 'Mot de passe réinitialisé.' : 'Compte réactivé.');
-      } }], { focus: mdp });
+        await App.session.reinitialiserMotDePasse(c.id, mdp.value, { aleatoire: mdp.value === genere });
+        var fiche = { nom: c.nom, login: c.login, motDePasse: mdp.value, roles: c.roles, services: c.services || [] };
+        setTimeout(function () { if (SIC.ui.actions.fichesRemise) SIC.ui.actions.fichesRemise([fiche], c.actif ? 'Mot de passe réinitialisé' : 'Compte réactivé'); }, 0);
+      } }]);
   }
 
   // ================================================================ Impression

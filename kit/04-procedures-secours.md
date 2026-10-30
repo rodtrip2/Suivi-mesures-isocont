@@ -4,9 +4,10 @@
 
 ## Mot de passe oublié par un agent — administrateur
 
-1. *Administration → Comptes → Réinitialiser le mot de passe* sur le compte de l'agent.
-2. Saisir un mot de passe provisoire, le remettre en main propre.
-3. L'agent le remplace par le sien (bouton *Mot de passe*). L'opération est tracée dans le journal.
+1. Vérifier l'identité de l'agent.
+2. *Administration → Comptes → Réinitialiser le mot de passe* sur le compte de l'agent. Un mot de passe provisoire est proposé ; l'ancien mot de passe cesse aussitôt de fonctionner.
+3. Imprimer la fiche de remise et la donner en main propre (jamais par messagerie).
+4. À sa connexion suivante, l'agent doit choisir un nouveau mot de passe personnel avant de continuer. L'opération est tracée dans le journal, sans le mot de passe.
 
 ## Mot de passe de l'administrateur oublié
 

@@ -5,7 +5,7 @@
 | En bref | |
 | --- | --- |
 | **Objet** | Suivre les durées des mesures d'isolement et de contention, anticiper l'information et la saisine du juge des libertés et de la détention (JLD), produire le registre anonymisé et le rapport annuel. |
-| **Pour qui** | Infirmiers, secrétariat médical, cadres de santé des unités de psychiatrie ; direction des soins pour le rapport annuel. |
+| **Pour qui** | Infirmiers, aides-soignants, secrétariat médical, cadres de santé des unités de psychiatrie ; direction des soins pour le rapport annuel. |
 | **Coût** | Aucun coût de licence. Mise en place : quelques heures de DSI, une formation courte des équipes. |
 | **Où sont les données** | Dans un dossier du réseau de l'établissement, chiffrées. Rien n'est envoyé à l'extérieur. |
 | **Ce que l'outil ne fait pas** | Il ne remplace ni le dossier patient informatisé (DPI), ni la prescription médicale, ni la surveillance clinique. |
@@ -43,21 +43,21 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 
 | Rôle | Responsabilités dans l'outil |
 | --- | --- |
-| IDE | Report des décisions de début et de fin, information des tiers, professionnels en CSI, envois JLD le week-end ou en l'absence du secrétariat. |
+| IDE et aide-soignant(e) (AS) | Mêmes droits : report des décisions de début et de fin, information des tiers, professionnels en CSI, envois JLD le week-end ou en l'absence du secrétariat. |
 | Secrétaire | Envois et suivi JLD, décomptes. |
 | Cadre de santé | Pilotage, corrections tracées, registre, statistiques. |
-| Administrateur | Comptes, services affectés à chaque compte, clés de secours, paramétrage, import. Rôle cumulable avec celui de cadre. |
+| Administrateur | Comptes (un par un ou en lot à partir d'une liste d'agents), services affectés à chaque compte, réinitialisation des mots de passe perdus, clés de secours, paramétrage, import. Rôle cumulable avec celui de cadre. |
 | Psychiatres | Non utilisateurs à ce stade : la décision et la prescription restent dans le DPI. |
 | DSI | Mise à disposition du dossier réseau et de l'application, sauvegardes, postes. |
 | DPO | Inscription au registre des traitements, analyse d'impact. |
 
-Chaque agent ne voit que les services qui lui sont affectés.
+Chaque agent ne voit que les services qui lui sont affectés. Les comptes sont créés avec un mot de passe provisoire, que l'agent doit obligatoirement remplacer à sa première connexion.
 
 ## 5. Sécurité et conformité, en résumé
 
 - **Les données restent dans l'établissement**, sur un dossier du réseau, chiffrées (AES-256) sur le poste avant d'y être écrites.
 - **Aucun serveur à installer, aucune connexion sortante** : l'application est un ensemble de fichiers statiques qui ne peuvent rien envoyer sur Internet.
-- **Accès nominatifs**, rôles, verrouillage automatique, clés matérielles (YubiKey) et code de secours papier.
+- **Accès nominatifs**, mot de passe personnel imposé à la première connexion, rôles, verrouillage automatique, clés matérielles (YubiKey) et code de secours papier.
 - **Hébergement de données de santé** : les données n'étant confiées à aucun prestataire, la certification HDS ne devrait pas s'appliquer ; la qualification revient au DPO et à la DSI (voir la fiche technique).
 - **RGPD** : traitement à inscrire au registre ; une analyse d'impact est probablement requise (données de santé de personnes vulnérables). Les éléments utiles sont fournis dans le kit.
 

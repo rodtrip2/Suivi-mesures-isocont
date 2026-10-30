@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 1.1.0 — 30 octobre 2026
+
+- **Rôle aide-soignant(e) (AS)**, avec les mêmes droits que l'IDE.
+- **Création de comptes en lot** à partir d'une liste d'agents collée depuis un tableur ou d'un fichier CSV : identifiants proposés (prenom.nom), rôles et services par ligne ou par défaut, aperçu des erreurs avant création, une seule écriture du coffre.
+- **Mots de passe provisoires** tirés au hasard, **changement obligatoire à la première connexion** (et après une réinitialisation) ; le nouveau mot de passe doit différer du provisoire.
+- **Réinitialisation par l'administrateur** en cas de perte : l'ancien mot de passe cesse aussitôt de fonctionner, le nouveau est provisoire.
+- **Fiches de remise** imprimables (une par agent) et export CSV des mots de passe provisoires, affichés une seule fois.
+- Identifiant proposé automatiquement à la création d'un compte.
+
 ## 1.0.0 — 30 octobre 2026
 
 Première version complète de l'application web, successeur du classeur Excel/VBA V1.3.

@@ -10,7 +10,7 @@
 | Dépendances | Aucune bibliothèque externe ; uniquement les API standard du navigateur |
 | Stockage | Dossier d'un partage réseau (SMB) choisi par l'utilisateur, accédé par l'API *File System Access* du navigateur |
 | Chiffrement | AES-GCM 256 bits côté poste (Web Crypto API) ; chiffrement en enveloppe |
-| Authentification | Comptes nominatifs ; mot de passe (PBKDF2-SHA-256, 600 000 itérations), clé de sécurité FIDO2 (WebAuthn, extension PRF) ou code de secours |
+| Authentification | Comptes nominatifs ; mot de passe (PBKDF2-SHA-256, 600 000 itérations), clé de sécurité FIDO2 (WebAuthn, extension PRF) ou code de secours ; mot de passe provisoire à changer obligatoirement à la première connexion |
 | Flux réseau | **Aucun flux sortant** : politique de sécurité du contenu `connect-src 'none'` ; seul le chargement des fichiers de l'application depuis l'hébergement choisi |
 | Navigateurs | Microsoft Edge ou Google Chrome récents (Chromium). Firefox et Safari : mode démonstration uniquement |
 | Postes | Windows 10/11 (ou tout système avec Edge/Chrome) ; aucun logiciel à installer |
@@ -87,11 +87,12 @@ Une clé de sécurité est liée au nom de domaine du site : elle doit être enr
 | Emballage par mot de passe | PBKDF2-SHA-256, 600 000 itérations, sel aléatoire de 128 bits par emballage |
 | Emballage par clé de sécurité | Secret WebAuthn PRF (*hmac-secret*) calculé dans la clé, dérivé par HKDF-SHA-256 |
 | Code de secours | 20 caractères tirés au hasard (100 bits d'entropie), PBKDF2-SHA-256, 100 000 itérations |
+| Mot de passe provisoire | 16 caractères tirés au hasard (80 bits d'entropie), PBKDF2-SHA-256, 100 000 itérations ; remplacé à la première connexion par un mot de passe personnel (600 000 itérations). Un mot de passe provisoire saisi à la main par l'administrateur reçoit 600 000 itérations |
 | Comptes et rôles | Chiffrés dans `coffre.json` avec la clé de données |
 | En mémoire | Clé non exportée vers le stockage du navigateur ; effacée au verrouillage, à la fermeture de l'onglet et après inactivité (10 minutes par défaut) |
 | Écriture du coffre | Contrôle de révision : une modification concurrente est refusée plutôt qu'écrasée |
 
-Chaque agent a sa propre copie emballée de la clé de données. Désactiver un compte supprime sa copie : son mot de passe ne déverrouille plus rien.
+Chaque agent a sa propre copie emballée de la clé de données. Désactiver un compte supprime sa copie : son mot de passe ne déverrouille plus rien. Réinitialiser un mot de passe remplace la copie de l'agent : l'ancien mot de passe cesse aussitôt de fonctionner. Les mots de passe ne figurent jamais dans le journal.
 
 ## 6. Saisie simultanée et intégrité
 

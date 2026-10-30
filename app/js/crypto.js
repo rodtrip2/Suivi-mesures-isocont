@@ -77,10 +77,11 @@
   }
 
   /** Emballage par mot de passe → objet stockable dans le coffre. */
-  async function emballerMotDePasse(cleDonnees, motDePasse) {
-    var sel = aleatoire(16);
-    var k = await cleDepuisSecret(enc.encode(motDePasse.normalize('NFC')), sel, ITERATIONS_MDP);
-    return { methode: 'mdp', sel: b64(sel), iterations: ITERATIONS_MDP, cle: await emballer(cleDonnees, k) };
+  /** `iterations` réduit est réservé aux mots de passe provisoires tirés au hasard (80 bits d'aléa). */
+  async function emballerMotDePasse(cleDonnees, motDePasse, iterations) {
+    var sel = aleatoire(16), it = iterations || ITERATIONS_MDP;
+    var k = await cleDepuisSecret(enc.encode(motDePasse.normalize('NFC')), sel, it);
+    return { methode: 'mdp', sel: b64(sel), iterations: it, cle: await emballer(cleDonnees, k) };
   }
 
   async function deballerMotDePasse(emb, motDePasse) {
@@ -93,6 +94,13 @@
   function nouveauCodeSecours() {
     var a = aleatoire(20), s = '';
     for (var i = 0; i < 20; i++) s += ALPHABET[a[i] % 32];
+    return s.match(/.{4}/g).join('-');
+  }
+  /** Mot de passe provisoire : 16 caractères sans ambiguïté (80 bits), ex. « k7mp-2qxa-9fht-w3cd ». */
+  var ALPHABET_MDP = 'abcdefghjkmnpqrstuvwxyz23456789';
+  function nouveauMotDePasseProvisoire() {
+    var a = aleatoire(16), s = '';
+    for (var i = 0; i < 16; i++) s += ALPHABET_MDP[a[i] % 31];
     return s.match(/.{4}/g).join('-');
   }
   function normaliserCode(code) { return code.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
@@ -175,7 +183,7 @@
     nouvelleCleDonnees: nouvelleCleDonnees,
     chiffrerJSON: chiffrerJSON, dechiffrerJSON: dechiffrerJSON,
     emballerMotDePasse: emballerMotDePasse, deballerMotDePasse: deballerMotDePasse,
-    nouveauCodeSecours: nouveauCodeSecours, emballerCodeSecours: emballerCodeSecours, deballerCodeSecours: deballerCodeSecours,
+    nouveauCodeSecours: nouveauCodeSecours, nouveauMotDePasseProvisoire: nouveauMotDePasseProvisoire, ITERATIONS_PROVISOIRE: ITERATIONS_SECOURS, emballerCodeSecours: emballerCodeSecours, deballerCodeSecours: deballerCodeSecours,
     webauthnDisponible: webauthnDisponible, emballerCleSecurite: emballerCleSecurite, deballerCleSecurite: deballerCleSecurite,
     empreinte: empreinte, ITERATIONS_MDP: ITERATIONS_MDP
   };

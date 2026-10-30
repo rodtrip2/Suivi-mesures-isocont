@@ -16,6 +16,7 @@
   // ---------------------------------------------------------------- Rôles
   var ROLES = {
     IDE: 'IDE',
+    AS: 'Aide-soignant(e)',
     SECRETAIRE: 'Secrétaire',
     CADRE: 'Cadre de santé',
     ADMIN: 'Administrateur'
@@ -25,6 +26,7 @@
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
   var DROITS = {
     IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD'],
+    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD'],
     CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD', 'CORRECTION', 'ANNULATION', 'STATS'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']

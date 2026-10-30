@@ -6,8 +6,9 @@ Document de référence pour les développeurs. La présentation destinée à la
 
 - Outil parallèle au DPI : suivi des durées, calendrier JLD, registre anonymisé, statistiques.
 - L'IDE reporte les décisions médicales de début et de fin (psychiatre décisionnaire, date, heure). Les psychiatres ne sont pas utilisateurs.
-- Rôles cumulables : **IDE** (début, fin, tiers, professionnels en CSI, JLD en permanence) ; **secrétaire** (JLD) ; **cadre** (idem IDE + corrections, annulations, statistiques) ; **administrateur** (paramétrage, comptes, clés, import).
+- Rôles cumulables : **IDE** et **AS** (mêmes droits : début, fin, tiers, professionnels en CSI, JLD en permanence) ; **secrétaire** (JLD) ; **cadre** (idem IDE + corrections, annulations, statistiques) ; **administrateur** (paramétrage, comptes, clés, import).
 - **Services affectés** : chaque compte non administrateur porte une liste de services ; l'interface ne montre que ceux-ci (sélecteur d'en-tête, listes, création de mesure). `model.servicesDe(compte, config)`.
+- Comptes : créés un par un ou en lot (`comptes.js` analyse la liste ; `session.creerComptes` écrit le coffre une seule fois). Indicateur `mdpProvisoire` dans le compte chiffré : posé à la création et à la réinitialisation par un administrateur, levé quand l'agent choisit son mot de passe ; tant qu'il est posé, l'interface n'affiche que l'écran de changement.
 - Information des tiers : faite par le psychiatre, en dernier recours par l'IDE ; l'événement enregistre qui l'a faite.
 - Reprise intégrale de la V1.3, y compris la traçabilité des professionnels par poste (nécessaire au registre). La réévaluation médicale optionnelle de la V1.3 n'est pas reprise (elle relève du DPI).
 

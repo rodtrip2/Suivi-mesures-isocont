@@ -55,7 +55,22 @@ Onglet *Administration* :
 | Postes de surveillance | Postes par défaut (matin, après-midi, nuit…) ou propres à un service (par exemple jour et nuit en 12 h). |
 | Règles légales | Valeurs par défaut conformes aux textes en vigueur : ne les modifier qu'en cas d'évolution réglementaire. |
 | Registre et décompte | Dernier numéro du registre papier de l'année en cours, si l'outil démarre en cours d'année ; titres du décompte JLD. |
-| Comptes | Un compte par agent, avec ses rôles et ses **services affectés**. Le mot de passe provisoire est remis en main propre ; l'agent le change au premier accès (bouton *Mot de passe*). |
+| Comptes | Un compte par agent, avec ses rôles (IDE, AS, secrétaire, cadre, administrateur) et ses **services affectés**. Pour toute une équipe : *Créer des comptes en lot…* (voir ci-dessous). Chaque compte reçoit un mot de passe provisoire tiré au hasard ; l'agent doit le remplacer à sa première connexion. |
+
+### Créer les comptes d'une équipe en une fois
+
+1. Préparer la liste dans un tableur, une ligne par agent, colonnes : **Nom affiché**, **Identifiant** (facultatif), **Rôles** (facultatif), **Services** (facultatif). Exemple :
+
+   | Nom | Identifiant | Rôles | Services |
+   | --- | --- | --- | --- |
+   | Marie DUPONT | | IDE | U1 |
+   | Paul MARTIN | | AS | U1, U2 |
+   | Jeanne PETIT | | Secrétaire | tous |
+
+2. *Administration → Créer des comptes en lot…* : coller les cellules copiées, ou choisir le fichier enregistré au format CSV. Choisir le rôle et les services par défaut, appliqués aux colonnes vides.
+3. Vérifier l'aperçu : identifiants proposés (prenom.nom), lignes en erreur (rôle ou service inconnu, identifiant déjà pris). Les lignes en erreur ne sont pas créées.
+4. *Créer les comptes*, puis **imprimer les fiches de remise** (une par agent, avec identifiant et mot de passe provisoire). Ces mots de passe ne seront plus affichés.
+5. Remettre chaque fiche en main propre. À sa première connexion, l'agent choisit son mot de passe personnel.
 
 Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur…*. Le rapport d'import liste les lignes ignorées, les points à vérifier et les éventuels écarts d'échéances JLD.
 
@@ -65,7 +80,8 @@ Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur…*.
 - [ ] Création d'une mesure de test, information du tiers, envoi JLD, décompte imprimé, fin de mesure.
 - [ ] Échéances JLD vérifiées sur un cas connu (par exemple un isolement débuté le 1er à 8 h 45 sans cumul antérieur : information avant le 3 à 8 h 45, saisine avant le 4, décision avant le 5).
 - [ ] Un compte IDE ne voit que ses services.
-- [ ] Mot de passe oublié : réinitialisation par l'administrateur.
+- [ ] Première connexion d'un agent : le mot de passe provisoire doit être remplacé avant d'accéder à l'application.
+- [ ] Mot de passe oublié : réinitialisation par l'administrateur ; l'ancien mot de passe est refusé, le nouveau est provisoire.
 - [ ] Déverrouillage par le code de secours, puis génération d'un nouveau code (l'ancien est ainsi invalidé après le test).
 - [ ] Annulation de la mesure de test (onglet *Mesures → Détail*, par un cadre).
 - [ ] Procédure dégradée papier imprimée et rangée dans chaque unité.

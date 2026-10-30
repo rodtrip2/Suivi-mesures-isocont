@@ -6,8 +6,9 @@
 
 1. Ouvrir le lien de l'application (Edge ou Chrome).
 2. Cliquer *Reprendre* (ou, la première fois, *Ouvrir le dossier réseau du service* et choisir le dossier indiqué par votre cadre). Autoriser l'accès si le navigateur le demande.
-3. Saisir votre identifiant et votre mot de passe. Au premier accès, remplacez le mot de passe provisoire (bouton *Mot de passe*).
-4. Vous ne voyez que les services qui vous sont affectés. La session se verrouille seule après quelques minutes sans activité ; pensez à *Verrouiller* en quittant le poste.
+3. Saisir votre identifiant et le mot de passe de votre fiche de remise.
+4. **Première connexion** (ou après une réinitialisation) : l'application vous demande aussitôt de choisir votre mot de passe personnel, d'au moins 12 caractères. Une courte phrase de quelques mots est facile à retenir. Vous pouvez le changer ensuite à tout moment avec le bouton *Mot de passe*.
+5. Vous ne voyez que les services qui vous sont affectés. La session se verrouille seule après quelques minutes sans activité ; pensez à *Verrouiller* en quittant le poste.
 
 ## Les couleurs des échéances
 
@@ -20,7 +21,9 @@
 | Violet | Fait hors délai |
 | Gris | Sans objet (mesure terminée avant l'échéance) |
 
-## IDE
+## IDE et aides-soignants (AS)
+
+IDE et AS disposent des mêmes droits.
 
 **Nouvelle mesure** (onglet *Mesures → + Nouvelle mesure*) : vous reportez la décision du psychiatre.
 - Choisir le patient (ou *+ Nouveau patient* avec son IPP : si l'IPP existe déjà, l'outil propose sa fiche).
@@ -61,5 +64,5 @@ Comptes (rôles et services affectés), clés de sécurité, code de secours, pa
 ## En cas de problème
 
 - *Dossier inaccessible* ou application indisponible : appliquez la procédure dégradée papier, puis ressaisissez avec les heures réelles.
-- *Mot de passe oublié* : demandez une réinitialisation à l'administrateur.
+- *Mot de passe oublié* : demandez une réinitialisation à l'administrateur ; il vous remettra un mot de passe provisoire, à remplacer dès la connexion.
 - *Erreur de saisie* : prévenez votre cadre, qui corrige avec un motif tracé.

@@ -105,6 +105,8 @@
     await modif(coffre, this.comptes);
     coffre.comptes = await chiffrerComptes(this.cle, this.comptes);
     this.coffre = await this.dossier.ecrireCoffre(coffre, coffre.rev);
+    var moi = this.utilisateur && this.comptes.filter(function (x) { return x.id === this.utilisateur.id; }, this)[0];
+    if (moi) this.utilisateur = moi;
     this.notifier();
   };
 
@@ -113,18 +115,41 @@
     return this.enregistrer('COMPTE', Object.assign({ action: action }, detail || {}), undefined, { sansControle: true });
   };
 
+  var MOTIF_LOGIN = /^[a-z0-9._-]{2,40}$/;
+
+  /** Crée un compte. Le mot de passe est provisoire : il devra être changé à la première connexion. */
   Session.prototype.creerCompte = async function (c) {
-    var s = this, login = c.login.trim().toLowerCase();
-    if (!/^[a-z0-9._-]{2,40}$/.test(login)) throw new Error('Identifiant : lettres minuscules, chiffres, point, tiret (2 à 40 caractères).');
-    await this.modifierCoffre(async function (coffre, comptes) {
-      if (comptes.some(function (x) { return x.login === login; })) throw new Error('Cet identifiant existe déjà.');
-      var compte = { id: 'u' + id8(), login: login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true };
-      comptes.push(compte);
-      var emb = await C.emballerMotDePasse(s.cle, c.motDePasse);
-      emb.id = 'k' + id8(); emb.userId = compte.id; emb.login = login;
-      coffre.emballages.push(emb);
+    await this.creerComptes([c]);
+  };
+
+  /**
+   * Crée plusieurs comptes en une seule écriture du coffre.
+   * `liste` : [{ nom, login, roles, services, motDePasse, aleatoire? }] ; `progres(n, total)` facultatif.
+   */
+  Session.prototype.creerComptes = async function (liste, progres) {
+    var s = this;
+    liste.forEach(function (c) {
+      c.login = c.login.trim().toLowerCase();
+      if (!MOTIF_LOGIN.test(c.login)) throw new Error('Identifiant « ' + c.login + ' » : lettres minuscules, chiffres, point, tiret (2 à 40 caractères).');
+      if (!c.nom || !c.nom.trim()) throw new Error('Nom manquant pour « ' + c.login + ' ».');
     });
-    await this.tracer('CREATION', { login: login, roles: c.roles, services: c.services || [] });
+    // Emballages préparés avant d'ouvrir le coffre : la fenêtre d'écriture reste courte.
+    var prepares = [];
+    for (var i = 0; i < liste.length; i++) {
+      var c = liste[i], id = 'u' + id8();
+      var emb = await C.emballerMotDePasse(s.cle, c.motDePasse, c.aleatoire ? C.ITERATIONS_PROVISOIRE : undefined);
+      emb.id = 'k' + id8(); emb.userId = id; emb.login = c.login;
+      prepares.push({ compte: { id: id, login: c.login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true, mdpProvisoire: true }, emb: emb });
+      if (progres) progres(i + 1, liste.length);
+    }
+    await this.modifierCoffre(async function (coffre, comptes) {
+      prepares.forEach(function (p) {
+        if (comptes.some(function (x) { return x.login === p.compte.login; })) throw new Error('L’identifiant « ' + p.compte.login + ' » existe déjà.');
+      });
+      prepares.forEach(function (p) { comptes.push(p.compte); coffre.emballages.push(p.emb); });
+    });
+    if (prepares.length === 1) await this.tracer('CREATION', { login: prepares[0].compte.login, roles: prepares[0].compte.roles, services: prepares[0].compte.services });
+    else await this.tracer('CREATION_LOT', { comptes: prepares.map(function (p) { return { login: p.compte.login, roles: p.compte.roles, services: p.compte.services }; }) });
   };
 
   Session.prototype.modifierRoles = async function (userId, roles, actif, services) {
@@ -139,15 +164,21 @@
     if (userId === this.utilisateur.id && c2) this.utilisateur = c2;
   };
 
-  Session.prototype.reinitialiserMotDePasse = async function (userId, motDePasse) {
-    var s = this;
+  /**
+   * Remplace le mot de passe d'un compte. Fait par l'administrateur pour un autre agent,
+   * le mot de passe est provisoire (à changer à la connexion suivante) ; fait par l'agent
+   * lui-même, il devient définitif.
+   */
+  Session.prototype.reinitialiserMotDePasse = async function (userId, motDePasse, options) {
+    var s = this, provisoire = userId !== this.utilisateur.id;
+    var emb = await C.emballerMotDePasse(s.cle, motDePasse, options && options.aleatoire ? C.ITERATIONS_PROVISOIRE : undefined);
     await this.modifierCoffre(async function (coffre, comptes) {
       var c = comptes.filter(function (x) { return x.id === userId; })[0];
       if (!c) throw new Error('Compte introuvable.');
       coffre.emballages = coffre.emballages.filter(function (e) { return !(e.methode === 'mdp' && e.userId === userId); });
-      var emb = await C.emballerMotDePasse(s.cle, motDePasse);
       emb.id = 'k' + id8(); emb.userId = userId; emb.login = c.login;
       coffre.emballages.push(emb);
+      c.mdpProvisoire = provisoire;
     });
     var c3 = this.comptes.filter(function (x) { return x.id === userId; })[0];
     await this.tracer(userId === this.utilisateur.id ? 'MDP_CHANGE' : 'MDP_REINIT', { login: c3 ? c3.login : userId });

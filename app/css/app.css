@@ -211,3 +211,16 @@ figcaption { font-size: .85rem; color: var(--ink-2); display: flex; align-items:
   th { position: static; }
   main { padding: 0; }
 }
+
+/* ---------- Comptes */
+.cases-ligne { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+tr.ligne-erreur td { background: color-mix(in srgb, var(--bad-soft) 60%, transparent); }
+td.fort, .fort { font-weight: 700; letter-spacing: .03em; }
+.fiches-remise { color: #111; }
+.fiche-remise { border: 1px dashed #888; padding: 10mm 12mm; margin-bottom: 8mm; break-inside: avoid; page-break-inside: avoid; font-size: 12px; }
+.fiche-remise h2 { font-size: 16px; margin: 4px 0 8px; }
+.fiche-remise .doc-etab { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: .04em; }
+.fiche-remise table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+.fiche-remise th, .fiche-remise td { border: 1px solid #bbb; padding: 4px 8px; text-align: left; background: none; color: #111; position: static; }
+.fiche-remise th { width: 190px; background: #f1f1f1; }
+.fiche-remise td.fort { font-size: 15px; }

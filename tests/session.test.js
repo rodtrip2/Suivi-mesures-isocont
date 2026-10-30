@@ -29,6 +29,7 @@ globalThis.SIC.model = require('../app/js/model.js');
 require('../app/js/store.js');
 require('../app/js/session.js');
 const { Dossier, Session } = globalThis.SIC;
+const C = globalThis.SIC.crypto;
 
 async function nouveauDossier() {
   const racine = new Repertoire('SuiviIsoCont');
@@ -98,4 +99,37 @@ test('Instantanés des mois clos et rejet d\'un fichier altéré', async () => {
   const s4 = await connecter(racine, 'admin', 'mot de passe solide');
   assert.equal(s4.rejetes.length, 1);
   assert.equal(s4.etat.professionnels.length, 5);
+});
+
+test('Mot de passe provisoire : création en lot, changement obligatoire, réinitialisation par l\'administrateur', async () => {
+  const { racine, admin } = await nouveauDossier();
+  assert.ok(!admin.utilisateur.mdpProvisoire);
+  const liste = ['a.un', 'b.deux', 'c.trois'].map(l => ({ nom: l, login: l, roles: ['AS'], services: ['U1'], motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true }));
+  let progres = 0;
+  await admin.creerComptes(liste, (n) => { progres = n; });
+  assert.equal(progres, 3);
+  assert.equal(admin.comptes.length, 4);
+  const journal = admin.evts.filter(e => e.type === 'COMPTE' && e.data.action === 'CREATION_LOT');
+  assert.equal(journal.length, 1);
+  assert.ok(!JSON.stringify(journal).includes(liste[0].motDePasse));   // aucun secret dans le journal
+
+  // Première connexion : mot de passe provisoire signalé ; l'agent le change
+  const agent = await connecter(racine, 'b.deux', liste[1].motDePasse);
+  assert.equal(agent.utilisateur.mdpProvisoire, true);
+  assert.ok(agent.peut('MESURE_DEBUT'));
+  await agent.changerMonMotDePasse('mon mot de passe personnel');
+  assert.equal(agent.utilisateur.mdpProvisoire, false);
+  await assert.rejects(connecter(racine, 'b.deux', liste[1].motDePasse), /incorrect/);
+  const encore = await connecter(racine, 'b.deux', 'mon mot de passe personnel');
+  assert.equal(encore.utilisateur.mdpProvisoire, false);
+
+  // Mot de passe perdu : l'administrateur réinitialise, l'ancien ne marche plus, le nouveau est provisoire
+  await admin.reinitialiserMotDePasse(encore.utilisateur.id, 'provisoire-xyz-123', {});
+  await assert.rejects(connecter(racine, 'b.deux', 'mon mot de passe personnel'), /incorrect/);
+  const apres = await connecter(racine, 'b.deux', 'provisoire-xyz-123');
+  assert.equal(apres.utilisateur.mdpProvisoire, true);
+
+  // Un identifiant existant refuse tout le lot sans rien écrire
+  await assert.rejects(admin.creerComptes([{ nom: 'X', login: 'a.un', roles: ['IDE'], services: ['U1'], motDePasse: 'abcdefghijkl' }]), /existe déjà/);
+  assert.equal((await connecter(racine, 'admin', 'mot de passe solide')).comptes.length, 4);
 });
