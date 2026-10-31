@@ -188,7 +188,14 @@ test('Option : pauses retranchées des décomptes et échéances reportées d’
   const dcSans = M.decompte(sans, sans.mesures.M1, t);
   assert.equal(dcSans.lignes.length, 1);
   assert.match(dcSans.lignes[0].commentaire, /dont levée temporaire de 12:00 à 14:00, non déduite \(comptée dans le cumul\)/);
-  assert.equal(M.registre(avec, 'U1', 2026, t)[0].dureeHeures, 18);
+  // Registre : durée réelle par défaut (déduction limitée aux délais JLD), pauses listées
+  const r = M.registre(avec, 'U1', 2026, t)[0];
+  assert.equal(r.dureeHeures, 20);
+  assert.deepEqual(r.pauses, [[d0 + 4 * H, d0 + 6 * H]]);
+  // « Partout » : registre et statistiques hors pauses
+  const partout = M.reduire(evts({ retrancher: true, portee: 'partout' }));
+  assert.equal(M.registre(partout, 'U1', 2026, t)[0].dureeHeures, 18);
+  assert.equal(M.registre(partout, 'U1', 2026, t)[0].dureeReelleHeures, 20);
   // Mesure suivante : le cumul des 15 jours tient compte de la pause retranchée
   const suite = evts({ retrancher: true }).concat([
     evt('MESURE_FIN', { mesureId: 'M1', fin: d0 + 20 * H }, { base: 3 }),
@@ -271,4 +278,15 @@ test('Masque du décompte : format des durées en heures, en jours ou les deux',
   const m = M.masqueDecompte({ decompte: { U1: { formatDuree: 'h', formatCumul: 'hj' }, U2: { formatCumul: 'x' } } }, 'U1');
   assert.deepEqual([m.formatDuree, m.formatCumul], ['h', 'hj']);
   assert.equal(M.masqueDecompte({ decompte: { U2: { formatCumul: 'x' } } }, 'U2').formatCumul, 'j');
+});
+
+test('Options des pauses : activation, portée de la déduction', () => {
+  assert.equal(M.optionsPauses({}).active, true);
+  assert.equal(M.optionsPauses({ pauses: { active: false } }).active, false);
+  assert.equal(M.optionsPauses({ pauses: { active: false, retrancher: true } }).active, true);   // déduites : fonction forcément active
+  assert.equal(M.optionsPauses({ pauses: { retrancher: true } }).portee, 'jld');
+  assert.equal(M.optionsPauses({ pauses: { retrancher: true } }).deduireRegistre, false);
+  assert.equal(M.optionsPauses({ pauses: { retrancher: true, portee: 'partout' } }).deduireRegistre, true);
+  assert.equal(M.optionsPauses({ pauses: { retrancher: false, portee: 'partout' } }).deduireRegistre, false);
+  assert.equal(M.optionsPauses({ pauses: { active: false } }).colonneRegistre, false);
 });

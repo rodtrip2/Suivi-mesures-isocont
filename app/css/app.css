@@ -297,3 +297,6 @@ tr.en-pause td:first-child { box-shadow: inset 3px 0 0 var(--ink-2); }
   .document-jld .doc-pauses { break-inside: avoid; }
   .document-jld .doc-section > p:first-child { break-after: avoid; }
 }
+.note-registre { font-size: .88rem; color: var(--ink-2); border-left: 3px solid var(--line); padding: 2px 10px; margin: 6px 0 10px; }
+@media print { .note-registre { display: block; color: #333; } }
+.retrait { margin-left: 26px; }

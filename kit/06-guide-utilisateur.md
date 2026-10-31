@@ -61,7 +61,7 @@ Onglet *JLD* : les mesures en cours, triées par urgence.
 - **Patients** : cumuls sur 48 h et 15 jours, niveau de vigilance, mode d'hospitalisation et son historique.
 - **Corrections** : *Détail → Corriger…* (motif obligatoire) ; *Annuler* une saisie erronée dans le détail. Tout reste visible dans le journal.
 - **Conflits** : *Journal → Saisies en conflit à arbitrer*.
-- **Registre anonymisé** : par service et par année, imprimable et exportable.
+- **Registre anonymisé** : par service et par année, imprimable et exportable. Selon le paramétrage, la durée est réelle ou hors pauses (indiqué sous le tableau), avec une colonne des levées temporaires si elle est activée.
 - **Statistiques** : rapport annuel comparé à l'année précédente. Saisissez le nombre de patients en hospitalisation complète et sous contrainte (chiffres du DIM) pour obtenir les pourcentages.
 
 ## Mode formation
@@ -79,7 +79,13 @@ L'accès au mode formation est ouvert à tous les comptes ; l'administrateur peu
 
 **Masques du décompte JLD** (*Administration → Masques du décompte JLD*) : choisissez *Masque de l'établissement* ou un service, puis réglez l'en-tête, le destinataire, le bandeau confidentiel, les données d'identité, les colonnes (cochées et ordonnées avec ↑ ↓) et le format des durées et du cumul (en heures, en jours et heures, ou les deux : « 68 h 05, soit 2 j 20 h 05 »), les sections (dont la date d'édition et l'auteur, séparément), le pied de page, le bloc signature et le **papier à en-tête** : image A4 du papier de l'établissement (celui des courriers, exporté en PNG ou JPEG), sur toutes les pages ou la première seulement, avec les marges du texte en millimètres. Pour imprimer, gardez le format A4 et les marges « par défaut ». L'aperçu se met à jour sur un patient fictif. Un service sans masque propre utilise celui de l'établissement ; *Revenir au masque de l'établissement* supprime le masque propre.
 
-Réglage des **pauses** (*Administration → Pauses*) : déduire ou non la durée des pauses du cumul, reprise automatique à l'heure prévue, seuils d'alerte et de refus. Déduire les pauses reporte les échéances JLD de toutes les mesures concernées, y compris passées : décision à prendre avec la direction.
+Réglage des **pauses** (*Administration → Pauses*) :
+- **Activer la levée temporaire** : si l'établissement ne déduit pas les pauses, il peut désactiver la fonction ; le bouton *Pause* disparaît de la page des mesures (les pauses déjà saisies restent dans l'historique, une pause en cours peut être reprise).
+- **Déduire la durée des pauses du cumul**, puis choisir **où** : pour les délais JLD seulement (échéances, cumuls, décompte ; le registre et les statistiques gardent la durée réelle), ou **partout** (registre et statistiques en durées hors pauses).
+- **Colonne « Levées temporaires » dans le registre** (nombre et durée), en option ; une note sous le registre indique toujours quelle durée est affichée.
+- Reprise automatique à l'heure prévue, seuils d'alerte et de refus.
+
+Déduire les pauses reporte les échéances JLD de toutes les mesures concernées, y compris passées : décision à prendre avec la direction.
 
 Comptes (rôles, services affectés, accès au mode formation), régénération du jeu de formation, clés de sécurité, code de secours, paramétrage, import du classeur Excel : voir le guide d'installation et les procédures de secours.
 

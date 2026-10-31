@@ -77,7 +77,10 @@
     decompte: {},              // masques du décompte JLD : { '*': masque de l'établissement, U1: masque du service } (voir masqueDecompte)
     inactiviteMinutes: 10,
     // Levées temporaires : retrancher les pauses des décomptes, reprise automatique à l'heure prévue, seuils (h).
-    pauses: { retrancher: false, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
+    // active : bouton Pause disponible (toujours vrai si les pauses sont déduites) ;
+    // portee : 'jld' (déduction pour les délais JLD seulement) ou 'partout' (aussi registre et statistiques) ;
+    // colonneRegistre : colonne des levées temporaires dans le registre.
+    pauses: { active: true, retrancher: false, portee: 'jld', colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
   };
 
   function cloner(o) { return JSON.parse(JSON.stringify(o)); }
@@ -291,6 +294,11 @@
     var o = Object.assign({}, CONFIG_DEFAUT.pauses, (config && config.pauses) || {});
     o.refusHeures = Math.min(PAUSE_MAX_HEURES, Math.max(1, +o.refusHeures || PAUSE_MAX_HEURES));
     o.alerteHeures = Math.max(0, Math.min(o.refusHeures, +o.alerteHeures || 0));
+    o.retrancher = !!o.retrancher;
+    o.active = o.retrancher || o.active !== false;
+    if (o.portee !== 'partout') o.portee = 'jld';
+    o.deduireRegistre = o.retrancher && o.portee === 'partout';
+    o.colonneRegistre = o.active && o.colonneRegistre !== false;
     return o;
   }
 
@@ -342,6 +350,14 @@
     var ms = listeMesures(st);
     if (!optionsPauses(st.config).retrancher) return ms;
     return ms.map(function (m) { return Object.assign({}, m, { exclusions: exclusions(m, maintenant, st.config) }); });
+  }
+
+  /** Plages de pause d'une mesure entre `d` et `f`, telles que comptées par l'établissement (déduites ou réelles). */
+  function pausesSur(m, d, f, maintenant, config) {
+    var plages = optionsPauses(config).retrancher ? plagesPauses(m, maintenant)
+      : (m.pauses || []).map(function (p) { return { debut: p.debut, fin: finPause(m, p, maintenant, config), pause: p }; });
+    return plages.map(function (q) { return { debut: Math.max(q.debut, d), fin: Math.min(q.fin, f), pause: q.pause }; })
+      .filter(function (q) { return q.fin > q.debut; });
   }
 
   /** Durée cumulée des pauses d'une mesure (heures). */
@@ -542,7 +558,10 @@
       return {
         numero: x.fin === null ? '' : x.cat + (depart + i + 1),
         categorie: x.cat, debut: x.debut, fin: x.fin,
-        dureeHeures: rules.heuresEffectives({ exclusions: exclusions(x.mesure, maintenant, st.config) }, x.debut, finRef), type: x.mesure.type, lieu: x.mesure.lieu,
+        dureeHeures: rules.heuresEffectives({ exclusions: optionsPauses(st.config).deduireRegistre ? exclusions(x.mesure, maintenant, st.config) : [] }, x.debut, finRef),
+        dureeReelleHeures: (finRef - x.debut) / H,
+        pauses: pausesSur(x.mesure, x.debut, finRef, maintenant, st.config).map(function (q) { return [q.debut, q.fin]; }),
+        type: x.mesure.type, lieu: x.mesure.lieu,
         psychiatre: x.mesure.psychiatreDebut, modeHospi: mode.mode, basculeMode: mode.bascule,
         professionnels: (x.cat === 'A' || x.cat === 'C') ? professionnelsSur(st, service, x.debut, finRef) : [],
         mesureId: x.mesure.id, patientId: x.mesure.patientId, service: service
@@ -766,7 +785,7 @@
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
     registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
-    exclusions: exclusions, plagesPauses: plagesPauses, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
+    exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte
   };
 });

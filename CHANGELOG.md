@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.9.0 — 31 octobre 2026
+
+- Pauses déduites : **portée au choix** — pour les délais JLD seulement (échéances, cumuls, décompte ; registre et statistiques en durée réelle, levées temporaires comprises), ou **partout** (registre et statistiques en durées hors pauses, colonne « Durée hors pauses »).
+- Registre anonymisé : **colonne « Levées temporaires »** (nombre et durée) en option, aussi dans l'export CSV ; note sous le registre précisant toujours la durée affichée. Statistiques : même précision.
+- **Levée temporaire désactivable** par l'administrateur quand les pauses ne sont pas déduites : le bouton *Pause* disparaît de la page des mesures ; l'historique est conservé et une pause en cours peut être reprise.
+
 ## 1.8.0 — 31 octobre 2026
 
 - Décompte JLD, masques : **format des durées réglable** séparément pour la colonne Durée (et le tableau des pauses) et pour le cumul et les totaux : en heures (« 68 h 05 »), en jours et heures (« 2 j 20 h », présentation précédente, par défaut) ou les deux (« 68 h 05, soit 2 j 20 h 05 »). S'applique à l'impression, au PDF et au CSV.
