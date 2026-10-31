@@ -5,25 +5,25 @@
 ## Mot de passe oublié par un agent — administrateur
 
 1. Vérifier l'identité de l'agent.
-2. *Administration → Comptes → Réinitialiser le mot de passe* sur le compte de l'agent. Un mot de passe provisoire est proposé ; l'ancien mot de passe cesse aussitôt de fonctionner.
+2. *Administration → Comptes et sécurité → Réinitialiser le mot de passe* sur le compte de l'agent. Un mot de passe provisoire est proposé ; l'ancien mot de passe cesse aussitôt de fonctionner.
 3. Imprimer la fiche de remise et la donner en main propre (jamais par messagerie).
 4. À sa connexion suivante, l'agent doit choisir un nouveau mot de passe personnel avant de continuer. L'opération est tracée dans le journal, sans le mot de passe.
 
 ## Mot de passe de l'administrateur oublié
 
 1. Déverrouiller avec une **clé de sécurité** d'administration (*Déverrouiller avec une clé de sécurité*), ou à défaut avec le **code de secours** (*Mot de passe perdu ? Utiliser le code de secours*).
-2. La session ouverte est une session d'administration de secours : *Administration → Comptes → Réinitialiser le mot de passe* du compte administrateur.
+2. La session ouverte est une session d'administration de secours : *Administration → Comptes et sécurité → Réinitialiser le mot de passe* du compte administrateur.
 3. Si le code de secours a été utilisé : *Nouveau code de secours*, puis nouvelle enveloppe scellée au coffre. L'ancien code est invalidé.
 
 ## Perte ou vol d'une clé de sécurité
 
-1. *Administration → Moyens de déblocage → Retirer* la clé concernée.
+1. *Administration → Comptes et sécurité → Moyens de déblocage → Retirer* la clé concernée.
 2. Enregistrer une clé de remplacement.
 3. Vérifier qu'il reste au moins deux clés d'administration ou une clé et le code de secours.
 
 ## Départ d'un agent
 
-1. *Administration → Comptes → Modifier* : décocher *Compte actif*. Son mot de passe est retiré du coffre : il ne déverrouille plus rien.
+1. *Administration → Comptes et sécurité → Modifier* : décocher *Compte actif*. Son mot de passe est retiré du coffre : il ne déverrouille plus rien.
 2. DSI : retirer l'agent du groupe ayant accès au dossier réseau.
 3. Si l'agent détenait une clé de sécurité : la retirer.
 4. Les saisies passées restent attribuées à son nom dans le journal.
@@ -61,7 +61,7 @@
 
 ## Saisie réelle faite par erreur en mode formation
 
-Un bandeau violet indique en permanence le mode formation. **Aucune information réelle ne doit y être saisie.** Si cela arrive : *Passer aux données réelles* (bouton du bandeau), ressaisir l'information avec les heures réelles, puis demander à l'administrateur de régénérer le jeu de formation (*Administration → Mode formation*), ce qui efface son contenu.
+Un bandeau violet indique en permanence le mode formation. **Aucune information réelle ne doit y être saisie.** Si cela arrive : *Passer aux données réelles* (bouton du bandeau), ressaisir l'information avec les heures réelles, puis demander à l'administrateur de régénérer le jeu de formation (*Administration → Comptes et sécurité → Mode formation*), ce qui efface son contenu.
 
 ## Restauration après incident sur le dossier
 

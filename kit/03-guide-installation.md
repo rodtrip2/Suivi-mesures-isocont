@@ -39,7 +39,7 @@ Test sur un poste type : ouvrir le lien, cliquer *Ouvrir le dossier réseau du s
 
 ## 5. Sécuriser l'accès d'administration
 
-Onglet *Administration → Moyens de déblocage* (site servi en HTTPS uniquement) :
+Onglet *Administration → Comptes et sécurité → Moyens de déblocage* (site servi en HTTPS uniquement) :
 
 1. *Enregistrer une clé de sécurité* : brancher la première YubiKey, la nommer (« YubiKey cadre »), la toucher quand le navigateur le demande.
 2. Recommencer avec une seconde clé (« YubiKey coffre »), à conserver avec le code de secours.
@@ -70,24 +70,24 @@ Onglet *Administration* :
    | Paul MARTIN | | AS | U1, U2 |
    | Jeanne PETIT | | Secrétaire | tous |
 
-2. *Administration → Créer des comptes en lot…* : coller les cellules copiées, ou choisir le fichier enregistré au format CSV. Choisir le rôle et les services par défaut, appliqués aux colonnes vides.
+2. *Administration → Comptes et sécurité → Créer des comptes en lot…* : coller les cellules copiées, ou choisir le fichier enregistré au format CSV. Choisir le rôle et les services par défaut, appliqués aux colonnes vides.
 3. Vérifier l'aperçu : identifiants proposés (prenom.nom), lignes en erreur (rôle ou service inconnu, identifiant déjà pris). Les lignes en erreur ne sont pas créées.
 4. *Créer les comptes*, puis **imprimer les fiches de remise** (une par agent, avec identifiant et mot de passe provisoire). Ces mots de passe ne seront plus affichés.
 5. Remettre chaque fiche en main propre. À sa première connexion, l'agent choisit son mot de passe personnel.
 
 ### Préparer la formation
 
-Le mode formation ne demande aucune installation : le jeu de données fictives est créé automatiquement dans le sous-dossier `formation` du dossier de données, à la première connexion en mode formation (ou par l'administrateur, *Administration → Mode formation*). Tous les comptes y ont accès par défaut ; décochez *Accès au mode formation* dans la fiche d'un compte pour le retirer.
+Le mode formation ne demande aucune installation : le jeu de données fictives est créé automatiquement dans le sous-dossier `formation` du dossier de données, à la première connexion en mode formation (ou par l'administrateur, *Administration → Comptes et sécurité → Mode formation*). Tous les comptes y ont accès par défaut ; décochez *Accès au mode formation* dans la fiche d'un compte pour le retirer.
 
 ### Reprise de l'historique
 
-L'historique se reprend **à partir du registre du service**, quel que soit l'outil utilisé jusque-là : *Administration → Reprise des données existantes → Importer un registre…*. Exportez le registre de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel ; l'écran d'import propose la correspondance des colonnes, et un modèle est téléchargeable. Le format attendu et la reconstitution des mesures sont détaillés dans la fiche 07 — Reprise à partir du registre.
+L'historique se reprend **à partir du registre du service**, quel que soit l'outil utilisé jusque-là : *Administration → Reprise des données → Importer un registre…*. Exportez le registre de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel ; l'écran d'import propose la correspondance des colonnes, et un modèle est téléchargeable. Le format attendu et la reconstitution des mesures sont détaillés dans la fiche 07 — Reprise à partir du registre.
 
 Avant validation, l'écran d'import :
 - liste les **services du fichier absents de l'outil** : chacun peut être créé (libellé modifiable) ou rattaché à un service existant (toutes ses données y sont reprises) ;
 - propose pour chaque service et chaque année le **compteur du registre** (dernier numéro utilisé avant l'outil), modifiable ;
 - **contrôle la numérotation** : il compare les numéros du fichier (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées) ;
-- demande comment traiter les entrées **déjà numérotées** : *laisser tel quel* (catégorie et numéro d'origine conservés, l'outil numérote les mesures suivantes en sautant ces numéros — choix par défaut), *recalculer l'année en cours*, ou *recalculer toutes les années* (avertissement : les statistiques des années passées peuvent changer). Ce choix reste modifiable année par année dans *Administration → Registre*, le compteur étant alors recalculé ;
+- demande comment traiter les entrées **déjà numérotées** : *laisser tel quel* (catégorie et numéro d'origine conservés, l'outil numérote les mesures suivantes en sautant ces numéros — choix par défaut), *recalculer l'année en cours*, ou *recalculer toutes les années* (avertissement : les statistiques des années passées peuvent changer). Ce choix reste modifiable année par année dans *Administration → Registre et statistiques → Registre*, le compteur étant alors recalculé ;
 - affiche, **avant de confirmer**, l'impact de chacun des trois choix sur le registre et les statistiques de chaque année concernée (entrées et durée cumulée par catégorie A à E, durées, heures de CSI, patients, numéros attribués), valeurs différentes surlignées, et le détail des mesures modifiées avec l'explication de leur catégorie (règle appliquée, lieu, case « exception », écart avec le fichier) ;
 - permet, mesure par mesure, de garder le numéro d'origine ou d'appliquer la règle de l'outil, et de corriger le lieu (CSI ou non) ou la case « exception » ; la correction est tracée avec la mesure, le fichier d'origine n'est pas modifié.
 

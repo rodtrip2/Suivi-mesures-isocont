@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.23.0 — 31 octobre 2026
+
+- **Administration en sous-onglets** : *Comptes et sécurité* (comptes, moyens de déblocage, mode formation), *Établissement et services* (services, CSI, postes de surveillance), *Règles et pauses*, *Registre et statistiques* (compteurs, numérotation des mesures importées, colonnes de l'onglet Patients), *Décompte JLD* (masques), *Reprise des données*, *Informations*. Seul le sous-onglet choisi est affiché ; il est conservé après un enregistrement et retenu d'une visite à l'autre. En mode formation, seuls les sous-onglets de paramétrage apparaissent.
+- Chemins « Administration → … » mis à jour dans le kit et les messages de l'interface.
+
 ## 1.22.1 — 31 octobre 2026
 
 - Documentation et interface pour tout établissement : la reprise de l'historique est présentée à partir du **registre du service** ; le classeur Excel V1.3 n'apparaît plus que comme un **cas particulier** (outil Excel dont est issu le projet), signalé comme tel (section repliée dans *Administration*, paragraphe distinct dans le guide d'installation). Fiche projet, guide d'installation, guide utilisateur, fiche 07 et README réécrits en conséquence.

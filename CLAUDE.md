@@ -44,7 +44,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 
 - Bouton *Pause* : début, **durée ou heure de reprise**, motif, psychiatre ; bouton *Reprise*. La pause ne termine pas la mesure. Si le psychiatre décide de ne pas reprendre : *Fin*, date proposée = début de la pause.
 - Par défaut, la durée des pauses reste **comptée** (calcul prudent : les échéances JLD ne bougent pas).
-- Options d'administration (*Administration → Pauses*), toutes tracées au journal :
+- Options d'administration (*Administration → Règles et pauses*), toutes tracées au journal :
   - **activer / désactiver** la levée temporaire (désactivable seulement si les pauses ne sont pas déduites) ;
   - **déduire la durée des pauses du cumul**, puis la **portée** : délais JLD seulement (registre et statistiques en durée réelle), ou **partout** ;
   - si déduites partout, **pause de la contention seule** au registre : en isolement seul (entrée A supplémentaire, par défaut) ou laissée dans l'entrée C sans déduction ; une pause commune isolement + contention est toujours déduite ;
@@ -95,6 +95,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 ## 10. Interface
 
 - Interface en français, vocabulaire du soin et du droit (pas de jargon technique). Libellés du journal lisibles : patient et mesure concernés, ancienne → nouvelle valeur, motif.
+- **Administration en sous-onglets** : Comptes et sécurité · Établissement et services · Règles et pauses · Registre et statistiques · Décompte JLD · Reprise des données · Informations (sous-onglet retenu par navigateur). Tout nouveau réglage se range dans le sous-onglet correspondant.
 - Actualisation automatique **sans retour en haut de page ni perte de saisie** (synchronisation toutes les 5 s sans reconstruction si rien n'a changé ; bandeau « Actualiser » pendant une saisie ou en administration).
 - Tout changement de paramétrage passe par une saisie `CONFIG` tracée au journal ; les choix à fort impact demandent une confirmation qui décrit l'effet.
 - Les options nouvelles sont **désactivées par défaut** quand elles changent un comportement existant, sauf demande contraire du porteur.

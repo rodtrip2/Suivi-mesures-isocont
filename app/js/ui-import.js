@@ -145,7 +145,7 @@
           radio('annee', 'Recalculer l’année en cours (' + anneeCourante + ')', 'les années antérieures gardent la numérotation du classeur ; les entrées de ' + anneeCourante + ' sont recalculées selon les règles de l’outil.'),
           radio('tout', 'Recalculer toutes les années', 'toutes les entrées importées sont recalculées selon les règles de l’outil.'),
           avertTout,
-          h('small', { class: 'muted', text: 'Ce choix reste modifiable ensuite, année par année, dans Administration → Registre.' })));
+          h('small', { class: 'muted', text: 'Ce choix reste modifiable ensuite, année par année, dans Administration → Registre et statistiques → Registre.' })));
       }
       function majCompteurs() {
         champsCompteurs.forEach(function (x) { x.champ.value = estFigeLigne(x.c) ? x.c.dernier : x.c.propose; x.note.textContent = estFigeLigne(x.c) ? 'numérotation du classeur conservée : l’outil reprendra après ' + x.c.dernier : ''; });
@@ -334,7 +334,7 @@
   function compteRendu(r, ecarts, controle, crees, registre) {
     var noms = { info: 'information', saisine: 'saisine', decision: 'décision' };
     U.modale('Import terminé', h('div', { class: 'pile' },
-      h('div', { class: 'info', text: r.mesures + ' mesure(s) et ' + r.patients + ' patient(s) importés' + (crees.length ? ', ' + crees.length + ' service(s) créé(s) : ' + crees.map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ') : '') + '. Complétez dans l’onglet Patients les fiches des nouveaux patients (nom, date de naissance)' + (crees.length ? ', et affectez les services créés aux comptes concernés (Administration → Comptes)' : '') + '.' }),
+      h('div', { class: 'info', text: r.mesures + ' mesure(s) et ' + r.patients + ' patient(s) importés' + (crees.length ? ', ' + crees.length + ' service(s) créé(s) : ' + crees.map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ') : '') + '. Complétez dans l’onglet Patients les fiches des nouveaux patients (nom, date de naissance)' + (crees.length ? ', et affectez les services créés aux comptes concernés (Administration → Comptes et sécurité)' : '') + '.' }),
       registre ? h('div', { class: 'info', text: 'Les cycles JLD et l’information des tiers ne figurent pas au registre : vérifiez les mesures en cours dans l’onglet JLD.' })
         : ecarts.length ? h('div', { class: 'alerte', text: ecarts.length + ' échéance(s) JLD recalculée(s) diffèrent du classeur pour des mesures en cours : vérifiez-les avant de vous y fier.' }) : h('div', { class: 'info', text: 'Les échéances JLD recalculées des mesures en cours sont identiques à celles du classeur.' }),
       ecarts.length ? h('div', { class: 'table-wrap' }, h('table', {},

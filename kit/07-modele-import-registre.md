@@ -2,7 +2,7 @@
 
 *Pour tout établissement, quel que soit son outil actuel de suivi des mesures.*
 
-Le registre prévu par l'article L. 3222-5-1 du code de la santé publique est le seul document que tout établissement tient obligatoirement sous forme numérique. Suivi-mesures-isocont peut donc reprendre l'historique d'un service à partir de son registre : exportez-le de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel, puis importez-le dans *Administration → Reprise des données existantes → Importer un registre…*.
+Le registre prévu par l'article L. 3222-5-1 du code de la santé publique est le seul document que tout établissement tient obligatoirement sous forme numérique. Suivi-mesures-isocont peut donc reprendre l'historique d'un service à partir de son registre : exportez-le de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel, puis importez-le dans *Administration → Reprise des données → Importer un registre…*.
 
 Le fichier est lu dans le navigateur : rien n'est envoyé sur Internet. L'import est enregistré en un seul lot, annulable depuis le journal.
 

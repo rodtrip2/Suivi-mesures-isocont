@@ -339,3 +339,10 @@ dialog.large { width: min(1150px, calc(100vw - 32px)); }
 .entree-impact .pourquoi { display: block; color: var(--ink-2); font-weight: 400; line-height: 1.35; margin-top: 2px; }
 .decision-mesure { min-width: 220px; }
 .decision-mesure summary { cursor: pointer; font-size: .85rem; }
+
+/* ---------- Sous-onglets de l'administration */
+.sous-onglets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.sous-onglets button { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: .9rem; cursor: pointer; }
+.sous-onglets button:hover { color: var(--ink); border-color: var(--ink-2); }
+.sous-onglets button[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.contenu-sous-onglet { display: grid; gap: 16px; }

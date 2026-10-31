@@ -367,10 +367,11 @@
   function rendreContenu() {
     if (!zoneContenu || !document.body.contains(zoneContenu)) return;
     // Même onglet : on garde la position de défilement de la page et des tableaux
-    var memeVue = vueAffichee === App.onglet + '|' + App.service;
+    var cleVue = App.onglet + '|' + App.service + (App.onglet === 'admin' ? '|' + App.sousOngletAdmin : '');
+    var memeVue = vueAffichee === cleVue;
     var pos = memeVue ? { x: window.scrollX, y: window.scrollY, h: zoneContenu.offsetHeight, zones: Array.prototype.map.call(zoneContenu.querySelectorAll('.table-wrap, .apercu-document, .apercu-registre'), function (z) { return [z.scrollLeft, z.scrollTop]; }) } : null;
     rendreContenuBrut();
-    vueAffichee = App.onglet + '|' + App.service;
+    vueAffichee = App.onglet + '|' + App.service + (App.onglet === 'admin' ? '|' + App.sousOngletAdmin : '');
     App.miseAJourEnAttente = false; signalerAttente();
     if (pos) {
       zoneContenu.querySelectorAll('.table-wrap, .apercu-document, .apercu-registre').forEach(function (z, i) { if (pos.zones[i]) { z.scrollLeft = pos.zones[i][0]; z.scrollTop = pos.zones[i][1]; } });
@@ -1708,7 +1709,8 @@
       }));
     majPauses();
 
-    var pMasques = SIC.ui.actions.panneauMasquesDecompte ? SIC.ui.actions.panneauMasquesDecompte() : null;
+    if (!App.sousOngletAdmin) { try { App.sousOngletAdmin = localStorage.getItem('sic-admin') || ''; } catch (e) { App.sousOngletAdmin = ''; } }
+    var pMasques = SIC.ui.actions.panneauMasquesDecompte && App.sousOngletAdmin === 'decompte' ? SIC.ui.actions.panneauMasquesDecompte() : null;
 
     // -- Colonnes annuelles de l'onglet Patients
     var colsP = M.colonnesPatients(cfg).map(function (c) { return { libelle: c.libelle, categories: c.categories.slice(), alerte: c.alerte }; });
@@ -1835,9 +1837,37 @@
       // Les comptes et les clés sont ceux des données réelles : ils ne se gèrent pas depuis le jeu de formation.
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
-      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pPauses, pMasques, pDocs, pColsP, infos);
+      return sousOngletsAdmin([
+        ['services', 'Établissement et services', [note, pServices, pSurv]],
+        ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
+        ['registre', 'Registre et statistiques', [note, pDocs, pColsP]],
+        ['decompte', 'Décompte JLD', [note, pMasques]],
+        ['infos', 'Informations', [note, infos]]
+      ]);
     }
-    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pPauses, pMasques, pDocs, pColsP, pImport, demo, infos);
+    return sousOngletsAdmin([
+      ['comptes', 'Comptes et sécurité', [comptes, deblocage, SIC.ui.formation.sectionAdmin()]],
+      ['services', 'Établissement et services', [pServices, pSurv]],
+      ['regles', 'Règles et pauses', [pRegles, pPauses]],
+      ['registre', 'Registre et statistiques', [pDocs, pColsP]],
+      ['decompte', 'Décompte JLD', [pMasques]],
+      ['reprise', 'Reprise des données', [pImport]],
+      ['infos', 'Informations', [infos, demo]]
+    ]);
+
+    /** Sous-onglets de l'administration : seul le contenu du sous-onglet choisi est affiché. */
+    function sousOngletsAdmin(liste) {
+      if (!liste.some(function (x) { return x[0] === App.sousOngletAdmin; })) App.sousOngletAdmin = liste[0][0];
+      var actif = liste.filter(function (x) { return x[0] === App.sousOngletAdmin; })[0];
+      var nav = h('nav', { class: 'sous-onglets', 'aria-label': 'Rubriques de l’administration' }, liste.map(function (x) {
+        return h('button', { type: 'button', 'aria-current': x[0] === App.sousOngletAdmin ? 'page' : null, onclick: function () {
+          App.sousOngletAdmin = x[0];
+          try { localStorage.setItem('sic-admin', x[0]); } catch (e) { /* stockage indisponible */ }
+          rendreContenu();
+        } }, x[1]);
+      }));
+      return h('div', {}, h('h1', { text: 'Administration' }), nav, h('div', { class: 'contenu-sous-onglet' }, actif[2]));
+    }
   }
 
   function casesRoles(actuels) {
