@@ -35,7 +35,7 @@
 
   /** Données du décompte, prêtes pour l'impression comme pour l'export. */
   function contenu(etat, m, reference, masque) {
-    var p = etat.patients[m.patientId] || {}, d = M.decompte(etat, m, reference);
+    var p = etat.patients[m.patientId] || {}, d = M.decompte(etat, m, reference, { tranche: m.type === 'Isolement' ? masque.trancheIsolement : masque.trancheContention });
     var j = M.suiviJLD(etat, m, d.reference);
     var mode = M.modeA(etat, m.patientId, d.reference) || m.modeHospi || '';
     var defMode = (etat.config.modesHospitalisation || []).filter(function (x) { return x.code === mode; })[0];
@@ -141,6 +141,7 @@
       c.entetes.length ? h('table', { class: 'doc-tableau' },
         h('thead', {}, h('tr', {}, c.entetes.map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, c.lignes.map(function (l, i) { return h('tr', { class: c.typesLignes[i] === 'pause' ? 'doc-ligne-pause' : null }, l.map(function (v) { return h('td', { text: v }); })); }))) : null,
+      c.entetes.length && masque.colonnes.indexOf('N') >= 0 ? h('p', { class: 'doc-legende', text: 'N° : numéro de la mesure dans le décompte' + (c.d.tranches ? ', suivi du numéro de tranche quand une même mesure est présentée sur plusieurs lignes (2.1, 2.2… : tranches de ' + c.d.tranche + ' h au plus)' : '') + '. Le statut est celui de la mesure.' }) : null,
       s.total ? h('p', { class: 'doc-total', text: c.total }) : null,
       s.cycle ? h('p', { text: c.cycle }) : null,
       s.jld ? liste('Envois au juge des libertés et de la détention', c.envois, 'Aucun envoi enregistré.') : null,
@@ -308,6 +309,8 @@
       dessinerColonnes();
       var selFmt = function (v) { return h('select', {}, M.FORMATS_DUREE.map(function (f) { return h('option', { value: f, text: LIB_FORMATS[f], selected: f === v }); })); };
       var fmtDuree = selFmt(mq.formatDuree), fmtCumul = selFmt(mq.formatCumul);
+      var trIso = h('input', { type: 'number', min: 0, max: 168, step: 1, value: mq.trancheIsolement });
+      var trCont = h('input', { type: 'number', min: 0, max: 168, step: 1, value: mq.trancheContention });
 
       // Papier à en-tête
       var images = JSON.parse(JSON.stringify(cfg.imagesDecompte || {}));
@@ -347,6 +350,7 @@
           sections: M.SECTIONS_DECOMPTE.reduce(function (o, k) { o[k] = casesSections[k].checked; return o; }, {}),
           piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, ''),
           formatDuree: fmtDuree.value, formatCumul: fmtCumul.value,
+          trancheIsolement: Math.max(0, Math.min(168, +trIso.value || 0)), trancheContention: Math.max(0, Math.min(168, +trCont.value || 0)),
           fond: selFond.value, fondPages: selPages.value,
           marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
         };
@@ -363,7 +367,7 @@
           vue.appendChild(doc); ajusterApercu(vue, doc);
         } catch (e) { vue.appendChild(h('div', { class: 'erreur', text: e.message })); }
       }
-      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
+      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
       Object.keys(casesIdentite).concat([]).forEach(function (k) { casesIdentite[k].addEventListener('change', apercu); });
       Object.keys(casesSections).forEach(function (k) { casesSections[k].addEventListener('change', apercu); });
       setTimeout(apercu, 0);
@@ -404,7 +408,8 @@
           h('label', { class: 'case' }, conf, h('span', { text: 'Bandeau « Document confidentiel — données personnelles de santé »' })),
           h('fieldset', {}, h('legend', { text: 'Données d’identité exportées' }), blocIdentite),
           h('fieldset', {}, h('legend', { text: 'Colonnes du tableau (cochées = exportées, dans cet ordre)' }), listeCol,
-            h('div', { class: 'grille-2' }, h('label', {}, 'Format de la colonne Durée (et des pauses)', fmtDuree), h('label', {}, 'Format du cumul et des totaux', fmtCumul))),
+            h('div', { class: 'grille-2' }, h('label', {}, 'Format de la colonne Durée (et des pauses)', fmtDuree), h('label', {}, 'Format du cumul et des totaux', fmtCumul)),
+            h('div', { class: 'grille-2' }, h('label', {}, 'Isolement : durée maximale d’une ligne (h, 0 = une seule ligne)', trIso), h('label', {}, 'Contention : durée maximale d’une ligne (h, 0 = une seule ligne)', trCont))),
           h('fieldset', {}, h('legend', { text: 'Sections exportées' }), blocSections),
           h('label', {}, 'Texte en pied de document', pied),
           h('label', {}, 'Bloc signature (ex. « Le directeur, par délégation » ; laisser vide pour aucun)', sign),

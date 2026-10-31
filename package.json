@@ -1,6 +1,6 @@
 {
   "name": "suivi-mesures-isocont",
-  "version": "1.10.2",
+  "version": "1.11.0",
   "private": true,
   "description": "Suivi des mesures d'isolement et de contention en psychiatrie — application web statique, données chiffrées sur le réseau de l'établissement.",
   "scripts": {

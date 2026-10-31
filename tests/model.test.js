@@ -182,7 +182,7 @@ test('Option : pauses retranchées des décomptes et échéances reportées d’
   const dc = M.decompte(avec, avec.mesures.M1, t);
   assert.equal(dc.total, 18);
   // La pause interrompt le décompte : ligne de pause non décomptée, puis reprise
-  assert.deepEqual(dc.lignes.map(l => [l.n, l.type, l.duree, l.cumul]), [[1, 'mesure', 4, 4], ['', 'pause', 2, 4], [2, 'mesure', 14, 18]]);
+  assert.deepEqual(dc.lignes.map(l => [l.n, l.type, l.duree, l.cumul]), [['1.1', 'mesure', 4, 4], ['', 'pause', 2, 4], ['1.2', 'mesure', 14, 18]]);
   assert.match(dc.lignes[1].commentaire, /Durée déduite, non ajoutée au cumul/);
   assert.match(dc.lignes[2].commentaire, /Reprise de la mesure après levée temporaire/);
   const dcSans = M.decompte(sans, sans.mesures.M1, t);
@@ -341,4 +341,30 @@ test('Registre pour communication (CADA) : occultations et numéros de remplacem
   assert.equal(r.lignes[0][r.colonnes.indexOf('Psychiatre')], 'Psychiatre');
   assert.equal(r.lignes[0][r.colonnes.indexOf('Professionnels chargés de la surveillance')], '2 IDE');
   assert.deepEqual(r.lignes.map(l => l[r.colonnes.indexOf('Soins sans consentement')]), ['oui', 'non', 'oui']);
+});
+
+test('Décompte : statut de la mesure sur toutes ses tranches, numérotation mesure.tranche, tranche réglable', () => {
+  const d0 = local(2026, 9, 1, 8);
+  const st = M.reduire([
+    evt('PATIENT', { patientId: 'P1' }),
+    evt('MESURE_DEBUT', { mesureId: 'A', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0 - 100 * H, csi: true }),
+    evt('MESURE_FIN', { mesureId: 'A', fin: d0 - 90 * H }),
+    evt('MESURE_DEBUT', { mesureId: 'B', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0, csi: true })
+  ]);
+  const t = d0 + 40 * H;
+  let dc = M.decompte(st, st.mesures.B, t);
+  assert.deepEqual(dc.lignes.map(l => [l.n, l.statut]), [['1', 'TERMINÉE'], ['2.1', 'EN COURS'], ['2.2', 'EN COURS']]);
+  assert.match(dc.lignes[2].commentaire, /Suite de la même mesure \(tranche 2\)/);
+  assert.equal(dc.tranches, true);
+  dc = M.decompte(st, st.mesures.B, t, { tranche: 12 });
+  assert.deepEqual(dc.lignes.map(l => l.n), ['1', '2.1', '2.2', '2.3', '2.4']);
+  dc = M.decompte(st, st.mesures.B, t, { tranche: 0 });
+  assert.deepEqual(dc.lignes.map(l => [l.n, l.duree]), [['1', 10], ['2', 40]]);
+  // Mesure terminée : toutes ses tranches sont terminées ; référence antérieure à la fin : en cours
+  const st2 = M.reduire(st.journal.concat([evt('MESURE_FIN', { mesureId: 'B', fin: d0 + 30 * H })]));
+  assert.ok(M.decompte(st2, st2.mesures.B, t).lignes.slice(1).every(l => l.statut === 'TERMINÉE'));
+  assert.ok(M.decompte(st2, st2.mesures.B, d0 + 26 * H).lignes.slice(1).every(l => l.statut === 'EN COURS'));
+  // Masque : tranches par type
+  assert.deepEqual([M.masqueDecompte({}, 'U1').trancheIsolement, M.masqueDecompte({}, 'U1').trancheContention], [24, 12]);
+  assert.equal(M.masqueDecompte({ decompte: { U1: { trancheIsolement: 0 } } }, 'U1').trancheIsolement, 0);
 });

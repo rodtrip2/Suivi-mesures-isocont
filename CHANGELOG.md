@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.11.0 — 31 octobre 2026
+
+- Décompte JLD : **le statut est celui de la mesure** — une mesure en cours est « EN COURS » sur toutes ses lignes (auparavant, une tranche de 24 h écoulée apparaissait « TERMINÉE »).
+- **Numérotation par mesure** : N° 1, 2… désigne une mesure ; une même mesure présentée sur plusieurs lignes est numérotée par tranche (2.1, 2.2…), avec une légende sous le tableau. Commentaire « Suite de la même mesure (tranche n) ». Auparavant, le N° était un simple numéro de ligne.
+- **Durée maximale d'une ligne réglable** dans le masque, pour l'isolement (24 h par défaut) et pour la contention (12 h par défaut) ; 0 présente chaque mesure sur une seule ligne.
+
 ## 1.10.2 — 31 octobre 2026
 
 - **Actualisation sans retour en haut de page** : la synchronisation (toutes les 5 secondes) ne reconstruit plus la page quand rien n'a changé ; seul l'indicateur de synchronisation est mis à jour.

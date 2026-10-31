@@ -773,6 +773,8 @@
     piedPage: '', signature: '',
     // Format des durées : 'h' (68 h 05), 'j' (2 j 20 h), 'hj' (68 h 05, soit 2 j 20 h 05)
     formatDuree: 'j', formatCumul: 'j',
+    // Durée maximale d'une ligne du décompte (heures) ; 0 = la mesure sur une seule ligne.
+    trancheIsolement: 24, trancheContention: 12,
     // Papier à en-tête : image de fond (identifiant dans config.imagesDecompte), sur toutes les pages ou la première, marges (mm).
     fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 }
   };
@@ -805,6 +807,7 @@
     r.identite = r.identite.filter(function (c) { return IDENTITE_DECOMPTE.indexOf(c) >= 0; });
     Object.keys(r.marges).forEach(function (k) { var v = +r.marges[k]; r.marges[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; });
     ['formatDuree', 'formatCumul'].forEach(function (k) { if (FORMATS_DUREE.indexOf(r[k]) < 0) r[k] = 'j'; });
+    [['trancheIsolement', 24], ['trancheContention', 12]].forEach(function (x) { var v = +r[x[0]]; r[x[0]] = isFinite(v) && v >= 0 ? Math.min(168, v) : x[1]; });
     if (r.fond && !((config && config.imagesDecompte) || {})[r.fond]) r.fond = '';
     r.propre = !!(service && service !== '*' && dec[service]);
     return r;
@@ -816,12 +819,16 @@
    * Pauses déduites (option) : chaque pause interrompt le décompte par une ligne « pause » dont la durée est déduite du cumul,
    * et la ligne suivante reprend à l'heure de reprise. Sinon, les pauses sont signalées dans le commentaire.
    */
-  function decompte(st, m, reference) {
+  function decompte(st, m, reference, options) {
+    options = options || {};
     var toutes = mesuresCalcul(st, reference);
     m = toutes.filter(function (x) { return x.id === m.id; })[0] || m;
     var deduire = optionsPauses(st.config).retrancher;
     var fin = typeof m.fin === 'number' && m.fin < reference ? m.fin : reference;
-    var pas = (m.type === 'Isolement' ? 24 : 12) * H;
+    // Durée maximale d'une tranche (heures) : réglable par masque, 0 = mesure sur une seule ligne.
+    var tranche = options.tranche != null ? +options.tranche : (m.type === 'Isolement' ? 24 : 12);
+    var pas = tranche > 0 ? tranche * H : 0;
+    var noMesure = 0, mesureFinie = typeof m.fin === 'number' && m.fin <= reference;
     var borne = Math.max(m.debut - 15 * J, rules.derniereLeveeJLD(toutes, m.patientId, m.type, m.debut));
     var intervalles = [], lignes = [];
     function hhmm(t) { var d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
@@ -834,7 +841,7 @@
     }
     function ligneMesure(x, d, f, commentaire, statut) {
       intervalles.push([d, f]);
-      lignes.push({ type: 'mesure', debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
+      lignes.push({ type: 'mesure', mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
     }
     function lignePause(q, d, f) {
       lignes.push({ type: 'pause', debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'PAUSE',
@@ -861,22 +868,33 @@
     }).sort(function (a, b) { return a.debut - b.debut; }).forEach(function (x) {
       var d = Math.max(x.debut, borne), f = Math.min(typeof x.fin === 'number' ? x.fin : m.debut, m.debut);
       if (f <= d) return;
+      noMesure++;
       parcourir(x, d, f, null, function (a, b, apres) {
         ligneMesure(x, a, b, apres ? 'Mesure antérieure : reprise après levée temporaire' : 'Mesure antérieure comptée dans les 15 jours glissants' + (x.debut < borne ? ' (partiellement)' : ''), 'TERMINÉE');
       });
     });
     var cumulAvant = rules.heuresFusionnees(intervalles);
-    var grille = function (k) { return m.debut + (k + 1) * pas; };
+    var grille = pas ? function (k) { return m.debut + (k + 1) * pas; } : null;
+    noMesure++;
+    var nTranche = 0;
     parcourir(m, m.debut, fin, grille, function (a, b, apres, premiere) {
-      var enCours = b >= fin && typeof m.fin !== 'number';
-      ligneMesure(m, a, b, premiere ? 'Début de la mesure' : apres ? 'Reprise de la mesure après levée temporaire' : 'Prolongation de la mesure', enCours ? 'EN COURS' : 'TERMINÉE');
+      nTranche++;
+      // Le statut est celui de la mesure (et non de la tranche) : une mesure en cours l'est sur toutes ses lignes.
+      ligneMesure(m, a, b, premiere ? 'Début de la mesure' : apres ? 'Reprise de la mesure après levée temporaire' + (pas ? ' (tranche ' + nTranche + ')' : '') : 'Suite de la même mesure (tranche ' + nTranche + ')', mesureFinie ? 'TERMINÉE' : 'EN COURS');
     });
-    var n = 0;
-    lignes.forEach(function (l) { l.n = l.type === 'pause' ? '' : ++n; });
+    // N° : numéro de la mesure dans le décompte, suivi du numéro de tranche si elle occupe plusieurs lignes (2.1, 2.2…).
+    var parMesure = {}, rang = {};
+    lignes.forEach(function (l) { if (l.type === 'mesure') parMesure[l.mesure] = (parMesure[l.mesure] || 0) + 1; });
+    lignes.forEach(function (l) {
+      if (l.type !== 'mesure') { l.n = ''; return; }
+      rang[l.mesure] = (rang[l.mesure] || 0) + 1;
+      l.n = parMesure[l.mesure] > 1 ? l.mesure + '.' + rang[l.mesure] : String(l.mesure);
+    });
     var dernier = lignes[lignes.length - 1];
-    if (dernier && dernier.type === 'pause' && typeof m.fin !== 'number') dernier.statut = 'PAUSE EN COURS';
+    if (dernier && dernier.type === 'pause' && !mesureFinie) dernier.statut = 'PAUSE EN COURS';
     return {
-      lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: typeof m.fin !== 'number', reference: fin, fenetreDebut: borne,
+      lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: !mesureFinie, reference: fin, fenetreDebut: borne,
+      tranches: lignes.some(function (l) { return /\./.test(l.n); }), tranche: tranche,
       pausesRetranchees: deduire, pauses: plagesPauses(m, fin)
     };
   }
