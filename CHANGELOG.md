@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 1.4.0 — 31 octobre 2026
+
+- **Pause d'une mesure (levée temporaire décidée par le psychiatre)** : bouton *Pause* avec durée (raccourcis 30 min, 1 h, 2 h, 4 h) ou heure de reprise prévue, motif et psychiatre ; bouton *Reprise* pour la reprise effective.
+- La pause ne termine pas la mesure : durée et échéances JLD inchangées (calcul prudent). Total des pauses affiché dans la liste, le détail et le décompte JLD.
+- Contention en cours mise en pause avec l'isolement (case cochée par défaut), et reprise ensemble.
+- Alertes : reprise prévue dépassée sans saisie (badge rouge, tableau de bord), contention en cours pendant la pause de l'isolement, pause de plus de 12 h ; refus au-delà de 48 h (fin de mesure).
+- Fin d'une mesure en pause : la date proposée est le début de la pause.
+- Deux pauses saisies en même temps sur une même mesure sont signalées comme conflit à arbitrer.
+
 ## 1.3.1 — 31 octobre 2026
 
 - Nouvelle mesure : **date de naissance obligatoire** pour un nouveau patient, demandée aussi quand elle manque dans une fiche existante (patients importés).

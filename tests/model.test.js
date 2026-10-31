@@ -110,3 +110,50 @@ test('Chaînage : une saisie supprimée du dossier est signalée', () => {
   const st = M.reduire([a, c]);
   assert.deepEqual(st.manquants.map(x => x.manque), [b.id]);
 });
+
+test('Pause (levée temporaire) : ne termine pas la mesure, ne décale pas les échéances, reprise tracée', () => {
+  const d0 = local(2026, 3, 1, 8);
+  const debut = evt('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0, csi: true });
+  const sans = M.reduire([evt('PATIENT', { patientId: 'P1' }), debut]);
+  const echSans = M.suiviJLD(sans, sans.mesures.M1, d0 + 30 * H);
+
+  const pause = evt('PAUSE', { mesureId: 'M1', debut: d0 + 4 * H, reprisePrevue: d0 + 5 * H, psychiatre: 'Dr X (fictif)', motif: 'Repas' }, { base: 1 });
+  let st = M.reduire([evt('PATIENT', { patientId: 'P1' }), debut, pause]);
+  const m = st.mesures.M1;
+  assert.equal(m.fin, null);
+  assert.ok(M.pauseEnCours(m, d0 + 4.5 * H));
+  assert.equal(M.pauseEnCours(m, d0 + 4.5 * H).depassee, false);
+  assert.equal(M.pauseEnCours(m, d0 + 6 * H).depassee, true);          // reprise prévue passée, non confirmée
+  assert.equal(M.pauseEnCours(m, d0 + 3 * H), null);                    // avant la pause
+  assert.equal(M.dureeHeures(m, d0 + 6 * H), 6);                        // la durée continue de courir
+  const echAvec = M.suiviJLD(st, m, d0 + 30 * H);
+  assert.equal(echAvec.info.echeance, echSans.info.echeance);
+  assert.equal(echAvec.saisine.echeance, echSans.saisine.echeance);
+
+  // Reprise : clôt la pause désignée
+  const reprise = evt('REPRISE', { mesureId: 'M1', pause: pause.id, date: d0 + 5.25 * H }, { base: 2 });
+  st = M.reduire([evt('PATIENT', { patientId: 'P1' }), debut, pause, reprise]);
+  assert.equal(M.pauseEnCours(st.mesures.M1, d0 + 6 * H), null);
+  assert.equal(M.dureePausesHeures(st.mesures.M1, d0 + 10 * H), 1.25);
+  assert.equal(st.conflits.length, 0);
+
+  // Fin pendant la pause : la pause s'arrête à la fin de la mesure
+  const fin = evt('MESURE_FIN', { mesureId: 'M1', fin: d0 + 4 * H }, { base: 2 });
+  st = M.reduire([evt('PATIENT', { patientId: 'P1' }), debut, pause, fin]);
+  assert.equal(M.pauseEnCours(st.mesures.M1, d0 + 6 * H), null);
+  assert.equal(M.dureePausesHeures(st.mesures.M1, d0 + 10 * H), 0);
+
+  // Annulation de la pause
+  st = M.reduire([evt('PATIENT', { patientId: 'P1' }), debut, pause, evt('ANNULATION', { cible: pause.id })]);
+  assert.equal(st.mesures.M1.pauses.length, 0);
+
+  // Deux pauses saisies en même temps par deux agents : conflit à arbitrer
+  const concurrente = evt('PAUSE', { mesureId: 'M1', debut: d0 + 4 * H, reprisePrevue: d0 + 6 * H }, { base: 1, by: 'u2' });
+  st = M.reduire([evt('PATIENT', { patientId: 'P1' }), debut, pause, concurrente]);
+  assert.equal(st.conflits.length, 1);
+  assert.equal(st.mesures.M1.pauses.length, 1);
+
+  // Droits : IDE, AS et cadre ; pas la secrétaire
+  assert.ok(M.peut(['AS'], 'PAUSE') && M.peut(['IDE'], 'REPRISE') && M.peut(['CADRE'], 'PAUSE'));
+  assert.ok(!M.peut(['SECRETAIRE'], 'PAUSE'));
+});

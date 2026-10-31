@@ -31,10 +31,10 @@
   // Types d'événements autorisés par rôle. L'IDE dispose en permanence des
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
   var DROITS = {
-    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD'],
-    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD'],   // mêmes droits que l'IDE
+    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD'],
+    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD'],
-    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD', 'CORRECTION', 'ANNULATION', 'STATS'],
+    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'CORRECTION', 'ANNULATION', 'STATS'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -114,6 +114,7 @@
   function champ(e) {
     switch (e.type) {
       case 'MESURE_FIN': return 'fin';
+      case 'PAUSE': case 'REPRISE': return 'pause';
       case 'JLD': return 'jld:' + e.data.cycle + ':' + e.data.nature;
       case 'CORRECTION': return 'corr:' + Object.keys(e.data.champs || {}).sort().join(',');
       default: return null;
@@ -180,7 +181,7 @@
           id: d.mesureId, patientId: d.patientId, service: d.service, type: d.typeMesure,
           debut: d.debut, fin: null, lieu: d.lieu || '', csi: !!d.csi, exception: !!d.exception,
           psychiatreDebut: d.psychiatre || '', psychiatreFin: '', modeHospi: d.modeHospi || '',
-          cycle: 1, jld: {}, leveeJLD: false, tiers: [], creePar: e.by, creeLe: e.at,
+          cycle: 1, jld: {}, leveeJLD: false, tiers: [], pauses: [], creePar: e.by, creeLe: e.at,
           origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', suite: d.suiteDe || '',
           version: 1, champs: {}, evts: [e.id]
         };
@@ -214,6 +215,15 @@
     switch (e.type) {
       case 'MESURE_FIN':
         m.fin = d.fin; m.psychiatreFin = d.psychiatre || ''; m.motifFin = d.motif || '';
+        break;
+      case 'PAUSE':
+        if (typeof m.fin === 'number') break;
+        m.pauses.forEach(function (x) { if (x.reprise == null) x.reprise = d.debut; });   // une nouvelle pause clôt la précédente
+        m.pauses.push({ debut: d.debut, reprisePrevue: d.reprisePrevue, reprise: null, psychiatre: d.psychiatre || '', motif: d.motif || '', evt: e.id, by: e.by });
+        break;
+      case 'REPRISE':
+        var ouverte = m.pauses.filter(function (x) { return x.reprise == null && (!d.pause || x.evt === d.pause); }).pop();
+        if (ouverte) { ouverte.reprise = d.date; ouverte.evtReprise = e.id; }
         break;
       case 'TIERS':
         m.tiers.push({ cycle: d.cycle || m.cycle, statut: d.statut, personne: d.personne || '', informateur: d.informateur, nomInformateur: d.nomInformateur || '', date: d.date, motif: d.motif || '', evt: e.id, by: e.by });
@@ -266,6 +276,30 @@
       decision: { echeance: e.decision, effective: eff('DECISION'), statut: statut(e.decision, 'DECISION') },
       cumulAvant: rules.cumulAvantMesure(toutes, m, 15)
     };
+  }
+
+  // ------------------------------------------------- Levées temporaires
+  // Une pause (levée temporaire décidée par le psychiatre, avec reprise prévue) ne met pas fin à la mesure :
+  // la durée et les échéances JLD continuent de courir. Au-delà de 48 h, il s'agit d'une fin de mesure.
+  var PAUSE_MAX_HEURES = 48, PAUSE_LONGUE_HEURES = 12;
+
+  /** Pause en cours (ou null) ; `depassee` : l'heure de reprise prévue est passée sans reprise saisie. */
+  function pauseEnCours(m, maintenant) {
+    if (typeof m.fin === 'number' || !m.pauses) return null;
+    var p = m.pauses.filter(function (x) { return x.reprise == null && x.debut <= maintenant; }).pop();
+    if (!p) return null;
+    return Object.assign({}, p, { depassee: maintenant > p.reprisePrevue });
+  }
+
+  /** Fin effective d'une pause : reprise saisie, sinon fin de la mesure, sinon maintenant. */
+  function finPause(m, p, maintenant) {
+    if (p.reprise != null) return p.reprise;
+    return typeof m.fin === 'number' ? m.fin : maintenant;
+  }
+
+  /** Durée cumulée des pauses d'une mesure (heures), à titre d'information : elle reste comptée dans la durée légale. */
+  function dureePausesHeures(m, maintenant) {
+    return (m.pauses || []).reduce(function (s, p) { return s + Math.max(0, finPause(m, p, maintenant) - p.debut); }, 0) / H;
   }
 
   function dureeHeures(m, maintenant) {
@@ -588,6 +622,7 @@
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
-    registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte
+    registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
+    PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, PAUSE_LONGUE_HEURES: PAUSE_LONGUE_HEURES, pauseEnCours: pauseEnCours, finPause: finPause, dureePausesHeures: dureePausesHeures
   };
 });

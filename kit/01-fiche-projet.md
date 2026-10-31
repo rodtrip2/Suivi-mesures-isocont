@@ -26,7 +26,7 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 
 | Fonction | Détail |
 | --- | --- |
-| Report des décisions médicales | L'IDE reporte le début et la fin de chaque mesure : psychiatre décisionnaire, date, heure, lieu (chambre de soins intensifs ou non). |
+| Report des décisions médicales | L'IDE reporte le début et la fin de chaque mesure : psychiatre décisionnaire, date, heure, lieu (chambre de soins intensifs ou non). Il reporte aussi les levées temporaires (pause avec durée ou heure de reprise prévue) et leur reprise. |
 | Échéances JLD | Calcul automatique des dates limites d'information, de saisine et de décision, cycle par cycle, avec alertes visuelles. Calculs vérifiés par des tests automatiques. |
 | Envois JLD | Secrétariat (et IDE le week-end) : enregistrement des informations, saisines et décisions reçues ; repérage des envois hors délai. |
 | Décompte JLD | Document imprimable ou PDF détaillant la durée cumulée, à joindre à la saisine. |
@@ -44,7 +44,7 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 
 | Rôle | Responsabilités dans l'outil |
 | --- | --- |
-| IDE et aide-soignant(e) (AS) | Mêmes droits : report des décisions de début et de fin, information des tiers, professionnels en CSI, envois JLD le week-end ou en l'absence du secrétariat. |
+| IDE et aide-soignant(e) (AS) | Mêmes droits : report des décisions de début, de fin et de pause, information des tiers, professionnels en CSI, envois JLD le week-end ou en l'absence du secrétariat. |
 | Secrétaire | Envois et suivi JLD, décomptes. |
 | Cadre de santé | Pilotage, corrections tracées, registre, statistiques. |
 | Administrateur | Comptes (un par un ou en lot à partir d'une liste d'agents), services affectés à chaque compte, accès au mode formation, réinitialisation des mots de passe perdus, clés de secours, paramétrage, import. Rôle cumulable avec celui de cadre. |

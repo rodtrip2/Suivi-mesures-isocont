@@ -34,6 +34,12 @@ IDE et AS disposent des mêmes droits.
 
 **Fin de mesure** : bouton *Fin* sur la ligne, avec la date, l'heure et le psychiatre qui a décidé l'arrêt. Une mainlevée du juge ne termine pas la mesure : c'est toujours la décision médicale qui y met fin.
 
+**Pause (levée temporaire)** : quand le psychiatre lève temporairement la mesure (repas, douche, visite…), bouton *Pause* sur la ligne. Indiquez le début, puis **une durée** (raccourcis 30 min, 1 h, 2 h, 4 h) **ou une heure de reprise**, le motif et le psychiatre. Pour un isolement avec une contention en cours, la contention est mise en pause en même temps (case cochée par défaut : une contention ne peut pas se poursuivre hors isolement).
+- La pause **ne met pas fin à la mesure** : la durée et les échéances JLD continuent de courir. La ligne apparaît hachurée avec un badge *Pause → heure de reprise*.
+- Au retour du patient, bouton *Reprise* : l'heure prévue est proposée, corrigez-la si besoin. Si l'heure prévue est dépassée sans reprise saisie, le badge passe au rouge et le tableau de bord le signale.
+- Si le psychiatre décide de ne pas reprendre, utilisez *Fin* : la date proposée est le début de la pause.
+- Au-delà de 12 h, une alerte demande de vérifier qu'il ne s'agit pas d'une fin de mesure ; 48 h ou plus est refusé (c'est une fin de mesure).
+
 **Changement de lieu** (de CSI vers une chambre, par exemple) : *Détail → Changer de lieu…*. Pour une simple erreur de saisie, demandez une correction à votre cadre.
 
 **Information du tiers** : bouton *Tiers*. Indiquez le résultat (informé, tentative sans succès, pas de tiers, refus du patient…), la qualité du tiers et qui l'a informé : le psychiatre, ou vous-même en dernier recours. À renouveler à chaque nouveau cycle JLD.

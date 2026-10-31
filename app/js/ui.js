@@ -67,10 +67,11 @@
   var LIB_NATURE = { INFO: 'Information du JLD', SAISINE: 'Saisine du JLD', DECISION: 'Décision reçue du JLD' };
   var LIB_EVT = {
     CONFIG: 'Paramétrage', PATIENT: 'Patient', MODE_HOSPI: "Mode d'hospitalisation", MESURE_DEBUT: 'Début de mesure',
-    MESURE_FIN: 'Fin de mesure', TIERS: 'Information du tiers', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
+    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés'
   };
   var LIB_COMPTE = { FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var MOTIFS_PAUSE = ['Repas', 'Hygiène, douche', 'Visite', 'Appel téléphonique', 'Sortie accompagnée dans l’unité', 'Activité thérapeutique', 'Examen ou soin', 'Autre'];
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -396,6 +397,16 @@
     return h('span', { class: 'badge ' + cls, title: (t.personne ? t.personne + ' — ' : '') + 'par ' + (t.informateur === 'IDE' ? 'IDE (dernier recours)' : (t.nomInformateur || 'psychiatre')), text: LIB_TIERS[t.statut] || t.statut });
   }
 
+  /** Badge de pause d'une mesure en cours (ou null). */
+  function badgePause(m, maintenant) {
+    var p = M.pauseEnCours(m, maintenant);
+    if (!p) return null;
+    var heure = function (ms) { return Math.abs(ms - maintenant) < 20 * H ? new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : court(ms); };
+    return p.depassee
+      ? h('span', { class: 'badge bad', title: 'Pause depuis ' + date(p.debut) + (p.motif ? ' — ' + p.motif : ''), text: 'Reprise ' + heure(p.reprisePrevue) + ' à confirmer' })
+      : h('span', { class: 'badge pause', title: 'Pause depuis ' + date(p.debut) + (p.motif ? ' — ' + p.motif : '') + ' (' + (p.psychiatre || '?') + ')', text: 'Pause → ' + heure(p.reprisePrevue) });
+  }
+
   function legendeEcheances() {
     return h('div', { class: 'legende' }, 'Échéances :',
       ['ok', 'proche', 'depasse', 'fait', 'fait-retard', 'na'].map(function (k) { return h('span', { class: 'ech ' + k, text: LIB_STATUT[k] }); }));
@@ -424,6 +435,14 @@
     var vigilance = [];
     libres.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ', m.type.toLowerCase() + ' en cours alors que le patient est en ' + (M.modeA(st(), m.patientId, maintenant) || m.modeHospi) + ' (soins libres) : régulariser le mode d’hospitalisation ou mettre fin à la mesure.')); });
     mineurs.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — patient mineur : vigilance renforcée.')); });
+    var enPause = enCours.filter(function (m) { return M.pauseEnCours(m, maintenant); });
+    enPause.forEach(function (m) {
+      var p = M.pauseEnCours(m, maintenant);
+      if (p.depassee) vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ' + m.type.toLowerCase() + ' en pause : la reprise était prévue le ' + date(p.reprisePrevue) + '. Confirmez la reprise ou saisissez la fin de la mesure.'));
+      if (m.type === 'Isolement') enCours.forEach(function (c) {
+        if (c.type === 'Contention' && c.patientId === m.patientId && !M.pauseEnCours(c, maintenant)) vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — contention en cours alors que l’isolement est en pause : mettez aussi la contention en pause ou saisissez sa fin.'));
+      });
+    });
     var vusRouge = {};
     enCours.forEach(function (m) {
       if (vusRouge[m.patientId]) return; vusRouge[m.patientId] = 1;
@@ -464,6 +483,7 @@
         ind(enCours.length, 'Mesures en cours (' + nIso + ' isolement, ' + (enCours.length - nIso) + ' contention)'),
         ind(depassees, 'Échéances JLD dépassées', depassees ? 'bad' : 'ok'),
         ind(proches, 'Échéances JLD dans les 12 h', proches ? 'warn' : 'ok'),
+        ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant).depassee; }) ? 'bad' : ''),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
         ind(postesIncomplets.length, 'Postes CSI incomplets (48 h)', postesIncomplets.length ? 'warn' : 'ok'),
         ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok'),
@@ -494,18 +514,23 @@
       var etat = R.etatAffichage(m, maintenant);
       var j = M.suiviJLD(st(), m, maintenant);
       var enCours = etat === 'en-cours';
-      tbody.appendChild(h('tr', { class: etat },
+      var pause = enCours ? M.pauseEnCours(m, maintenant) : null;
+      var hPauses = M.dureePausesHeures(m, maintenant);
+      tbody.appendChild(h('tr', { class: etat + (pause ? ' en-pause' : '') },
         h('td', { class: 'patient' }, h('b', { text: nomPatient(m.patientId) }), h('br'), h('small', { text: 'IPP ' + (patient(m.patientId).ipp || '—') + ' · ' + libService(m.service) })),
-        h('td', {}, badgeType(m.type), m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null),
+        h('td', {}, badgeType(m.type), m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
         h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
         h('td', { class: 'nowrap', text: court(m.debut) }),
-        h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant)), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) })),
+        h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant)), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
+          hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: 'Levées temporaires, comptées dans la durée', text: 'dont pauses ' + duree(hPauses) })) : null),
         h('td', { text: String(j.cycle) }),
         h('td', {}, cellEcheance(j.info)), h('td', {}, cellEcheance(j.saisine)), h('td', {}, cellEcheance(j.decision)),
         h('td', {}, tiersBadge(m)),
         h('td', { class: 'actions-ligne' },
           enCours && App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { modaleJLD(m); } }, 'JLD') : null, ' ',
           App.session.peut('TIERS') ? h('button', { class: 'btn petit', onclick: function () { modaleTiers(m); } }, 'Tiers') : null, ' ',
+          enCours && !pause && App.session.peut('PAUSE') ? h('button', { class: 'btn petit', title: 'Levée temporaire décidée par le psychiatre', onclick: function () { modalePause(m); } }, 'Pause') : null,
+          pause && App.session.peut('REPRISE') ? h('button', { class: 'btn petit primaire', onclick: function () { modaleReprise(m); } }, 'Reprise') : null, ' ',
           enCours && App.session.peut('MESURE_FIN') ? h('button', { class: 'btn petit danger', onclick: function () { modaleFin(m); } }, 'Fin') : null, ' ',
           SIC.ui.actions.decompte && App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { SIC.ui.actions.decompte(m); } }, 'Décompte') : null, ' ',
           h('button', { class: 'btn petit', onclick: function () { modaleDetail(m); } }, 'Détail'))));
@@ -528,7 +553,7 @@
       var t = M.tiersCycle(x.m);
       tbody.appendChild(h('tr', { class: 'en-cours' },
         h('td', {}, h('b', { text: nomPatient(x.m.patientId) }), h('br'), h('small', { text: libService(x.m.service) })),
-        h('td', {}, badgeType(x.m.type), h('br'), h('small', { text: 'depuis ' + duree(M.dureeHeures(x.m, maintenant)) })),
+        h('td', {}, badgeType(x.m.type), h('br'), h('small', { text: 'depuis ' + duree(M.dureeHeures(x.m, maintenant)) }), badgePause(x.m, maintenant) ? h('div', {}, badgePause(x.m, maintenant)) : null),
         h('td', {}, String(x.j.cycle), x.j.rythmeLong ? h('div', {}, h('small', { text: 'rythme long' })) : null),
         h('td', { class: 'nowrap', text: duree(x.j.cumulAvant) }),
         h('td', {}, cellEcheance(x.j.info)), h('td', {}, cellEcheance(x.j.saisine)), h('td', {}, cellEcheance(x.j.decision)),
@@ -622,6 +647,8 @@
     switch (e.type) {
       case 'MESURE_DEBUT': return nomPatient(d.patientId) + ' — ' + d.typeMesure + ' débutée le ' + date(d.debut) + ' (' + (d.psychiatre || '?') + ', ' + (d.lieu || '') + ')';
       case 'MESURE_FIN': return qui + 'fin le ' + date(d.fin) + (d.psychiatre ? ' (' + d.psychiatre + ')' : '');
+      case 'PAUSE': return qui + 'pause du ' + date(d.debut) + ', reprise prévue le ' + date(d.reprisePrevue) + (d.motif ? ' — ' + d.motif : '') + (d.psychiatre ? ' (' + d.psychiatre + ')' : '');
+      case 'REPRISE': return qui + 'reprise le ' + date(d.date);
       case 'TIERS': return qui + (LIB_TIERS[d.statut] || d.statut) + (d.personne ? ' : ' + d.personne : '') + ' — par ' + (d.informateur === 'IDE' ? 'l’IDE' : (d.nomInformateur || 'le psychiatre'));
       case 'JLD': return qui + LIB_NATURE[d.nature] + ' (cycle ' + d.cycle + ') le ' + date(d.date) + (d.decision ? ' — ' + (d.decision === 'LEVEE' ? 'levée' : 'maintien') : '');
       case 'PROFESSIONNEL': return libService(d.service) + ' — ' + d.date + ' ' + d.periode + ' : ' + d.nom + (d.fonction ? ' (' + d.fonction + ')' : '');
@@ -930,10 +957,12 @@
   // ---------------------------------------------------------------- Fin
   function modaleFin(m) {
     var base = m.version;
-    var fin = h('input', { type: 'datetime-local', value: versSaisie(Date.now()) });
+    var pause = M.pauseEnCours(m, Date.now());
+    var fin = h('input', { type: 'datetime-local', value: versSaisie(pause ? pause.debut : Date.now()) });
     var psy = selectPsychiatre(m.psychiatreDebut);
     var lies = M.listeMesures(st()).filter(function (x) { return x.patientId === m.patientId && x.id !== m.id && typeof x.fin !== 'number'; });
     modale('Fin de mesure — report de la décision médicale', h('div', { class: 'pile' }, recapMesure(m),
+      pause ? h('div', { class: 'info', text: 'Mesure en pause depuis le ' + date(pause.debut) + '. Si elle n’a pas repris (le psychiatre décide de ne pas la reprendre), la fin correspond en principe au début de la pause : la date est préremplie ainsi. Modifiez-la si la décision est autre.' }) : null,
       h('label', {}, 'Date et heure de la décision de fin', fin), h('label', {}, 'Psychiatre décisionnaire', psy),
       lies.length ? h('div', { class: 'info', text: 'Autre mesure en cours pour ce patient : ' + lies.map(function (x) { return x.type + ' depuis ' + court(x.debut); }).join(', ') + '. Elle reste en cours.' }) : null,
       m.leveeJLD ? h('div', { class: 'info', text: 'Le JLD a ordonné la levée : à compter de cette fin, le cumul des 15 jours repartira de zéro pour ce patient et ce type de mesure.' }) : null), [
@@ -944,6 +973,121 @@
         if (t > Date.now() + 10 * 60000) throw new Error('La date de fin ne peut pas être dans le futur.');
         await App.session.enregistrer('MESURE_FIN', { mesureId: m.id, fin: t, psychiatre: psy.valeur() }, base);
         toast('Fin de mesure enregistrée.');
+      } }]);
+  }
+
+  // ---------------------------------------------------------------- Pause (levée temporaire)
+  function contentionsLiees(m, maintenant, enPause) {
+    if (m.type !== 'Isolement') return [];
+    return M.listeMesures(st()).filter(function (c) {
+      return c.type === 'Contention' && c.patientId === m.patientId && typeof c.fin !== 'number' && !!M.pauseEnCours(c, maintenant) === enPause;
+    });
+  }
+
+  function modalePause(m) {
+    var maintenant = Date.now();
+    var debut = h('input', { type: 'datetime-local', value: versSaisie(maintenant) });
+    var mode = h('select', {}, h('option', { value: 'duree', text: 'Pour une durée' }), h('option', { value: 'heure', text: 'Jusqu’à une heure de reprise' }));
+    var dH = h('input', { type: 'number', min: 0, max: 47, step: 1, value: 1, 'aria-label': 'Heures' });
+    var dM = h('select', { 'aria-label': 'Minutes' }, [0, 15, 30, 45].map(function (x) { return h('option', { value: x, text: String(x).padStart(2, '0') + ' min' }); }));
+    var raccourcis = h('div', { class: 'raccourcis' }, [[0, 30, '30 min'], [1, 0, '1 h'], [2, 0, '2 h'], [4, 0, '4 h']].map(function (r) {
+      return h('button', { type: 'button', class: 'btn petit', onclick: function () { dH.value = r[0]; dM.value = r[1]; maj(); } }, r[2]);
+    }));
+    var blocDuree = h('label', {}, 'Durée de la pause', h('div', { class: 'en-ligne' }, dH, h('span', { text: 'h' }), dM), raccourcis);
+    var reprise = h('input', { type: 'datetime-local', value: versSaisie(maintenant + H) });
+    var blocHeure = h('label', { hidden: true }, 'Date et heure de reprise prévue', reprise);
+    var resume = h('div', { class: 'info' });
+    var psy = selectPsychiatre(m.psychiatreDebut);
+    var motif = h('select', {}, MOTIFS_PAUSE.map(function (x) { return h('option', { value: x, text: x }); }));
+    var precision = h('input', { type: 'text', placeholder: 'Précision (facultatif)' });
+    var conts = contentionsLiees(m, maintenant, false);
+    var avecCont = h('input', { type: 'checkbox', checked: true });
+    var blocCont = conts.length ? h('label', { class: 'case' }, avecCont, h('span', { text: 'Mettre aussi en pause la contention en cours (même début, même reprise prévue)' })) : null;
+    var aDebut = alerteChamp(), aReprise = alerteChamp(), aCont = alerteChamp();
+
+    function bornes() {
+      var t0 = depuisSaisie(debut.value), t1;
+      if (mode.value === 'duree') {
+        var minutes = (+dH.value || 0) * 60 + (+dM.value || 0);
+        t1 = t0 + minutes * 60000;
+      } else t1 = depuisSaisie(reprise.value);
+      return { t0: t0, t1: t1, heures: (t1 - t0) / H };
+    }
+    function maj() {
+      blocDuree.hidden = mode.value !== 'duree'; blocHeure.hidden = mode.value !== 'heure';
+      var b; try { b = bornes(); } catch (e) { aDebut.afficher(['Date invalide.']); resume.textContent = ''; return; }
+      aDebut.afficher([
+        b.t0 < m.debut ? 'La pause ne peut pas commencer avant le début de la mesure (' + date(m.debut) + ').' : null,
+        b.t0 > Date.now() + 10 * 60000 ? 'Le début de la pause ne peut pas être dans le futur : saisissez-la au moment où elle commence.' : null
+      ]);
+      aReprise.afficher([
+        b.t1 <= b.t0 ? 'La reprise doit être postérieure au début de la pause.' : null,
+        b.heures >= M.PAUSE_MAX_HEURES ? 'Au-delà de ' + M.PAUSE_MAX_HEURES + ' h, il ne s’agit plus d’une levée temporaire : saisissez la fin de la mesure.' : null,
+        b.heures > M.PAUSE_LONGUE_HEURES && b.heures < M.PAUSE_MAX_HEURES ? 'Pause de plus de ' + M.PAUSE_LONGUE_HEURES + ' h : vérifiez auprès du psychiatre qu’il ne s’agit pas d’une fin de mesure.' : null
+      ]);
+      aCont.afficher([conts.length && !avecCont.checked ? 'Une contention ne peut pas se poursuivre hors isolement : mettez-la aussi en pause ou saisissez sa fin.' : null]);
+      resume.textContent = b.t1 > b.t0 ? 'Reprise prévue le ' + date(b.t1) + ' (pause de ' + duree(b.heures) + ').' : '';
+    }
+    [debut, dH, dM, reprise, mode, avecCont].forEach(function (x) { x.addEventListener('input', maj); x.addEventListener('change', maj); });
+    maj();
+
+    modale('Pause — levée temporaire de la mesure', h('div', { class: 'pile' }, recapMesure(m, maintenant),
+      h('p', { class: 'muted' }, h('small', { text: 'Report de la décision du psychiatre (repas, hygiène, visite…). La pause ne met pas fin à la mesure : sa durée et les échéances JLD continuent de courir. Si le patient ne réintègre pas la mesure, saisissez la fin de mesure.' })),
+      h('div', { class: 'grille-2' }, h('label', {}, 'Début de la pause', debut, aDebut), h('label', {}, 'Reprise', mode)),
+      blocDuree, blocHeure, aReprise, resume,
+      h('div', { class: 'grille-2' }, h('label', {}, 'Motif', motif), h('label', {}, 'Précision', precision)),
+      h('label', {}, 'Psychiatre décisionnaire', psy),
+      blocCont, aCont), [
+      { texte: 'Annuler' },
+      { texte: 'Enregistrer la pause', classe: 'primaire', action: async function () {
+        var b = bornes();
+        if (b.t0 < m.debut) throw new Error('La pause ne peut pas commencer avant le début de la mesure.');
+        if (b.t0 > Date.now() + 10 * 60000) throw new Error('Le début de la pause ne peut pas être dans le futur.');
+        if (b.t1 <= b.t0) throw new Error('Indiquez une durée ou une heure de reprise postérieure au début de la pause.');
+        if (b.heures >= M.PAUSE_MAX_HEURES) throw new Error('Une pause de ' + M.PAUSE_MAX_HEURES + ' h ou plus n’est pas une levée temporaire : saisissez la fin de la mesure.');
+        var nomPsy = psy.valeur();
+        var texteMotif = motif.value + (precision.value.trim() ? ' — ' + precision.value.trim() : '');
+        var cibles = [m].concat(blocCont && avecCont.checked ? conts : []);
+        for (var i = 0; i < cibles.length; i++) {
+          await App.session.enregistrer('PAUSE', { mesureId: cibles[i].id, debut: Math.max(b.t0, cibles[i].debut), reprisePrevue: b.t1, psychiatre: nomPsy, motif: texteMotif }, cibles[i].version);
+        }
+        toast(cibles.length > 1 ? 'Pause enregistrée (isolement et contention).' : 'Pause enregistrée.');
+      } }]);
+  }
+
+  function modaleReprise(m) {
+    var maintenant = Date.now();
+    var p = M.pauseEnCours(m, maintenant);
+    if (!p) return;
+    var quand = h('input', { type: 'datetime-local', value: versSaisie(Math.min(maintenant, Math.max(p.reprisePrevue, p.debut))) });
+    var conts = contentionsLiees(m, maintenant, true);
+    var avecCont = h('input', { type: 'checkbox', checked: true });
+    var aQuand = alerteChamp();
+    function maj() {
+      var t; try { t = depuisSaisie(quand.value); } catch (e) { aQuand.afficher(['Date invalide.']); return; }
+      aQuand.afficher([
+        t < p.debut ? 'La reprise ne peut pas précéder le début de la pause (' + date(p.debut) + ').' : null,
+        t > Date.now() + 10 * 60000 ? 'La reprise ne peut pas être dans le futur.' : null,
+        t > p.reprisePrevue + 15 * 60000 ? 'Reprise après l’heure prévue (' + date(p.reprisePrevue) + ') : vérifiez que la décision du psychiatre couvre ce délai.' : null
+      ]);
+    }
+    quand.addEventListener('input', maj); quand.addEventListener('change', maj); maj();
+    modale('Reprise de la mesure', h('div', { class: 'pile' }, recapMesure(m, maintenant),
+      h('div', { class: 'recap' }, h('div', { text: 'En pause depuis le ' + date(p.debut) + (p.motif ? ' — ' + p.motif : '') + ' (' + (p.psychiatre || '?') + ')' }), h('div', { text: 'Reprise prévue le ' + date(p.reprisePrevue) })),
+      h('label', {}, 'Date et heure de la reprise effective', quand, aQuand),
+      conts.length ? h('label', { class: 'case' }, avecCont, h('span', { text: 'Reprendre aussi la contention en pause' })) : null,
+      h('p', { class: 'muted' }, h('small', { text: 'Si le psychiatre décide de ne pas reprendre la mesure, fermez cette fenêtre et utilisez « Fin ».' }))), [
+      { texte: 'Annuler' },
+      { texte: 'Enregistrer la reprise', classe: 'primaire', action: async function () {
+        var t = depuisSaisie(quand.value);
+        if (t < p.debut) throw new Error('La reprise ne peut pas précéder le début de la pause.');
+        if (t > Date.now() + 10 * 60000) throw new Error('La reprise ne peut pas être dans le futur.');
+        await App.session.enregistrer('REPRISE', { mesureId: m.id, pause: p.evt, date: t }, m.version);
+        if (conts.length && avecCont.checked) for (var i = 0; i < conts.length; i++) {
+          var pc = M.pauseEnCours(conts[i], Date.now());
+          if (pc) await App.session.enregistrer('REPRISE', { mesureId: conts[i].id, pause: pc.evt, date: Math.max(t, pc.debut) }, conts[i].version);
+        }
+        toast('Reprise enregistrée.');
       } }]);
   }
 
@@ -1017,6 +1161,12 @@
         h('div', { text: 'Cycle JLD en cours : ' + j.cycle + (j.rythmeLong ? ' (rythme des mesures longues)' : '') + ' · cumul des 15 jours avant la mesure : ' + duree(j.cumulAvant) }),
         h('div', { text: 'Mode d’hospitalisation retenu : ' + (M.modeRetenu(st(), m).mode || '—') }),
         m.fin ? h('div', { text: 'Fin : ' + date(m.fin) + ' (' + (m.psychiatreFin || '?') + ')' }) : null),
+      (m.pauses || []).length ? h('div', { class: 'recap' },
+        h('b', { text: 'Levées temporaires (' + m.pauses.length + ', total ' + duree(M.dureePausesHeures(m, maintenant)) + ', comptées dans la durée de la mesure)' }),
+        m.pauses.map(function (p) {
+          var effective = p.reprise != null ? 'reprise le ' + date(p.reprise) : (typeof m.fin === 'number' ? 'fin de mesure pendant la pause' : (maintenant > p.reprisePrevue ? 'reprise non confirmée' : 'en cours'));
+          return h('div', { text: date(p.debut) + ' → reprise prévue ' + date(p.reprisePrevue) + ' — ' + effective + (p.motif ? ' — ' + p.motif : '') + ' (' + (p.psychiatre || '?') + ')' });
+        })) : null,
       h('h3', { text: 'Historique' }),
       h('div', { class: 'table-wrap' }, h('table', {}, h('tbody', {}, evts.map(function (e) {
         var annule = st().annules[e.id];
@@ -1425,7 +1575,7 @@
     toast: toast, modale: modale, imprimer: imprimer, erreurDans: erreurDans, fmtJour: fmtJour,
     App: App, st: st, config: config, services: services, tousServices: tousServices, libService: libService, etablissement: etablissement,
     patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
-    badgeType: badgeType, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
+    badgeType: badgeType, badgePause: badgePause, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
     demarrer: rendre, verrouiller: verrouiller
   };

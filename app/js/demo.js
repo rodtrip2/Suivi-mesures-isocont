@@ -70,6 +70,10 @@
       ajouter(t(debutH), 'MESURE_DEBUT', { mesureId: id, patientId: patientId, service: service, typeMesure: type, debut: t(debutH), lieu: csi ? lieu : 'Chambre ' + lieu.replace(/^Chambre /, ''), csi: csi, psychiatre: psy, exception: !!opts.exception, modeHospi: '' });
       if (opts.tiers) ajouter(t(debutH + 1), 'TIERS', { mesureId: id, cycle: 1, statut: opts.tiers, personne: opts.personne || '', informateur: opts.informateur || 'PSYCHIATRE', nomInformateur: opts.informateur === 'IDE' ? '' : psy, date: t(debutH + 1) });
       (opts.jld || []).forEach(function (j) { ajouter(t(j[2]), 'JLD', { mesureId: id, cycle: j[0], nature: j[1], date: t(j[2]), decision: j[3] || null }); });
+      (opts.pauses || []).forEach(function (pz) {
+        ajouter(t(pz[0]), 'PAUSE', { mesureId: id, debut: t(pz[0]), reprisePrevue: t(pz[1]), psychiatre: psy, motif: pz[3] || '' });
+        if (pz[2] !== null) ajouter(t(pz[2]), 'REPRISE', { mesureId: id, date: t(pz[2]) });
+      });
       if (finH !== null) ajouter(t(finH), 'MESURE_FIN', { mesureId: id, fin: t(finH), psychiatre: psy });
       return id;
     }
@@ -88,7 +92,8 @@
     mesure('P01', U1, 'Isolement', -24 * 10 - 20, -24 * 10, CSI1, 'Dr Arnaud (fictif)', { tiers: 'INFORME', personne: 'Sœur' });
     mesure('P01', U1, 'Isolement', -60, null, CSI1, 'Dr Arnaud (fictif)', {
       tiers: 'INFORME', personne: 'Sœur',
-      jld: [[1, 'INFO', -33], [1, 'SAISINE', -10]]
+      jld: [[1, 'INFO', -33], [1, 'SAISINE', -10]],
+      pauses: [[-28, -27, -27, 'Repas'], [-8, -7.5, -7.25, 'Hygiène, douche']]
     });
     // BRAVO : isolement depuis 26 h, contention en CSI depuis 20 h
     mesure('P02', U1, 'Isolement', -26, null, CSI2, 'Dr Benoît (fictif)', { tiers: 'INFORME', personne: 'Frère' });
@@ -98,7 +103,8 @@
     // DELTA (Unité 2) : isolement long, maintien du JLD au cycle 1
     mesure('P04', U2, 'Isolement', -110, null, CSIA, 'Dr Diallo (fictif)', {
       tiers: 'INFORME', personne: 'Curateur',
-      jld: [[1, 'INFO', -64], [1, 'SAISINE', -40], [1, 'DECISION', -16, 'MAINTIEN']]
+      jld: [[1, 'INFO', -64], [1, 'SAISINE', -40], [1, 'DECISION', -16, 'MAINTIEN']],
+      pauses: [[-0.75, 1.25, null, 'Visite']]
     });
 
     // Professionnels en CSI — Unité 1, derniers postes (certains incomplets)

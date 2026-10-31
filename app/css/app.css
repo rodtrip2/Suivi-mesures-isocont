@@ -241,3 +241,11 @@ body.en-formation main { background-image: repeating-linear-gradient(135deg, tra
 /* ---------- Alertes sous les champs */
 .alerte-champ { color: var(--bad); font-size: .84rem; font-weight: 600; line-height: 1.35; display: grid; gap: 2px; margin-top: 2px; }
 .alerte-champ > div::before { content: "⚠ "; }
+
+/* Pause (levée temporaire) */
+.badge.pause { white-space: nowrap; background: var(--surface-2); color: var(--ink); border: 1px dashed var(--ink-2); }
+tr.en-pause td { background: repeating-linear-gradient(135deg, transparent 0 10px, color-mix(in srgb, var(--surface-2) 70%, transparent) 10px 20px); }
+tr.en-pause td:first-child { box-shadow: inset 3px 0 0 var(--ink-2); }
+.en-ligne { display: flex; align-items: center; gap: 6px; }
+.en-ligne input[type=number] { width: 5em; }
+.raccourcis { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
