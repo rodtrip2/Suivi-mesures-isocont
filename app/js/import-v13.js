@@ -61,7 +61,9 @@
   /**
    * @param classeur   résultat de xlsx.lire()
    * @param etat       état actuel (model.reduire)
-   * @param options    { serviceParDefaut, maintenant }
+   * @param options    { serviceParDefaut, maintenant, services }
+   *   services : choix pour les services du classeur absents de l'outil,
+   *              { code: { action: 'creer', libelle } | { action: 'rattacher', vers } | { action: 'ignorer' } }
    */
   function preparer(classeur, etat, options) {
     options = options || {};
@@ -77,15 +79,35 @@
     var services = feuille(classeur, 'CONFIG_SERVICES').filter(function (s) { return txt(col(s, 'Code')); })
       .map(function (s) { return { code: txt(col(s, 'Code')), libelle: txt(col(s, 'Libelle')) || txt(col(s, 'Code')), actif: col(s, 'Actif') === undefined || oui(col(s, 'Actif')) }; });
     var codesActuels = (etat.config.services || []).map(function (s) { return s.code; });
-    var svDefaut = options.serviceParDefaut || (services.filter(function (s) { return s.actif; })[0] || {}).code || codesActuels[0];
-    if (services.length) {
-      var fusion = (etat.config.services || []).slice();
-      services.forEach(function (s) { if (codesActuels.indexOf(s.code) < 0) fusion.push({ code: s.code, libelle: s.libelle }); });
-      config.push({ cle: 'services', valeur: fusion, libelle: 'Services (' + services.length + ' dans le classeur)' });
-    }
+    // Services cités par le classeur (paramétrage et données) et absents de l'outil : à créer, rattacher ou ignorer.
+    var cites = {};
+    function citer(code, ou) { code = txt(code); if (!code || codesActuels.indexOf(code) >= 0) return; (cites[code] = cites[code] || { code: code, references: {}, total: 0 }); cites[code].references[ou] = (cites[code].references[ou] || 0) + 1; if (ou !== 'paramétrage des services') cites[code].total++; }
+    services.forEach(function (s) { citer(s.code, 'paramétrage des services'); });
+    feuille(classeur, 'Patients').forEach(function (p) { citer(col(p, 'Service'), 'patients'); });
+    feuille(classeur, 'CONFIG_LIEUX_CSI').forEach(function (l) { citer(col(l, 'Service'), 'chambres de soins intensifs'); });
+    feuille(classeur, 'CONFIG_PERIODES_SUIVI').forEach(function (p) { citer(col(p, 'Service'), 'périodes de surveillance'); });
+    feuille(classeur, 'CONFIG_MASQUES_EXPORT').forEach(function (m) { citer(col(m, 'Service'), 'masques du décompte'); });
+    feuille(classeur, 'CONFIG_COMPTEURS_REGISTRE').forEach(function (c) { citer(col(c, 'Service'), 'compteurs du registre'); });
+    feuille(classeur, 'SUIVI_PROFESSIONNELS_CSI').forEach(function (p) { citer(col(p, 'Service'), 'professionnels en CSI'); });
+    var choixSv = options.services || {}, servicesACreer = [];
+    rapport.services = Object.keys(cites).map(function (code) {
+      var def = services.filter(function (s) { return s.code === code; })[0];
+      var c = choixSv[code] || {};
+      var action = c.action || (cites[code].total || (def && def.actif) ? 'creer' : 'ignorer');
+      if (action === 'ignorer' && cites[code].total) action = 'creer';             // un service qui porte des données ne peut pas être ignoré
+      if (action === 'rattacher' && codesActuels.indexOf(c.vers) < 0) action = 'creer';
+      var libelle = txt(c.libelle) || (def ? def.libelle : code);
+      if (action === 'creer') servicesACreer.push({ code: code, libelle: libelle });
+      return { code: code, libelle: libelle, actif: def ? def.actif : true, references: cites[code].references, total: cites[code].total, action: action, vers: action === 'rattacher' ? c.vers : '' };
+    });
+    var correspondance = {};
+    rapport.services.forEach(function (s) { if (s.action === 'rattacher') correspondance[s.code] = s.vers; });
+    /** Code du service dans l'outil pour un code du classeur (après rattachement éventuel). */
+    function S(code) { code = txt(code); return correspondance[code] || code; }
+    var svDefaut = options.serviceParDefaut || S((services.filter(function (s) { return s.actif; })[0] || {}).code) || codesActuels[0] || (servicesACreer[0] || {}).code;
     var lieux = JSON.parse(JSON.stringify(etat.config.lieuxCSI || {})), nLieux = 0;
     feuille(classeur, 'CONFIG_LIEUX_CSI').forEach(function (l) {
-      var sv = txt(col(l, 'Service')), lieu = txt(col(l, 'Lieu'));
+      var sv = S(col(l, 'Service')), lieu = txt(col(l, 'Lieu'));
       if (!sv || !lieu) return;
       lieux[sv] = lieux[sv] || [];
       if (lieux[sv].indexOf(lieu) < 0) { lieux[sv].push(lieu); nLieux++; }
@@ -94,7 +116,7 @@
 
     var periodesService = JSON.parse(JSON.stringify(etat.config.periodesService || {})), nPer = 0;
     feuille(classeur, 'CONFIG_PERIODES_SUIVI').sort(function (a, b) { return (+col(a, 'Ordre') || 0) - (+col(b, 'Ordre') || 0); }).forEach(function (p) {
-      var sv = txt(col(p, 'Service')), lib = txt(col(p, 'Periode')), d = heure(col(p, 'Heure debut')), f = heure(col(p, 'Heure fin'));
+      var sv = S(col(p, 'Service')), lib = txt(col(p, 'Periode')), d = heure(col(p, 'Heure debut')), f = heure(col(p, 'Heure fin'));
       if (!sv || !lib || !d || !f) return;
       if (!nPer || !periodesService[sv] || periodesService[sv]._import !== true) { periodesService[sv] = []; periodesService[sv]._import = true; }
       periodesService[sv].push({ code: norm(lib).replace(/ /g, '').toUpperCase().slice(0, 6) || 'P' + periodesService[sv].length, libelle: lib, debut: d, fin: f });
@@ -117,7 +139,7 @@
 
     var decompte = JSON.parse(JSON.stringify(etat.config.decompte || {})), nMasque = 0;
     feuille(classeur, 'CONFIG_MASQUES_EXPORT').forEach(function (m) {
-      var sv = txt(col(m, 'Service'));
+      var sv = S(col(m, 'Service'));
       if (!sv) return;
       var masquer = ['N', 'Debut', 'Fin', 'Duree', 'Cumul'].filter(function (c) { return oui(col(m, 'Masquer ' + c + ' (OUI/NON)')); });
       decompte[sv] = { titreIsolement: txt(col(m, 'Titre isolement')), titreContention: txt(col(m, 'Titre contention')), sousTitre: oui(col(m, 'Afficher sous-titre')) ? txt(col(m, 'Sous-titre')) : '', masquer: masquer };
@@ -148,7 +170,7 @@
       if (parIPP[ipp]) return parIPP[ipp].id;
       var info = infosPatient[ipp] || {};
       var id = 'P' + aleatoire();
-      var sv = txt(col(info, 'Service')) || svDefaut;
+      var sv = S(col(info, 'Service')) || svDefaut;
       var nom = txt(col(info, 'Nom')) || txt(nomMesure) || 'IMPORT ' + ipp;
       ajouter('PATIENT', { patientId: id, ipp: ipp, nom: nom.toUpperCase(), prenom: txt(col(info, 'Prenom')), naissance: dateISO(col(info, 'Naissance')), protection: oui(col(info, 'Mesure de protection juridique (OUI/NON)')) ? 'Mesure de protection juridique' : '', service: sv });
       var depuis = (premiereMesure[ipp] || maintenant) - H;
@@ -246,7 +268,7 @@
     var prosDeja = {};
     etat.professionnels.forEach(function (p) { prosDeja[p.service + '|' + p.date + '|' + p.periode + '|' + norm(p.nom)] = true; });
     feuille(classeur, 'SUIVI_PROFESSIONNELS_CSI').forEach(function (p) {
-      var nom = txt(col(p, 'Nom')), sv = txt(col(p, 'Service')) || svDefaut, jour = dateISO(col(p, 'Date')), lib = norm(col(p, 'Periode'));
+      var nom = txt(col(p, 'Nom')), sv = S(col(p, 'Service')) || svDefaut, jour = dateISO(col(p, 'Date')), lib = norm(col(p, 'Periode'));
       if (!nom || /a renseigner/.test(norm(nom)) || !jour) return;
       var per = periodesDe(sv).filter(function (x) { return norm(x.libelle) === lib || norm(x.code) === lib; })[0];
       if (!per) { rapport.avertissements.push('Professionnel ' + nom + ' le ' + jour + ' : période « ' + col(p, 'Periode') + ' » inconnue.'); return; }
@@ -259,18 +281,80 @@
 
     if (psychiatres.length !== (etat.config.psychiatres || []).length) config.push({ cle: 'psychiatres', valeur: psychiatres, libelle: 'Liste des psychiatres (' + psychiatres.length + ')' });
 
-    // Compteurs du registre : numéros déjà utilisés avant l'outil (dernier numéro − mesures numérotées importées)
-    var compteurs = JSON.parse(JSON.stringify(etat.config.compteursRegistre || {})), nComp = 0;
+    // Compteurs du registre : dernier numéro du classeur, à diminuer des entrées que l'outil numérotera
+    // lui-même à partir des mesures importées déjà numérotées (une mesure peut donner plusieurs entrées : A, C, A).
+    var compteurs = [];
     feuille(classeur, 'CONFIG_COMPTEURS_REGISTRE').forEach(function (c) {
-      var sv = txt(col(c, 'Service')), an = +col(c, 'Annee'), dernier = +col(c, 'Dernier numero utilise');
+      var sv = S(col(c, 'Service')), an = +col(c, 'Annee'), dernier = +col(c, 'Dernier numero utilise');
       if (!sv || !an || !isFinite(dernier)) return;
-      var anterieur = Math.max(0, dernier - (numeros[sv + '|' + an] || 0));
-      if (anterieur) { compteurs[sv] = compteurs[sv] || {}; compteurs[sv][an] = anterieur; nComp++; }
+      compteurs.push({ service: sv, annee: an, dernier: dernier, mesuresNumerotees: numeros[sv + '|' + an] || 0 });
     });
-    if (nComp) config.push({ cle: 'compteursRegistre', valeur: compteurs, libelle: 'Numéros de registre antérieurs à l’outil (' + nComp + ' année(s))' });
-
-    return { evenements: evts, config: config, rapport: rapport, attendus: attendus };
+    var prep = { evenements: evts, config: config, rapport: rapport, attendus: attendus, compteurs: compteurs, servicesACreer: servicesACreer, etatAvant: etat, maintenant: maintenant };
+    var sim = simuler(prep, {});
+    compteurs.forEach(function (c) {
+      c.entreesNumerotees = M.registre(sim, c.service, c.annee, maintenant).filter(function (e) { return e.fin !== null && (sim.mesures[e.mesureId] || {}).numeroOrigine; }).length;
+      c.propose = Math.max(0, c.dernier - c.entreesNumerotees);
+      c.existantes = M.listeMesures(etat).some(function (m) { return m.service === c.service && new Date(m.debut).getFullYear() === c.annee; });
+    });
+    return prep;
   }
+
+  /** Compteurs choisis, fusionnés avec ceux déjà paramétrés : { service: { annee: n } }. */
+  function fusionCompteurs(etat, choix) {
+    var r = JSON.parse(JSON.stringify((etat.config && etat.config.compteursRegistre) || {}));
+    Object.keys(choix || {}).forEach(function (sv) { Object.keys(choix[sv]).forEach(function (an) { r[sv] = r[sv] || {}; r[sv][an] = +choix[sv][an] || 0; }); });
+    return r;
+  }
+
+  /**
+   * État obtenu si l'import était enregistré (paramétrage actuel + paramétrage du classeur + services créés
+   * + compteurs choisis + mesures importées). Les mesures déjà présentes dans l'outil n'y figurent pas.
+   */
+  function simuler(prep, compteurs) {
+    var etat = prep.etatAvant, n = 0, evts = [];
+    function evt(type, data) { n++; evts.push({ id: 'sim' + String(n).padStart(6, '0'), at: new Date(Date.UTC(2000, 0, 1) + n * 1000).toISOString(), by: 'import', type: type, data: data }); }
+    Object.keys(etat.config).forEach(function (k) { evt('CONFIG', { cle: k, valeur: etat.config[k] }); });
+    prep.config.forEach(function (c) { evt('CONFIG', { cle: c.cle, valeur: c.valeur }); });
+    if (prep.servicesACreer.length) evt('CONFIG', { cle: 'services', valeur: (etat.config.services || []).concat(prep.servicesACreer) });
+    evt('CONFIG', { cle: 'compteursRegistre', valeur: fusionCompteurs(etat, compteurs) });
+    evt('LOT', { evenements: prep.evenements });
+    return M.reduire(evts);
+  }
+
+  /**
+   * Compare les numéros du registre du classeur (« A11 ») à ceux que l'outil attribue après import.
+   * Retourne { verifiees, ecarts: [{ ref, classeur, outil, motif }] }.
+   */
+  function controleNumeros(prep, compteurs) {
+    var sim = simuler(prep, compteurs), parMesure = {}, vus = {};
+    M.listeMesures(sim).forEach(function (m) {
+      if (!m.numeroOrigine) return;
+      var an = new Date(m.debut).getFullYear(), cle = m.service + '|' + an;
+      if (!vus[cle]) { vus[cle] = M.registre(sim, m.service, an, prep.maintenant); }
+    });
+    Object.keys(vus).forEach(function (k) { vus[k].forEach(function (e) { (parMesure[e.mesureId] = parMesure[e.mesureId] || []).push(e); }); });
+    var verifiees = 0, ecarts = [];
+    M.listeMesures(sim).forEach(function (m) {
+      if (!m.numeroOrigine) return;
+      var origine = String(m.numeroOrigine).trim().toUpperCase(), entrees = parMesure[m.id] || [];
+      var numeros = entrees.map(function (e) { return e.numero || 'en cours'; });
+      var ref = (m.origine || '').replace(/^Classeur V1\.3 — /, '') || m.id;
+      if (numeros.indexOf(origine) >= 0) { verifiees++; return; }
+      var mo = /^([A-E])\s*-?\s*(\d+)$/.exec(origine), motif;
+      if (!mo) motif = 'numéro du classeur non reconnu';
+      else {
+        var memeNum = entrees.filter(function (e) { return e.numero && e.numero.slice(1) === mo[2]; })[0];
+        var memeCat = entrees.filter(function (e) { return e.categorie === mo[1]; })[0];
+        motif = memeNum ? 'même numéro, catégorie différente (' + mo[1] + ' dans le classeur, ' + memeNum.categorie + ' dans l’outil)'
+          : memeCat ? 'même catégorie, numéro différent'
+          : entrees.length > 1 ? 'la mesure forme ' + entrees.length + ' entrées dans l’outil' : 'catégorie et numéro différents';
+      }
+      ecarts.push({ ref: ref, classeur: origine, outil: numeros.join(', ') || '—', motif: motif });
+    });
+    return { verifiees: verifiees, ecarts: ecarts };
+  }
+
+
 
   /** Compare les échéances recalculées aux valeurs du classeur pour les mesures en cours. */
   function comparer(etatApres, attendus) {
@@ -286,5 +370,5 @@
     return ecarts;
   }
 
-  return { preparer: preparer, comparer: comparer, norm: norm };
+  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, norm: norm };
 });

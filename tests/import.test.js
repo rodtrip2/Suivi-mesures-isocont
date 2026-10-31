@@ -39,9 +39,23 @@ test('Import : mesures, patients, cycles JLD, tiers, professionnels, paramétrag
   assert.equal(r.ignorees.length, 1);           // M0004 sans IPP
   assert.equal(r.professionnels, 1);            // la ligne « A renseigner » est ignorée
   const cles = prep.config.map(x => x.cle);
-  ['services', 'lieuxCSI', 'periodesService', 'parametres', 'decompte', 'psychiatres', 'compteursRegistre'].forEach(k => assert.ok(cles.includes(k), k));
+  ['lieuxCSI', 'periodesService', 'parametres', 'decompte', 'psychiatres'].forEach(k => assert.ok(cles.includes(k), k));
+  // Services absents de l'outil : UHP (porte des données) à créer ; UR (inactif, sans données) ignoré par défaut
+  assert.deepEqual(r.services.map(s => [s.code, s.action]), [['UR', 'ignorer'], ['UHP', 'creer']]);
+  assert.deepEqual(prep.servicesACreer, [{ code: 'UHP', libelle: "Unité d'hospitalisation (fictive)" }]);
+  // Compteur proposé : 12 − 2 entrées numérotées par l'outil à partir des mesures importées
+  assert.deepEqual(prep.compteurs.map(c => [c.service, c.annee, c.dernier, c.entreesNumerotees, c.propose]), [['UHP', 2026, 12, 2, 10]]);
+  // Contrôle des numéros : A11 identique ; D12 du classeur devient E12 (contention avec exception)
+  const ctrl = I.controleNumeros(prep, { UHP: { 2026: 10 } });
+  assert.equal(ctrl.verifiees, 1);
+  assert.deepEqual(ctrl.ecarts.map(e => [e.ref, e.classeur, e.outil]), [['M0003', 'D12', 'E12']]);
+  assert.match(ctrl.ecarts[0].motif, /même numéro, catégorie différente/);
+  // Un compteur erroné décale tous les numéros
+  assert.equal(I.controleNumeros(prep, { UHP: { 2026: 9 } }).verifiees, 0);
 
-  const etat = M.reduire(configs(prep).concat([lot(prep.evenements)]));
+  const svc = { id: 'S0', at: '2026-10-30T08:59:00.000Z', by: 'admin', type: 'CONFIG', data: { cle: 'services', valeur: prep.servicesACreer } };
+  const cpt = { id: 'S1', at: '2026-10-30T08:59:30.000Z', by: 'admin', type: 'CONFIG', data: { cle: 'compteursRegistre', valeur: { UHP: { 2026: 10 } } } };
+  const etat = M.reduire([svc, cpt].concat(configs(prep), [lot(prep.evenements)]));
   const ms = M.listeMesures(etat);
   assert.equal(ms.length, 3);
   const enCours = ms.find(m => m.fin === null);
@@ -69,4 +83,21 @@ test('Import : mesures, patients, cycles JLD, tiers, professionnels, paramétrag
 
 test('Un fichier qui n\'est pas un classeur est refusé proprement', async () => {
   await assert.rejects(X.lire(new TextEncoder().encode('pas un zip')), /classeur Excel/);
+});
+
+test('Import : service absent rattaché à un service existant, ou créé sous un autre libellé', async () => {
+  const c = await X.lire(fichier);
+  const avecU1 = M.reduire([{ id: 'c1', at: '2026-01-01T00:00:00.000Z', by: 'a', type: 'CONFIG', data: { cle: 'services', valeur: [{ code: 'U1', libelle: 'Unité 1' }] } }]);
+  const maintenant = local(2026, 10, 6, 12);
+  // Rattachement de UHP à U1 : toutes les données du classeur vont dans U1
+  let prep = I.preparer(c, avecU1, { maintenant, services: { UHP: { action: 'rattacher', vers: 'U1' } } });
+  assert.deepEqual(prep.servicesACreer, []);
+  const services = prep.evenements.filter(e => e.type === 'MESURE_DEBUT').map(e => e.data.service);
+  assert.deepEqual([...new Set(services)], ['U1']);
+  assert.deepEqual(prep.compteurs.map(x => x.service), ['U1']);
+  assert.ok(prep.config.find(x => x.cle === 'lieuxCSI').valeur.U1.includes('410'));
+  // Un service qui porte des données ne peut pas être ignoré ; création sous un libellé choisi
+  prep = I.preparer(c, avecU1, { maintenant, services: { UHP: { action: 'ignorer' }, UR: { action: 'creer', libelle: 'Urgences psychiatriques' } } });
+  assert.deepEqual(prep.servicesACreer.map(s => s.code).sort(), ['UHP', 'UR']);
+  assert.equal(prep.servicesACreer.find(s => s.code === 'UR').libelle, 'Urgences psychiatriques');
 });

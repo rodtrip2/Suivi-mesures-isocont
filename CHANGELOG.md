@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.17.0 — 31 octobre 2026
+
+- Import du classeur V1.3 — **services absents de l'outil** : détectés dans tout le classeur (paramétrage, patients, chambres, postes, masques, compteurs, professionnels), avec pour chacun le choix de le **créer** (libellé modifiable), de le **rattacher** à un service existant (toutes ses données y sont reprises) ou de l'ignorer s'il ne porte aucune donnée.
+- **Compteurs du registre** proposés par service et par année, calculés sur les entrées que l'outil numérotera lui-même (une mesure peut former plusieurs entrées A, C, A), et **modifiables** avant validation.
+- **Contrôle de la numérotation** : comparaison des numéros du classeur (A11, D12…) et de ceux attribués par l'outil, avec l'explication de chaque écart ; repris dans le compte rendu d'import.
+- Le service par défaut des patients sans service est désormais, par défaut, le service actif du classeur (auparavant le premier service de l'outil, ce qui pouvait fausser la numérotation).
+
 ## 1.16.0 — 31 octobre 2026
 
 - **Option « Interdire la pause de l'isolement seul pendant une contention »** (*Administration → Pauses*, désactivée par défaut). Activée, la fenêtre de pause d'un isolement remplace la case « Mettre aussi en pause la contention » par un choix : mettre aussi la contention en pause, ou y mettre fin au début de la pause (décision du même psychiatre, motif tracé). Désactivée, le comportement reste celui d'avant : case cochée par défaut, alerte si elle est décochée.

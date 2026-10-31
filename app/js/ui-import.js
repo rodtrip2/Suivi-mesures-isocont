@@ -3,26 +3,65 @@
 (function () {
   'use strict';
   var SIC = self.SIC, U = SIC.ui, M = SIC.model, h = U.h;
+  var I = function () { return SIC.importV13; };
+
+  var LIB_ACTION = { creer: 'Créer ce service', rattacher: 'Rattacher à un service existant', ignorer: 'Ignorer' };
 
   U.actions.importer = function () {
     var fichier = h('input', { type: 'file', accept: '.xlsx,.xlsm' });
     var zone = h('div', { class: 'pile' });
-    var prep = null, cases = [];
-    var svDefaut = h('select', {}, U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle }); }));
+    var prep = null, cases = [], classeur = null, choixServices = {}, champsCompteurs = [], dernierControle = null;
+    var svDefaut = h('select', {}, h('option', { value: '', text: 'Service actif du classeur (recommandé)' }), U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle }); }));
 
-    async function analyser() {
-      U.vider(zone); prep = null; cases = [];
+    async function lire() {
+      classeur = null; choixServices = {};
+      U.vider(zone);
       if (!fichier.files[0]) return;
       zone.appendChild(h('div', { class: 'info', text: 'Lecture du classeur…' }));
-      try {
-        var classeur = await SIC.xlsx.lire(await fichier.files[0].arrayBuffer());
-        prep = SIC.importV13.preparer(classeur, U.st(), { serviceParDefaut: svDefaut.value });
-      } catch (e) { U.vider(zone); zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
-      var r = prep.rapport;
+      try { classeur = await SIC.xlsx.lire(await fichier.files[0].arrayBuffer()); }
+      catch (e) { U.vider(zone); zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
+      analyser();
+    }
+
+    function compteursChoisis() {
+      var r = {};
+      champsCompteurs.forEach(function (x) { r[x.c.service] = r[x.c.service] || {}; r[x.c.service][x.c.annee] = Math.max(0, +x.champ.value || 0); });
+      return r;
+    }
+
+    function analyser() {
+      prep = null; cases = []; champsCompteurs = [];
       U.vider(zone);
+      if (!classeur) return;
+      try { prep = I().preparer(classeur, U.st(), { serviceParDefaut: svDefaut.value || undefined, services: choixServices }); }
+      catch (e) { zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
+      var r = prep.rapport;
       zone.appendChild(h('div', { class: 'recap' },
         h('div', {}, h('b', { text: r.mesures + ' mesure(s)' }), ' à importer' + (r.dejaPresentes ? ', ' + r.dejaPresentes + ' déjà présente(s) (ignorées)' : '') + '.'),
         h('div', { text: r.patients + ' nouveau(x) patient(s), ' + r.modes + " mode(s) d'hospitalisation, " + r.tiers + ' information(s) de tiers, ' + r.cycles + ' décision(s) de maintien du JLD, ' + r.professionnels + ' professionnel(s) en CSI.' })));
+
+      // -- Services absents de l'outil
+      if (r.services.length) {
+        var existants = U.tousServices();
+        zone.appendChild(h('h3', { text: 'Services du classeur absents de l’outil' }));
+        zone.appendChild(h('p', { class: 'muted' }, h('small', { text: 'Créez-les, ou rattachez-les à un service existant : leurs patients, mesures, chambres, postes, masques et compteurs y seront alors repris. Un service qui porte des données ne peut pas être ignoré.' })));
+        zone.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Code', 'Libellé', 'Cité dans', 'Choix'].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', {}, r.services.map(function (s) {
+            var lib = h('input', { type: 'text', value: s.libelle, disabled: s.action !== 'creer', onchange: function () { choixServices[s.code] = Object.assign({}, choixServices[s.code], { action: 'creer', libelle: lib.value.trim() }); analyser(); } });
+            var action = h('select', {}, Object.keys(LIB_ACTION).filter(function (a) { return (a !== 'ignorer' || !s.total) && (a !== 'rattacher' || existants.length); }).map(function (a) { return h('option', { value: a, text: LIB_ACTION[a], selected: a === s.action }); }));
+            var vers = h('select', { hidden: s.action !== 'rattacher' }, existants.map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: x.code === s.vers }); }));
+            function maj() { choixServices[s.code] = { action: action.value, vers: vers.value, libelle: lib.value.trim() }; analyser(); }
+            action.addEventListener('change', maj); vers.addEventListener('change', maj);
+            return h('tr', {},
+              h('td', {}, h('b', { text: s.code }), s.actif ? null : h('div', {}, h('small', { class: 'muted', text: 'inactif dans le classeur' }))),
+              h('td', {}, lib),
+              h('td', {}, h('small', { text: Object.keys(s.references).map(function (k) { return k + (k === 'paramétrage des services' ? '' : ' (' + s.references[k] + ')'); }).join(', ') })),
+              h('td', {}, h('div', { class: 'pile' }, action, vers)));
+          })))));
+      }
+
+      // -- Paramétrage
       if (prep.config.length) {
         zone.appendChild(h('h3', { text: 'Paramétrage trouvé dans le classeur' }));
         prep.config.forEach(function (c) {
@@ -31,11 +70,43 @@
           zone.appendChild(h('label', { class: 'case' }, cb, h('span', { text: c.libelle })));
         });
       }
+
+      // -- Compteurs du registre et contrôle de la numérotation
+      var controle = h('div', { class: 'pile' });
+      if (prep.compteurs.length) {
+        zone.appendChild(h('h3', { text: 'Numérotation du registre' }));
+        zone.appendChild(h('p', { class: 'muted' }, h('small', { text: 'Compteur : dernier numéro utilisé avant l’outil. L’outil numérote ensuite lui-même les entrées des mesures importées, dans l’ordre de leur fin. Proposition : dernier numéro du classeur moins les entrées numérotées que l’outil attribuera aux mesures importées (une mesure peut former plusieurs entrées : A, C, A). Modifiez-la si besoin : le contrôle ci-dessous se met à jour.' })));
+        zone.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Service', 'Année', 'Dernier n° du classeur', 'Mesures numérotées importées', 'Entrées numérotées par l’outil', 'Compteur'].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', {}, prep.compteurs.map(function (c) {
+            var champ = h('input', { type: 'number', min: 0, step: 1, value: c.propose, class: 'champ-court', 'aria-label': 'Compteur ' + c.service + ' ' + c.annee });
+            champ.addEventListener('input', majControle);
+            champsCompteurs.push({ c: c, champ: champ });
+            return h('tr', {},
+              h('td', { text: U.libService(c.service) }), h('td', { text: String(c.annee) }), h('td', { text: String(c.dernier) }),
+              h('td', { text: String(c.mesuresNumerotees) }), h('td', { text: String(c.entreesNumerotees) }),
+              h('td', {}, champ, c.existantes ? h('div', {}, h('small', { class: 'alerte-champ', text: 'L’outil contient déjà des mesures de cette année pour ce service : la numérotation importée s’intercalera avec elles.' })) : null));
+          })))));
+        zone.appendChild(controle);
+      }
+      function majControle() {
+        U.vider(controle);
+        dernierControle = I().controleNumeros(prep, compteursChoisis());
+        var c = dernierControle;
+        if (!c.verifiees && !c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Aucune mesure numérotée dans le classeur : pas de contrôle possible.' })); return; }
+        if (!c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Contrôle de la numérotation : les ' + c.verifiees + ' numéro(s) du classeur sont retrouvés à l’identique.' })); return; }
+        controle.appendChild(h('div', { class: 'alerte', text: 'Contrôle de la numérotation : ' + c.verifiees + ' numéro(s) retrouvé(s), ' + c.ecarts.length + ' écart(s). Vérifiez le compteur, ou acceptez la numérotation de l’outil (elle suit les règles du registre : catégories A à E, une contention en CSI et son isolement formant une entrée C).' }));
+        controle.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Mesure du classeur', 'N° du classeur', 'N° dans l’outil', 'Écart'].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', {}, c.ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: e.classeur }), h('td', { text: e.outil }), h('td', { text: e.motif })); })))));
+      }
+      majControle();
+
       if (r.ignorees.length) zone.appendChild(h('details', {}, h('summary', { text: r.ignorees.length + ' ligne(s) ignorée(s)' }), h('ul', {}, r.ignorees.map(function (x) { return h('li', { text: x }); }))));
       if (r.avertissements.length) zone.appendChild(h('details', {}, h('summary', { text: r.avertissements.length + ' point(s) à vérifier' }), h('ul', {}, r.avertissements.map(function (x) { return h('li', { text: x }); }))));
-      if (!r.mesures && !prep.config.length && !r.professionnels) zone.appendChild(h('div', { class: 'info', text: 'Rien de nouveau à importer.' }));
+      if (!r.mesures && !prep.config.length && !r.professionnels && !prep.servicesACreer.length && !prep.compteurs.length) zone.appendChild(h('div', { class: 'info', text: 'Rien de nouveau à importer.' }));
     }
-    fichier.addEventListener('change', analyser);
+    fichier.addEventListener('change', lire);
     svDefaut.addEventListener('change', analyser);
 
     U.modale('Importer le classeur V1.3', h('div', { class: 'pile' },
@@ -46,23 +117,30 @@
       { texte: 'Importer', classe: 'primaire', action: async function () {
         if (!prep) throw new Error('Choisissez d’abord un classeur.');
         var s = U.App.session;
+        if (prep.servicesACreer.length) {
+          var actuels = U.config().services || [];
+          var codes = actuels.map(function (x) { return x.code; });
+          await s.enregistrer('CONFIG', { cle: 'services', valeur: actuels.concat(prep.servicesACreer.filter(function (x) { return codes.indexOf(x.code) < 0; })) });
+        }
         var choisis = cases.filter(function (x) { return x.cb.checked; }).map(function (x) { return x.c; });
         for (var i = 0; i < choisis.length; i++) await s.enregistrer('CONFIG', { cle: choisis[i].cle, valeur: choisis[i].valeur });
+        if (champsCompteurs.length) await s.enregistrer('CONFIG', { cle: 'compteursRegistre', valeur: I().fusionCompteurs(U.st(), compteursChoisis()) });
         if (prep.evenements.length) await s.enregistrerLot(prep.evenements, { libelle: 'Import du classeur ' + fichier.files[0].name });
-        var ecarts = SIC.importV13.comparer(s.etat, prep.attendus);
-        setTimeout(function () { compteRendu(prep.rapport, ecarts); }, 0);
+        var ecarts = I().comparer(s.etat, prep.attendus), controle = dernierControle, crees = prep.servicesACreer.slice();
+        setTimeout(function () { compteRendu(prep.rapport, ecarts, controle, crees); }, 0);
         return true;
-      } }]);
+      } }], { large: true });
   };
 
-  function compteRendu(r, ecarts) {
+  function compteRendu(r, ecarts, controle, crees) {
     var noms = { info: 'information', saisine: 'saisine', decision: 'décision' };
     U.modale('Import terminé', h('div', { class: 'pile' },
-      h('div', { class: 'info', text: r.mesures + ' mesure(s) et ' + r.patients + ' patient(s) importés. Complétez les fiches marquées « IMPORT » dans l’onglet Patients.' }),
+      h('div', { class: 'info', text: r.mesures + ' mesure(s) et ' + r.patients + ' patient(s) importés' + (crees.length ? ', ' + crees.length + ' service(s) créé(s) : ' + crees.map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ') : '') + '. Complétez les fiches marquées « IMPORT » dans l’onglet Patients' + (crees.length ? ', et affectez les services créés aux comptes concernés (Administration → Comptes)' : '') + '.' }),
       ecarts.length ? h('div', { class: 'alerte', text: ecarts.length + ' échéance(s) JLD recalculée(s) diffèrent du classeur pour des mesures en cours : vérifiez-les avant de vous y fier.' }) : h('div', { class: 'info', text: 'Les échéances JLD recalculées des mesures en cours sont identiques à celles du classeur.' }),
       ecarts.length ? h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Mesure', 'Échéance', 'Classeur', 'Recalculée'].map(function (t) { return h('th', { text: t }); }))),
-        h('tbody', {}, ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: noms[e.nature] }), h('td', { text: U.date(e.classeur) }), h('td', { text: U.date(e.calcule) })); })))) : null), [
+        h('tbody', {}, ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: noms[e.nature] }), h('td', { text: U.date(e.classeur) }), h('td', { text: U.date(e.calcule) })); })))) : null,
+      controle && (controle.verifiees || controle.ecarts.length) ? h('div', { class: controle.ecarts.length ? 'alerte' : 'info', text: 'Numérotation du registre : ' + controle.verifiees + ' numéro(s) retrouvé(s) à l’identique' + (controle.ecarts.length ? ', ' + controle.ecarts.length + ' écart(s) : ' + controle.ecarts.map(function (e) { return e.ref + ' ' + e.classeur + ' → ' + e.outil; }).join(' ; ') : '') + '.' }) : null), [
       { texte: 'Fermer', classe: 'primaire' }]);
   }
 })();
