@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.10.0 — 31 octobre 2026
+
+- **Registre conforme à l'article L. 3222-5-1** : ajout de l'identifiant du patient (IPP) et de son âge au début de la mesure (écran, impression, CSV). L'onglet devient « Registre ».
+- **Version pour communication (CADA)** du registre, réservée au cadre et à l'administrateur : identifiant patient occulté ou remplacé par un numéro propre au document ; âge exact, en tranche, mineur / majeur ou occulté ; dates complètes, sans heure ou au mois ; psychiatre masqué, « Psychiatre » ou numéroté (Psychiatre 1…) ; soignants masqués, fonction et nombre (2 IDE) ou numérotés (IDE 1…) ; lieu, mode d'hospitalisation et levées temporaires réductibles ou occultables.
+- Choix les plus protecteurs présélectionnés (Conseil d'État, 8 février 2023, n° 455887), avertissement sous chaque choix moins protecteur, aperçu, impression / PDF et CSV mentionnant les occultations appliquées et la référence de la demande ; chaque édition est tracée dans le journal.
+
 ## 1.9.0 — 31 octobre 2026
 
 - Pauses déduites : **portée au choix** — pour les délais JLD seulement (échéances, cumuls, décompte ; registre et statistiques en durée réelle, levées temporaires comprises), ou **partout** (registre et statistiques en durées hors pauses, colonne « Durée hors pauses »).

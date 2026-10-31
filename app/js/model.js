@@ -398,6 +398,15 @@
     return { mode: auDebut, bascule: false };
   }
 
+  /** Âge révolu d'un patient à une date (null si la date de naissance est inconnue). */
+  function ageAu(st, patientId, date) {
+    var p = st.patients[patientId];
+    if (!p || !p.naissance) return null;
+    var n = new Date(p.naissance + 'T00:00:00'), d = new Date(date);
+    if (isNaN(n.getTime())) return null;
+    return d.getFullYear() - n.getFullYear() - ((d.getMonth() < n.getMonth() || (d.getMonth() === n.getMonth() && d.getDate() < n.getDate())) ? 1 : 0);
+  }
+
   function estMineur(st, patientId, date) {
     var p = st.patients[patientId];
     if (!p) return false;
@@ -519,15 +528,20 @@
   }
 
   function professionnelsSur(st, service, debut, fin) {
-    var pros = [], periodes = periodesDe(st.config, service);
+    return professionnelsDetailSur(st, service, debut, fin).map(function (p) { return p.nom + (p.fonction ? ' (' + p.fonction + ')' : ''); });
+  }
+
+  /** Professionnels (nom, fonction) ayant surveillé une CSI d'un service entre `debut` et `fin`, sans doublon. */
+  function professionnelsDetailSur(st, service, debut, fin) {
+    var pros = [], vus = {}, periodes = periodesDe(st.config, service);
     st.professionnels.forEach(function (p) {
       if (p.service !== service) return;
       var per = periodes.filter(function (q) { return q.code === p.periode; })[0];
       if (!per) return;
       var b = bornesPeriode(p.date, per);
       if (b[0] < fin && b[1] > debut) {
-        var lib = p.nom + (p.fonction ? ' (' + p.fonction + ')' : '');
-        if (pros.indexOf(lib) < 0) pros.push(lib);
+        var cle = p.nom + '|' + (p.fonction || '');
+        if (!vus[cle]) { vus[cle] = 1; pros.push({ nom: p.nom, fonction: p.fonction || '' }); }
       }
     });
     return pros;
@@ -564,9 +578,100 @@
         type: x.mesure.type, lieu: x.mesure.lieu,
         psychiatre: x.mesure.psychiatreDebut, modeHospi: mode.mode, basculeMode: mode.bascule,
         professionnels: (x.cat === 'A' || x.cat === 'C') ? professionnelsSur(st, service, x.debut, finRef) : [],
+        professionnelsDetail: (x.cat === 'A' || x.cat === 'C') ? professionnelsDetailSur(st, service, x.debut, finRef) : [],
+        ipp: (st.patients[x.mesure.patientId] || {}).ipp || '', age: ageAu(st, x.mesure.patientId, x.debut),
         mesureId: x.mesure.id, patientId: x.mesure.patientId, service: service
       };
     });
+  }
+
+  // ------------------------------------------ Registre pour communication (CADA)
+  /**
+   * Options d'occultation du registre communiqué à un tiers (demande CADA, art. L. 311-6 CRPA).
+   * Par défaut, les options les plus protectrices (CE, 8 février 2023, n° 455887).
+   */
+  var OCCULTATION_DEFAUT = { patient: 'masquer', age: 'mineur', dates: 'jour', psychiatre: 'masquer', professionnels: 'masquer', lieu: 'masquer', mode: 'afficher', pauses: 'afficher' };
+  var OCCULTATION_CHOIX = {
+    patient: ['masquer', 'numero'], age: ['exact', 'tranche', 'mineur', 'masquer'], dates: ['complete', 'jour', 'mois'],
+    psychiatre: ['masquer', 'numero', 'generique'], professionnels: ['masquer', 'numero', 'fonction'],
+    lieu: ['afficher', 'categorie', 'masquer'], mode: ['afficher', 'contrainte', 'masquer'], pauses: ['afficher', 'masquer']
+  };
+
+  function trancheAge(a) {
+    if (a == null) return 'non renseigné';
+    if (a < 18) return 'moins de 18 ans';
+    if (a < 26) return '18 à 25 ans';
+    if (a < 41) return '26 à 40 ans';
+    if (a < 61) return '41 à 60 ans';
+    return 'plus de 60 ans';
+  }
+
+  /**
+   * Registre occulté : { colonnes, lignes (tableaux de textes), occultations (libellés des choix appliqués) }.
+   * `fmt` : { date(ms), jour(ms), mois(ms), duree(h) } pour la mise en forme (fournis par l'interface).
+   * Les numéros de remplacement (patients, psychiatres, soignants) sont propres à chaque édition, attribués
+   * dans l'ordre d'apparition, et ne sont conservés nulle part.
+   */
+  function registreCommunicable(st, service, annee, maintenant, options, fmt) {
+    var o = Object.assign({}, OCCULTATION_DEFAUT, options || {});
+    Object.keys(OCCULTATION_CHOIX).forEach(function (k) { if (OCCULTATION_CHOIX[k].indexOf(o[k]) < 0) o[k] = OCCULTATION_DEFAUT[k]; });
+    var op = optionsPauses(st.config);
+    var entrees = registre(st, service, annee, maintenant);
+    var numPatient = {}, nP = 0, numPsy = {}, nPsy = 0, numPro = {}, nParFonction = {};
+    function patient(e) { if (!numPatient[e.patientId]) numPatient[e.patientId] = 'Patient ' + (++nP); return numPatient[e.patientId]; }
+    function psychiatre(nom) {
+      if (!nom) return '—';
+      if (o.psychiatre === 'generique') return 'Psychiatre';
+      if (!numPsy[nom]) numPsy[nom] = 'Psychiatre ' + (++nPsy);
+      return numPsy[nom];
+    }
+    function pro(p) {
+      var f = p.fonction || 'Soignant';
+      if (o.professionnels === 'fonction') return f;
+      var cle = p.nom + '|' + f;
+      if (!numPro[cle]) { nParFonction[f] = (nParFonction[f] || 0) + 1; numPro[cle] = f + ' ' + nParFonction[f]; }
+      return numPro[cle];
+    }
+    function quand(t) { return t == null ? 'en cours' : o.dates === 'complete' ? fmt.date(t) : o.dates === 'jour' ? fmt.jour(t) : fmt.mois(t); }
+    var colonnes = ['N°', 'Catégorie'];
+    if (o.patient === 'numero') colonnes.push('Patient');
+    if (o.age !== 'masquer') colonnes.push(o.age === 'exact' ? 'Âge' : o.age === 'tranche' ? 'Tranche d’âge' : 'Mineur');
+    if (o.mode !== 'masquer') colonnes.push(o.mode === 'contrainte' ? 'Soins sans consentement' : "Mode d'hospitalisation");
+    colonnes.push('Début', 'Fin', op.deduireRegistre ? 'Durée hors pauses' : 'Durée');
+    var avecPauses = o.pauses === 'afficher' && op.active;
+    if (avecPauses) colonnes.push('Levées temporaires');
+    if (o.lieu !== 'masquer') colonnes.push('Lieu');
+    if (o.psychiatre !== 'masquer') colonnes.push('Psychiatre');
+    if (o.professionnels !== 'masquer') colonnes.push('Professionnels chargés de la surveillance');
+    var lignes = entrees.map(function (e) {
+      var l = [e.numero || 'en cours', e.categorie];
+      if (o.patient === 'numero') l.push(patient(e));
+      if (o.age === 'exact') l.push(e.age == null ? 'non renseigné' : String(e.age));
+      else if (o.age === 'tranche') l.push(trancheAge(e.age));
+      else if (o.age === 'mineur') l.push(e.age == null ? (estMineur(st, e.patientId, e.debut) ? 'oui' : 'non renseigné') : (e.age < 18 ? 'oui' : 'non'));
+      if (o.mode === 'afficher') l.push(e.modeHospi || '—');
+      else if (o.mode === 'contrainte') l.push(estContrainte(st.config, e.modeHospi) ? 'oui' : 'non');
+      l.push(quand(e.debut), quand(e.fin), fmt.duree(e.dureeHeures));
+      if (avecPauses) l.push(e.pauses.length ? e.pauses.length + ' — ' + fmt.duree(e.pauses.reduce(function (s, p) { return s + (p[1] - p[0]); }, 0) / H) : '—');
+      if (o.lieu === 'afficher') l.push(e.lieu || '—');
+      else if (o.lieu === 'categorie') l.push(e.categorie === 'A' || e.categorie === 'C' ? 'Espace d’isolement (CSI)' : 'Hors espace d’isolement');
+      if (o.psychiatre !== 'masquer') l.push(psychiatre(e.psychiatre));
+      if (o.professionnels === 'fonction') {
+        var parF = {}, ordreF = [];
+        e.professionnelsDetail.forEach(function (p) { var f = p.fonction || 'Soignant'; if (!parF[f]) { parF[f] = 0; ordreF.push(f); } parF[f]++; });
+        l.push(ordreF.length ? ordreF.map(function (f) { return parF[f] + ' ' + f; }).join(', ') : '—');
+      } else if (o.professionnels !== 'masquer') l.push(e.professionnelsDetail.length ? e.professionnelsDetail.map(pro).join(', ') : '—');
+      return l;
+    });
+    var occ = [];
+    occ.push(o.patient === 'masquer' ? 'identifiant des patients occulté' : 'identifiant des patients remplacé par un numéro propre à ce document');
+    occ.push({ exact: 'âge affiché', tranche: 'âge remplacé par une tranche d’âge', mineur: 'âge remplacé par la mention mineur / majeur', masquer: 'âge occulté' }[o.age]);
+    occ.push({ complete: 'dates et heures complètes', jour: 'dates sans les heures', mois: 'dates réduites au mois' }[o.dates]);
+    occ.push({ masquer: 'nom des psychiatres occulté', numero: 'nom des psychiatres remplacé par un numéro (Psychiatre 1…)', generique: 'nom des psychiatres remplacé par la mention « Psychiatre »' }[o.psychiatre]);
+    occ.push({ masquer: 'nom des professionnels occulté', numero: 'nom des professionnels remplacé par leur fonction et un numéro (IDE 1…)', fonction: 'nom des professionnels remplacé par leur fonction et leur nombre' }[o.professionnels]);
+    occ.push({ afficher: 'lieu affiché', categorie: 'lieu réduit à « CSI / hors CSI »', masquer: 'lieu occulté' }[o.lieu]);
+    occ.push({ afficher: 'mode d’hospitalisation affiché', contrainte: 'mode d’hospitalisation réduit à « sous contrainte : oui / non »', masquer: 'mode d’hospitalisation occulté' }[o.mode]);
+    return { colonnes: colonnes, lignes: lignes, occultations: occ, options: o, entrees: entrees.length };
   }
 
   // ---------------------------------------------------------- Statistiques
@@ -783,7 +888,7 @@
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
-    registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
+    registre: registre, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

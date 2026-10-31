@@ -61,7 +61,8 @@ Onglet *JLD* : les mesures en cours, triées par urgence.
 - **Patients** : cumuls sur 48 h et 15 jours, niveau de vigilance, mode d'hospitalisation et son historique.
 - **Corrections** : *Détail → Corriger…* (motif obligatoire) ; *Annuler* une saisie erronée dans le détail. Tout reste visible dans le journal.
 - **Conflits** : *Journal → Saisies en conflit à arbitrer*.
-- **Registre anonymisé** : par service et par année, imprimable et exportable. Selon le paramétrage, la durée est réelle ou hors pauses (indiqué sous le tableau), avec une colonne des levées temporaires si elle est activée.
+- **Registre** : par service et par année, imprimable et exportable ; il désigne le patient par son IPP et son âge (art. L. 3222-5-1) et n'est présenté qu'à la CDSP, au CGLPL et aux parlementaires.
+- **Version pour communication (CADA)** (onglet *Registre*, cadre et administrateur) : pour toute autre demande, choisissez les occultations (identifiant patient, âge, dates, psychiatre, soignants, lieu, mode d'hospitalisation, levées temporaires) ; les choix recommandés sont présélectionnés et un avertissement accompagne les choix moins protecteurs. Indiquez la référence de la demande : l'impression ou l'export est tracé dans le journal. Selon le paramétrage, la durée est réelle ou hors pauses (indiqué sous le tableau), avec une colonne des levées temporaires si elle est activée.
 - **Statistiques** : rapport annuel comparé à l'année précédente. Saisissez le nombre de patients en hospitalisation complète et sous contrainte (chiffres du DIM) pour obtenir les pourcentages.
 
 ## Mode formation

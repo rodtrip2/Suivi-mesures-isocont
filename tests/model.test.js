@@ -290,3 +290,55 @@ test('Options des pauses : activation, portée de la déduction', () => {
   assert.equal(M.optionsPauses({ pauses: { retrancher: false, portee: 'partout' } }).deduireRegistre, false);
   assert.equal(M.optionsPauses({ pauses: { active: false } }).colonneRegistre, false);
 });
+
+test('Registre : identifiant (IPP) et âge exigés par l’article L. 3222-5-1', () => {
+  const st = M.reduire([
+    evt('CONFIG', { cle: 'services', valeur: [{ code: 'U1', libelle: 'U1' }] }),
+    evt('PATIENT', { patientId: 'P1', ipp: '900001', naissance: '2009-06-15' }),
+    evt('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: local(2026, 6, 14, 10), csi: true, lieu: 'CSI 1' }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 6, 14, 20) })
+  ]);
+  const e = M.registre(st, 'U1', 2026, local(2026, 7, 1))[0];
+  assert.equal(e.ipp, '900001');
+  assert.equal(e.age, 16);                                              // 17 ans le lendemain
+});
+
+test('Registre pour communication (CADA) : occultations et numéros de remplacement', () => {
+  const evts = [
+    evt('CONFIG', { cle: 'services', valeur: [{ code: 'U1', libelle: 'U1' }] }),
+    evt('PATIENT', { patientId: 'P1', ipp: '900001', naissance: '1980-01-01' }),
+    evt('PATIENT', { patientId: 'P2', ipp: '900002', naissance: '2010-01-01' }),
+    evt('MODE_HOSPI', { patientId: 'P1', mode: 'SDT', date: local(2026, 1, 1) }),
+    evt('MODE_HOSPI', { patientId: 'P2', mode: 'SL mineur', date: local(2026, 1, 1) })
+  ];
+  [['M1', 'P1', 2, 'Dr A (fictif)'], ['M2', 'P2', 3, 'Dr B (fictif)'], ['M3', 'P1', 4, 'Dr A (fictif)']].forEach(([id, p, j, psy]) => {
+    evts.push(evt('MESURE_DEBUT', { mesureId: id, patientId: p, service: 'U1', typeMesure: 'Isolement', debut: local(2026, 3, j, 8), csi: true, lieu: 'CSI 1', psychiatre: psy }));
+    evts.push(evt('MESURE_FIN', { mesureId: id, fin: local(2026, 3, j, 18) }));
+  });
+  evts.push(evt('PROFESSIONNEL', { service: 'U1', date: '2026-03-02', periode: 'M', nom: 'Agent A (fictif)', fonction: 'IDE' }));
+  evts.push(evt('PROFESSIONNEL', { service: 'U1', date: '2026-03-02', periode: 'M', nom: 'Agent B (fictif)', fonction: 'IDE' }));
+  evts.push(evt('PROFESSIONNEL', { service: 'U1', date: '2026-03-04', periode: 'M', nom: 'Agent B (fictif)', fonction: 'IDE' }));
+  const st = M.reduire(evts);
+  const fmt = { date: t => 'D' + new Date(t).getDate() + 'h' + new Date(t).getHours(), jour: t => 'D' + new Date(t).getDate(), mois: () => 'mars', duree: h => h + 'h' };
+  const texte = r => JSON.stringify(r.lignes);
+  // Par défaut : rien d'identifiant
+  let r = M.registreCommunicable(st, 'U1', 2026, local(2026, 12, 1), {}, fmt);
+  assert.deepEqual(r.colonnes, ['N°', 'Catégorie', 'Mineur', "Mode d'hospitalisation", 'Début', 'Fin', 'Durée', 'Levées temporaires']);
+  assert.ok(!/9000|Dr |Agent/.test(texte(r)));
+  assert.deepEqual(r.lignes.map(l => l[2]), ['non', 'oui', 'non']);
+  assert.equal(r.lignes[0][4], 'D2');                                    // date sans l'heure
+  // Numéros de remplacement, cohérents dans le document
+  r = M.registreCommunicable(st, 'U1', 2026, local(2026, 12, 1), { patient: 'numero', psychiatre: 'numero', professionnels: 'numero', age: 'tranche', dates: 'mois' }, fmt);
+  const col = n => r.colonnes.indexOf(n);
+  assert.deepEqual(r.lignes.map(l => l[col('Patient')]), ['Patient 1', 'Patient 2', 'Patient 1']);
+  assert.deepEqual(r.lignes.map(l => l[col('Psychiatre')]), ['Psychiatre 1', 'Psychiatre 2', 'Psychiatre 1']);
+  assert.equal(r.lignes[0][col('Professionnels chargés de la surveillance')], 'IDE 1, IDE 2');
+  assert.equal(r.lignes[2][col('Professionnels chargés de la surveillance')], 'IDE 2');
+  assert.equal(r.lignes[1][col('Tranche d’âge')], 'moins de 18 ans');
+  assert.ok(!/9000|Dr |Agent/.test(texte(r)));
+  // Fonction seule, psychiatre générique, mode réduit
+  r = M.registreCommunicable(st, 'U1', 2026, local(2026, 12, 1), { psychiatre: 'generique', professionnels: 'fonction', mode: 'contrainte' }, fmt);
+  assert.equal(r.lignes[0][r.colonnes.indexOf('Psychiatre')], 'Psychiatre');
+  assert.equal(r.lignes[0][r.colonnes.indexOf('Professionnels chargés de la surveillance')], '2 IDE');
+  assert.deepEqual(r.lignes.map(l => l[r.colonnes.indexOf('Soins sans consentement')]), ['oui', 'non', 'oui']);
+});

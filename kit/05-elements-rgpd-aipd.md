@@ -13,7 +13,7 @@
 | Personnes concernées | Patients hospitalisés en psychiatrie faisant l'objet d'une mesure ; tiers informés (qualité seulement) ; professionnels (utilisateurs, psychiatres décisionnaires, soignants chargés de la surveillance) |
 | Données des patients | Identité (nom, prénom, IPP, date de naissance), service, mode d'hospitalisation et son historique, mesure de protection juridique (oui ou type), mesures (type, lieu, dates et heures, psychiatre), information des tiers (qualité du tiers, résultat), communications avec le JLD |
 | Données des professionnels | Nom, identifiant, rôles, services affectés ; horodatage et auteur de chaque saisie |
-| Destinataires | Agents habilités des unités concernées, selon leur rôle et leurs services ; registre anonymisé : instances de contrôle prévues par la loi ; JLD : décompte joint aux communications |
+| Destinataires | Agents habilités des unités concernées, selon leur rôle et leurs services ; registre (IPP, âge, psychiatre, soignants) : instances prévues par la loi (CDSP, CGLPL, parlementaires) ; demandeurs au titre du CRPA (CADA) : version occultée seulement ; JLD : décompte joint aux communications |
 | Transferts hors UE | Aucun. Les données ne quittent pas l'infrastructure de l'établissement. Si l'application est servie par GitHub Pages, seul le code est fourni par ce service, sans aucune donnée |
 | Sous-traitants | Aucun pour les données (pas d'hébergeur externe) |
 | Durée de conservation (à valider) | À fixer par l'établissement, en cohérence avec les règles applicables au registre et au dossier médical. L'outil conserve tout l'historique ; l'archivage d'une année close se fait en archivant une copie du dossier |
@@ -36,7 +36,8 @@ La liste de la CNIL des traitements pour lesquels une analyse d'impact est requi
 
 - Le contrôle des rôles est réalisé par l'application sur le poste, sans serveur : un utilisateur disposant d'un compte valide et de compétences techniques pourrait le contourner, sans pouvoir effacer la trace de ses saisies.
 - La perte simultanée de tous les moyens de déverrouillage rend les données irrécupérables : c'est la contrepartie d'un chiffrement effectif.
-- Le registre anonymisé et les exports statistiques ne contiennent ni nom ni IPP ; l'export détaillé utilise des pseudonymes (P001, P002…). Le nom du psychiatre figure au registre ; sa communication à des tiers peut appeler une occultation selon la doctrine de la CADA.
+- Le registre légal désigne le patient par son IPP et son âge, comme l'exige l'article L. 3222-5-1, et mentionne le psychiatre et les soignants : il n'est présenté qu'aux instances prévues par la loi. Les exports statistiques ne contiennent ni nom ni IPP (pseudonymes P001, P002…).
+- Pour une demande de communication d'un tiers (CADA), l'outil produit une **version occultée** du registre : identifiant patient occulté ou remplacé par un numéro propre au document, âge réduit (mineur / majeur, tranche) ou occulté, dates sans heure ou au mois, psychiatres et soignants occultés ou remplacés par des mentions génériques (Psychiatre 1, IDE 1, fonction et nombre), lieu et mode d'hospitalisation réductibles. Les choix les plus protecteurs sont présélectionnés, conformément à la décision du Conseil d'État du 8 février 2023 (n° 455887) ; chaque édition est tracée dans le journal avec les occultations appliquées et la référence de la demande. La version communiquée reste à valider par la direction ou le service juridique.
 - Les impressions (décompte JLD, registre) sont des documents à protéger comme le dossier patient.
 
 ## 3. Mode formation

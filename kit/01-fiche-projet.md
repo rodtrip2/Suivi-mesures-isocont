@@ -32,7 +32,7 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | Décompte JLD | Document imprimable, PDF ou CSV détaillant la durée cumulée, à joindre à la saisine. Présentation et données exportées réglées par un masque d'établissement ou propre à chaque service. |
 | Information des tiers | Traçabilité par cycle : qui a informé (psychiatre ou, en dernier recours, IDE), quel tiers, ou pourquoi aucun tiers n'a pu l'être. |
 | Surveillance en CSI | Professionnels présents par poste, nécessaires au registre. |
-| Registre anonymisé | Catégories A à E, numérotation annuelle, impression et export. |
+| Registre | Conforme à l'article L. 3222-5-1 (IPP, âge, mode d'hospitalisation, début, durée, psychiatre, soignants), catégories A à E, numérotation annuelle, impression et export. Version occultée pour les demandes de communication (CADA). |
 | Rapport annuel | Indicateurs « L'isolement et la contention en chiffres » (année N et N-1), suivi réglementaire, répartition mensuelle, export pseudonymisé. |
 | Vigilance | Tableau de bord : échéances proches ou dépassées, tiers à renseigner, patients en soins libres, mineurs, cumuls élevés. |
 | Saisie à plusieurs | Plusieurs postes peuvent saisir en même temps sans perte d'information ; les saisies contradictoires sont signalées pour arbitrage. |
