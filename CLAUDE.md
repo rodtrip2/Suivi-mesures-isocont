@@ -79,6 +79,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 ## 9. Reprise de l'historique
 
 - **Import générique à partir du registre du service** (seul document obligatoirement numérique) : CSV ou Excel de n'importe quel outil, correspondance des colonnes proposée et modifiable, ligne d'en-tête repérée, modèle CSV téléchargeable (`app/js/import-registre.js`, fiche `kit/07`). Une ligne = une entrée : A/B → isolement, C → contention en CSI + l'isolement qui l'accompagne, D/E → contention hors espace d'isolement ; portions d'isolement contiguës d'un même patient fusionnées en une mesure ; lignes d'origine conservées (`entreesOrigine`) pour reproduire le registre à l'identique ; soignants cités affichés à défaut de traces par poste. Cycles JLD et tiers non repris (absents du registre).
+- **Le kit et l'interface s'adressent à tout établissement** : ne jamais y présenter le classeur V1.3 (outil du CHHA dont est issu le projet) comme une référence ou un prérequis. La reprise de l'historique se présente à partir du registre ; l'import V1.3 n'apparaît que comme un cas particulier, clairement signalé. Dans les textes communs aux deux imports, parler de « document importé », « fichier » ou « registre importé ».
 - Les deux imports partagent la même mécanique (services, compteurs, choix de numérotation, contrôle, aperçu, décisions et corrections par mesure).
 
 ### Import du classeur V1.3

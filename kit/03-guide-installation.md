@@ -79,16 +79,21 @@ Onglet *Administration* :
 
 Le mode formation ne demande aucune installation : le jeu de données fictives est créé automatiquement dans le sous-dossier `formation` du dossier de données, à la première connexion en mode formation (ou par l'administrateur, *Administration → Mode formation*). Tous les comptes y ont accès par défaut ; décochez *Accès au mode formation* dans la fiche d'un compte pour le retirer.
 
-Reprise de l'historique **à partir du registre du service**, quel que soit l'outil d'origine : *Administration → Reprise des données existantes → Importer un registre…* (fichier CSV ou Excel exporté de votre outil, colonnes à faire correspondre ; modèle téléchargeable). Voir la fiche 07 — Reprise à partir du registre. Les contrôles ci-dessous s'appliquent aussi.
+### Reprise de l'historique
 
-Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur V1.3…*. Avant validation, l'écran d'import :
-- liste les **services du classeur absents de l'outil** : chacun peut être créé (libellé modifiable), rattaché à un service existant (toutes ses données y sont reprises) ou ignoré s'il ne porte aucune donnée ;
-- propose pour chaque service et chaque année le **compteur du registre** (dernier numéro utilisé avant l'outil), calculé sur les entrées que l'outil numérotera lui-même, et modifiable ;
-- **contrôle la numérotation** : il compare les numéros du classeur (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées) ;
-- demande comment traiter les mesures **déjà numérotées dans le classeur** : *laisser tel quel* (catégorie et numéro du classeur conservés, une entrée par mesure, l'outil numérote les mesures suivantes à la suite — choix par défaut), *recalculer l'année en cours*, ou *recalculer toutes les années* (avertissement : les statistiques des années passées peuvent changer). Ce choix reste modifiable année par année dans *Administration → Registre*, le compteur étant alors recalculé ;
-- affiche, **avant de confirmer**, l'impact de chacun des trois choix sur le registre et les statistiques de chaque année concernée (entrées et durée cumulée par catégorie A à E, durées, heures de CSI, patients, numéros attribués), valeurs différentes surlignées, et le détail des mesures modifiées : pour chacune, ses entrées du registre (numéro, catégorie, période, durée) selon chaque choix, avec l'explication de la catégorie (règle appliquée, lieu, case « exception », écart avec le classeur). Pour chaque mesure importée, on peut décider de garder le numéro du classeur ou d'appliquer la règle de l'outil, et corriger le lieu (CSI ou non) ou la case « exception » ; la correction est tracée avec la mesure, le classeur n'est pas modifié.
+L'historique se reprend **à partir du registre du service**, quel que soit l'outil utilisé jusque-là : *Administration → Reprise des données existantes → Importer un registre…*. Exportez le registre de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel ; l'écran d'import propose la correspondance des colonnes, et un modèle est téléchargeable. Le format attendu et la reconstitution des mesures sont détaillés dans la fiche 07 — Reprise à partir du registre.
 
-Le rapport d'import liste aussi les lignes ignorées, les points à vérifier et les éventuels écarts d'échéances JLD. Pensez ensuite à affecter les services créés aux comptes concernés.
+Avant validation, l'écran d'import :
+- liste les **services du fichier absents de l'outil** : chacun peut être créé (libellé modifiable) ou rattaché à un service existant (toutes ses données y sont reprises) ;
+- propose pour chaque service et chaque année le **compteur du registre** (dernier numéro utilisé avant l'outil), modifiable ;
+- **contrôle la numérotation** : il compare les numéros du fichier (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées) ;
+- demande comment traiter les entrées **déjà numérotées** : *laisser tel quel* (catégorie et numéro d'origine conservés, l'outil numérote les mesures suivantes en sautant ces numéros — choix par défaut), *recalculer l'année en cours*, ou *recalculer toutes les années* (avertissement : les statistiques des années passées peuvent changer). Ce choix reste modifiable année par année dans *Administration → Registre*, le compteur étant alors recalculé ;
+- affiche, **avant de confirmer**, l'impact de chacun des trois choix sur le registre et les statistiques de chaque année concernée (entrées et durée cumulée par catégorie A à E, durées, heures de CSI, patients, numéros attribués), valeurs différentes surlignées, et le détail des mesures modifiées avec l'explication de leur catégorie (règle appliquée, lieu, case « exception », écart avec le fichier) ;
+- permet, mesure par mesure, de garder le numéro d'origine ou d'appliquer la règle de l'outil, et de corriger le lieu (CSI ou non) ou la case « exception » ; la correction est tracée avec la mesure, le fichier d'origine n'est pas modifié.
+
+Le rapport d'import liste aussi les lignes ignorées et les points à vérifier. Le registre ne contenant ni les cycles JLD ni l'information des tiers, vérifiez les mesures en cours dans l'onglet JLD. Pensez ensuite à compléter les fiches des nouveaux patients et à affecter les services créés aux comptes concernés.
+
+*Cas particulier — classeur Excel « Suivi_Isolement_Contention ».* Les établissements qui utilisaient ce classeur, outil Excel dont est issu le projet, disposent d'un import spécifique (*Importer un classeur V1.3…*) qui reprend en plus les cycles JLD, l'information des tiers, la surveillance poste par poste et le paramétrage. Les autres établissements n'en ont pas besoin.
 
 ## 7. Recette avant production
 

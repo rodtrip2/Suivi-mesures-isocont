@@ -32,13 +32,12 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | Décompte JLD | Document imprimable, PDF ou CSV détaillant la durée cumulée, à joindre à la saisine. Présentation et données exportées réglées par un masque d'établissement ou propre à chaque service. |
 | Information des tiers | Traçabilité par cycle : qui a informé (psychiatre ou, en dernier recours, IDE), quel tiers, ou pourquoi aucun tiers n'a pu l'être. |
 | Surveillance en CSI | Professionnels présents par poste, nécessaires au registre. |
-| Reprise de l'historique | À partir du registre du service, quel que soit l'outil d'origine (CSV ou Excel, colonnes à faire correspondre), ou du classeur Excel V1.3. Mesures reconstituées, numérotation conservée ou recalculée, contrôle et aperçu de l'impact avant import. |
+| Reprise de l'historique | À partir du registre du service, quel que soit l'outil utilisé jusque-là (export CSV ou Excel, colonnes à faire correspondre). Mesures reconstituées, numérotation conservée ou recalculée, contrôle et aperçu de l'impact avant import. |
 | Registre | Conforme à l'article L. 3222-5-1 (IPP, âge, mode d'hospitalisation, début, durée, psychiatre, soignants), catégories A à E, numérotation annuelle, impression et export. Version occultée pour les demandes de communication (CADA). |
 | Rapport annuel | Indicateurs « L'isolement et la contention en chiffres » (année N et N-1), suivi réglementaire, répartition mensuelle, export pseudonymisé. |
 | Vigilance | Tableau de bord : échéances proches ou dépassées, tiers à renseigner, patients en soins libres, mineurs, cumuls élevés. |
 | Saisie à plusieurs | Plusieurs postes peuvent saisir en même temps sans perte d'information ; les saisies contradictoires sont signalées pour arbitrage. |
 | Traçabilité | Chaque saisie est nominative, horodatée, jamais effacée ; les corrections sont elles-mêmes tracées. |
-| Reprise de l'existant | Import du classeur Excel V1.3 et de son paramétrage. |
 | Formation | À la connexion, chaque agent choisit entre les données réelles et le **mode formation** : un jeu de données fictives chiffré à part, avec son vrai compte, ses rôles et ses services ; bandeau violet sur tous les écrans. L'administrateur peut retirer l'accès compte par compte et régénérer le jeu. |
 
 ## 4. Organisation et rôles

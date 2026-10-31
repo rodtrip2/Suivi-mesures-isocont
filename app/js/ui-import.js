@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
- * Reprise de données (administrateur). Deux sources : le registre du service, quel que soit l'outil
- * d'origine (modèle générique, colonnes à faire correspondre), ou le classeur Excel V1.3.
+ * Reprise de données (administrateur). Voie générale : le registre du service, quel que soit l'outil
+ * d'origine (colonnes à faire correspondre). Cas particulier : le classeur Excel V1.3 dont est issu le projet.
  * Le fichier est lu dans le navigateur.
  */
 (function () {
@@ -141,7 +141,7 @@
         zone.appendChild(h('h3', { text: 'Numérotation du registre : mesures déjà numérotées dans le classeur' }));
         zone.appendChild(h('p', { class: 'muted' }, h('small', { text: 'Années concernées : ' + annees + '. En cas d’écart entre les mesures et les entrées du registre du classeur, choisissez :' })));
         zone.appendChild(h('div', { class: 'choix-portee' },
-          radio('conserver', 'Laisser tel quel', 'les mesures importées gardent la catégorie et le numéro du classeur (une entrée par mesure) ; les règles de l’outil s’appliquent aux mesures suivantes, numérotées à la suite.'),
+          radio('conserver', 'Laisser tel quel', (registre ? 'les lignes du registre importé sont reprises à l’identique (catégorie, numéro, période) ;' : 'les mesures importées gardent la catégorie et le numéro du classeur (une entrée par mesure) ;') + ' les règles de l’outil s’appliquent aux autres mesures, numérotées en sautant ces numéros.'),
           radio('annee', 'Recalculer l’année en cours (' + anneeCourante + ')', 'les années antérieures gardent la numérotation du classeur ; les entrées de ' + anneeCourante + ' sont recalculées selon les règles de l’outil.'),
           radio('tout', 'Recalculer toutes les années', 'toutes les entrées importées sont recalculées selon les règles de l’outil.'),
           avertTout,
@@ -303,7 +303,7 @@
       zone), [
       { texte: 'Annuler' },
       { texte: 'Importer', classe: 'primaire', action: async function () {
-        if (!prep) throw new Error('Choisissez d’abord un classeur.');
+        if (!prep) throw new Error(registre ? 'Choisissez d’abord le fichier du registre et vérifiez la correspondance des colonnes.' : 'Choisissez d’abord un classeur.');
         var s = U.App.session;
         if (prep.servicesACreer.length) {
           var actuels = U.config().services || [];

@@ -582,7 +582,7 @@
    */
   function explicationEntree(st, e) {
     var m = st.mesures[e.mesureId] || {}, lieu = m.lieu || (m.csi ? 'CSI' : 'hors CSI');
-    if (e.fige) return 'Catégorie et numéro repris du classeur (' + e.numero + ').';
+    if (e.fige) return 'Catégorie et numéro repris du document importé (' + e.numero + ').';
     var t = 'Catégorie ' + e.categorie + ' : ' + REGLES_CATEGORIES[e.categorie] + ' — lieu « ' + lieu + ' »';
     if (m.type === 'Contention' && !m.csi) t += ', case « exception » ' + (m.exception ? 'cochée' : 'non cochée');
     if (e.categorie === 'A' && (e.debut !== m.debut || (e.fin !== null && e.fin !== m.fin))) t += ', portion de l’isolement en dehors de la contention en CSI';
@@ -592,7 +592,7 @@
       var piste = (mo[1] === 'D' && e.categorie === 'E') || (mo[1] === 'E' && e.categorie === 'D') ? 'vérifier la case « exception » de la mesure'
         : /[AB]/.test(mo[1] + e.categorie) && /[CDE]/.test(mo[1] + e.categorie) ? 'vérifier le type de mesure ou la contention concomitante'
         : 'vérifier le lieu (CSI ou non)';
-      t += ' Le classeur indiquait ' + mo[1] + ' (' + no + ') : ' + piste + '.';
+      t += ' Le document importé indiquait ' + mo[1] + ' (' + no + ') : ' + piste + '.';
     }
     return t;
   }

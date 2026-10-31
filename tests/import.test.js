@@ -178,8 +178,8 @@ test('Import : explication de la catégorie, décision et correction mesure par 
   const cpt = () => ({ UHP: { 2026: 10 } });
   let imp = I.impactNumerotation(prep, cpt, 2026)[0];
   const d = imp.mesures.find(x => x.ref === 'M0003');
-  assert.match(d.pourquoi.tout[0], /Catégorie E : contention hors espace d’isolement, exception prévue — lieu « Chambre 12 », case « exception » cochée\. Le classeur indiquait D \(D12\) : vérifier la case « exception »/);
-  assert.match(d.pourquoi.conserver[0], /repris du classeur \(D12\)/);
+  assert.match(d.pourquoi.tout[0], /Catégorie E : contention hors espace d’isolement, exception prévue — lieu « Chambre 12 », case « exception » cochée\. Le document importé indiquait D \(D12\) : vérifier la case « exception »/);
+  assert.match(d.pourquoi.conserver[0], /repris du document importé \(D12\)/);
   // Décision par mesure : garder D12 même si l'on recalcule tout
   imp = I.impactNumerotation(prep, cpt, 2026, { M0003: 'classeur' })[0];
   assert.deepEqual(imp.mesures.find(x => x.ref === 'M0003').modes.tout.map(e => e.numero), ['D12']);

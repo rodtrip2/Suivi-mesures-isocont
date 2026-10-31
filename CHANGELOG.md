@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.22.1 — 31 octobre 2026
+
+- Documentation et interface pour tout établissement : la reprise de l'historique est présentée à partir du **registre du service** ; le classeur Excel V1.3 n'apparaît plus que comme un **cas particulier** (outil Excel dont est issu le projet), signalé comme tel (section repliée dans *Administration*, paragraphe distinct dans le guide d'installation). Fiche projet, guide d'installation, guide utilisateur, fiche 07 et README réécrits en conséquence.
+- Textes communs aux deux imports rendus génériques : « document importé » au lieu de « classeur » (explication des catégories, compteurs, journal), choix « Laisser tel quel » décrit selon la source.
+
 ## 1.22.0 — 31 octobre 2026
 
 - **Import générique à partir du registre du service**, pour tout établissement quel que soit son outil : fichier CSV (UTF-8 ou Windows) ou Excel, choix de la feuille, ligne d'en-tête repérée automatiquement, **correspondance des colonnes** proposée d'après leurs intitulés et modifiable, exemple de valeur pour chaque donnée. **Modèle de registre CSV** téléchargeable.

@@ -89,7 +89,7 @@ Réglage des **pauses** (*Administration → Pauses*) :
 
 Déduire les pauses reporte les échéances JLD de toutes les mesures concernées, y compris passées : décision à prendre avec la direction.
 
-Comptes (rôles, services affectés, accès au mode formation), régénération du jeu de formation, clés de sécurité, code de secours, paramétrage, import du classeur Excel : voir le guide d'installation et les procédures de secours.
+Comptes (rôles, services affectés, accès au mode formation), régénération du jeu de formation, clés de sécurité, code de secours, paramétrage, reprise de l'historique à partir du registre : voir le guide d'installation et les procédures de secours.
 
 ## En cas de problème
 

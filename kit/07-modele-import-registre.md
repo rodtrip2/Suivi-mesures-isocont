@@ -41,7 +41,7 @@ Exemple : A1 (8 h–12 h), C2 (12 h–18 h), A3 (18 h–22 h) pour un même pati
 
 ## Numérotation et contrôle avant import
 
-Comme pour le classeur V1.3, l'écran d'import :
+Avant de confirmer, l'écran d'import :
 
 - propose pour chaque service et chaque année un compteur (dernier numéro du registre), modifiable ;
 - propose de **laisser tel quel** (les lignes du registre sont reproduites à l'identique, l'outil numérote les mesures suivantes en sautant ces numéros), de **recalculer l'année en cours** ou de **recalculer toutes les années** (avertissement : les statistiques des années passées peuvent changer) ;

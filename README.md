@@ -25,7 +25,7 @@ Le DPI couvre la prescription médicale et la surveillance infirmière. Cet outi
 | Registre anonymisé A–E, statistiques annuelles N/N-1, exports | cadre |
 | Corrections et annulations tracées, arbitrage des saisies concurrentes | cadre |
 | **Mode formation** choisi à la connexion : jeu de données fictives chiffré à part (sous-dossier du partage), avec son vrai compte, ses rôles et ses services ; bandeau violet ; accès désactivable par compte | tous (sauf accès retiré par l'administrateur) |
-| Comptes un par un ou **en lot** depuis une liste d'agents, rôles cumulables, **services affectés par compte**, mot de passe provisoire **à changer à la première connexion**, réinitialisation des mots de passe perdus, clés YubiKey, code de secours, paramétrage, import du classeur Excel V1.3 | administrateur |
+| Comptes un par un ou **en lot** depuis une liste d'agents, rôles cumulables, **services affectés par compte**, mot de passe provisoire **à changer à la première connexion**, réinitialisation des mots de passe perdus, clés YubiKey, code de secours, paramétrage, **reprise de l'historique à partir du registre du service** (tout outil d'origine, CSV ou Excel) | administrateur |
 
 Chaque agent (hors administrateur) ne voit que les services qui lui sont affectés, à la connexion comme à la création d'une mesure.
 
@@ -52,7 +52,9 @@ app/                  l'application (seul dossier à déployer)
   js/session.js       comptes, services, journal, synchronisation
   js/comptes.js       analyse des listes d'agents (création en lot)
   js/demo.js          données fictives (démonstration et jeu de formation)
-  js/xlsx.js, js/import-v13.js   lecture et import du classeur Excel V1.3
+  js/xlsx.js                     lecture des fichiers Excel, sans bibliothèque
+  js/import-registre.js          reprise de l'historique à partir du registre (tout outil)
+  js/import-v13.js               import spécifique du classeur Excel d'origine du projet (V1.3)
   js/ui*.js           interface
 kit/                  kit de déploiement (Markdown + PDF)
 docs/                 architecture
