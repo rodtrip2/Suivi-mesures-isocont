@@ -24,6 +24,14 @@ Document de référence pour les développeurs. La présentation destinée à la
 | `xlsx.js`, `import-v13.js` | Lecture d'un classeur Excel sans bibliothèque ; conversion V1.3 → événements | oui |
 | `ui.js`, `ui-*.js`, `main.js` | Interface (DOM construit sans `innerHTML`) | test de bout en bout manuel/Playwright |
 
+## 2 bis. Mode formation
+
+- Jeu de données fictives dans `formation/` (même structure que le dossier principal, sans coffre), chiffré par une clé propre. `coffre.formation = { cle, creeLe, par }`, où `cle` est la clé du jeu chiffrée par la clé des données réelles (données associées `formation`).
+- `Session` distingue le dossier du coffre (`dossier`, clé `cle`) et le jeu actif (`dossierActif`, `cleActive`) : `ouvrirFormation()` / `fermerFormation()` basculent le jeu actif ; les traces de comptes (`tracer`, option `journalReel`) vont toujours au journal réel.
+- Rôle `FORMATEUR` : aucun droit dans les données réelles ; dans le jeu de formation, rôles effectifs + IDE, secrétaire, cadre et tous les services (`Session.roles`, `Session.mesServices`).
+- Bascule du poste : réglage local du navigateur `formation = { jusqua, par, dossier }` (IndexedDB), appliqué à chaque connexion par mot de passe ou clé (pas au code de secours) ; expiration vérifiée toutes les 15 s.
+- `SIC.donneesFictives({ config })` génère le contenu à partir du paramétrage réel ; `creerFormation` efface le sous-dossier, écrit un lot unique puis met à jour le coffre.
+
 ## 3. Stockage
 
 ```

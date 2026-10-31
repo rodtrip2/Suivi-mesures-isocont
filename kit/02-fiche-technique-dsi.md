@@ -37,6 +37,7 @@
     coffre.json            copies « emballées » de la clé de données, comptes (chiffrés)
     evenements\AAAA\MM\    une saisie = un fichier .enc, jamais modifié ni supprimé
     instantanes\AAAA-MM.enc  regroupement chiffré des saisies d'un mois clos
+    formation\              jeu de données FICTIVES (même structure, clé distincte)
 ```
 
 ### Modes d'hébergement
@@ -103,6 +104,13 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 - **Instantanés** : les saisies d'un mois clos sont regroupées dans un fichier chiffré `instantanes\AAAA-MM.enc`, lu en une fois. Les fichiers d'origine restent en place et font foi ; le dossier `instantanes` peut être supprimé sans perte (il est reconstruit).
 - Chaque saisie référence la précédente du même agent (chaînage).
 
+### Mode formation
+
+- Le jeu de formation est un second jeu de données, entièrement fictif, dans le sous-dossier `formation` du dossier principal (mêmes droits NTFS, même sauvegarde). Il est chiffré avec **sa propre clé** AES-256, elle-même rangée dans `coffre.json`, chiffrée par la clé des données réelles : seul un agent connecté avec son vrai compte peut l'ouvrir.
+- Le rôle *Formateur* bascule un poste pour une durée limitée. La bascule est un réglage local du navigateur (session Windows), sans effet sur les autres postes. Une connexion sur un poste basculé ouvre le jeu de formation ; les comptes, mots de passe et clés restent ceux du coffre réel.
+- Les données réelles et fictives ne se mélangent jamais : une saisie en formation est écrite dans `formation\` avec la clé du jeu de formation. Les opérations sur les comptes (changement de mot de passe, activation du mode formation) sont tracées dans le journal réel.
+- Le sous-dossier `formation` peut être supprimé sans perte de données réelles ; il ne peut pas être ouvert comme dossier principal (l'application le détecte et le refuse).
+
 ## 7. Sécurité applicative
 
 - Politique de sécurité du contenu stricte : aucun script externe, aucune requête réseau, aucun formulaire envoyé.
@@ -164,3 +172,4 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 - [ ] Clé de sécurité enregistrée puis utilisée pour déverrouiller (si retenue).
 - [ ] Sauvegarde puis restauration du dossier testées.
 - [ ] Vérification qu'aucune requête sortante n'est émise (outils de développement, onglet Réseau).
+- [ ] Mode formation : un poste basculé n'affiche que les données fictives ; un autre poste reste sur les données réelles ; retour automatique à l'heure prévue.

@@ -72,6 +72,10 @@ Onglet *Administration* :
 4. *Créer les comptes*, puis **imprimer les fiches de remise** (une par agent, avec identifiant et mot de passe provisoire). Ces mots de passe ne seront plus affichés.
 5. Remettre chaque fiche en main propre. À sa première connexion, l'agent choisit son mot de passe personnel.
 
+### Préparer la formation
+
+Créer au moins un compte avec le rôle *Formateur* (il peut être cumulé avec un autre rôle). Le formateur crée le jeu de formation depuis le bouton *Mode formation* : il est rangé dans le sous-dossier `formation` du dossier de données, sans action de la DSI.
+
 Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur…*. Le rapport d'import liste les lignes ignorées, les points à vérifier et les éventuels écarts d'échéances JLD.
 
 ## 7. Recette avant production

@@ -38,6 +38,7 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | Saisie à plusieurs | Plusieurs postes peuvent saisir en même temps sans perte d'information ; les saisies contradictoires sont signalées pour arbitrage. |
 | Traçabilité | Chaque saisie est nominative, horodatée, jamais effacée ; les corrections sont elles-mêmes tracées. |
 | Reprise de l'existant | Import du classeur Excel V1.3 et de son paramétrage. |
+| Formation | Mode formation activé par le formateur : le poste bascule sur un jeu de données fictives chiffré à part, avec les vrais comptes des agents ; bandeau violet sur tous les écrans, retour automatique aux données réelles à l'heure choisie. |
 
 ## 4. Organisation et rôles
 
@@ -46,6 +47,7 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | IDE et aide-soignant(e) (AS) | Mêmes droits : report des décisions de début et de fin, information des tiers, professionnels en CSI, envois JLD le week-end ou en l'absence du secrétariat. |
 | Secrétaire | Envois et suivi JLD, décomptes. |
 | Cadre de santé | Pilotage, corrections tracées, registre, statistiques. |
+| Formateur | Bascule provisoirement un poste en **mode formation**, sur un jeu de données fictives rangé à part sur le réseau ; y dispose des droits IDE, secrétaire et cadre pour les démonstrations. Aucun droit sur les données réelles par ce seul rôle. |
 | Administrateur | Comptes (un par un ou en lot à partir d'une liste d'agents), services affectés à chaque compte, réinitialisation des mots de passe perdus, clés de secours, paramétrage, import. Rôle cumulable avec celui de cadre. |
 | Psychiatres | Non utilisateurs à ce stade : la décision et la prescription restent dans le DPI. |
 | DSI | Mise à disposition du dossier réseau et de l'application, sauvegardes, postes. |
@@ -82,7 +84,7 @@ Chaque agent ne voit que les services qui lui sont affectés. Les comptes sont c
 | 5. Pilote | Une unité, en parallèle de l'outil actuel, avec comparaison des échéances. | 1 à 2 mois |
 | 6. Généralisation | Autres unités, abandon de l'outil antérieur. | progressive |
 
-Formation : 20 à 30 minutes par agent, à partir du guide utilisateur du kit.
+Formation : 20 à 30 minutes par agent, à partir du guide utilisateur du kit, sur un poste basculé en mode formation par le formateur.
 
 ## 8. Risques et parades
 

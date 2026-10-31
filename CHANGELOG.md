@@ -1,5 +1,15 @@
 # Journal des versions
 
+## 1.2.0 — 31 octobre 2026
+
+- **Rôle Formateur**, sans droit sur les données réelles par ce seul rôle.
+- **Mode formation** : le formateur bascule provisoirement un poste (1 à 8 h ou jusqu'à la fin de la journée) sur un jeu de données fictives, rangé dans le sous-dossier `formation` du partage et chiffré avec sa propre clé (conservée chiffrée dans le coffre réel).
+- Le jeu de formation reprend les services, CSI et postes de surveillance réels, avec patients et mesures fictifs ; il peut être régénéré à tout moment.
+- Les agents s'y connectent avec leur vrai compte, rôles et services ; le formateur y dispose aussi des droits IDE, secrétaire et cadre sur tous les services.
+- Bandeau violet sur tous les écrans, retour aux données réelles à l'heure prévue, par le formateur ou depuis l'écran de connexion.
+- Les traces de comptes restent dans le journal réel ; l'administration des comptes et l'import sont indisponibles en formation.
+- Un dossier sans coffre (jeu de formation ouvert par erreur, coffre perdu) n'est plus jamais proposé à l'initialisation.
+
 ## 1.1.0 — 30 octobre 2026
 
 - **Rôle aide-soignant(e) (AS)**, avec les mêmes droits que l'IDE.

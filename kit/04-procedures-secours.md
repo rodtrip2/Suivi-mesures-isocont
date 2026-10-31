@@ -59,6 +59,10 @@
 | Professionnels en CSI (poste, nom, fonction) | |
 | Ressaisi dans l'outil le, par | |
 
+## Poste resté en mode formation
+
+Un bandeau violet indique que le poste affiche des données fictives. Si le poste est nécessaire pour la prise en charge réelle : écran de connexion → *Revenir aux données réelles* (accessible à tous). La bascule s'arrête aussi d'elle-même à l'heure choisie par le formateur. **Aucune information réelle ne doit être saisie en mode formation** : si cela arrive, la ressaisir dans les données réelles avec les heures réelles, puis faire régénérer le jeu de formation par le formateur.
+
 ## Restauration après incident sur le dossier
 
 1. DSI : restaurer le dossier (ou les fichiers manquants) depuis la sauvegarde.

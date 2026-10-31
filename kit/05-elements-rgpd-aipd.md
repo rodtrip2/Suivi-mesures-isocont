@@ -39,7 +39,11 @@ La liste de la CNIL des traitements pour lesquels une analyse d'impact est requi
 - Le registre anonymisé et les exports statistiques ne contiennent ni nom ni IPP ; l'export détaillé utilise des pseudonymes (P001, P002…). Le nom du psychiatre figure au registre ; sa communication à des tiers peut appeler une occultation selon la doctrine de la CADA.
 - Les impressions (décompte JLD, registre) sont des documents à protéger comme le dossier patient.
 
-## 3. Information des personnes
+## 3. Mode formation
+
+Le jeu de formation ne contient que des données fictives générées par l'application (noms marqués « fictif »). Il est chiffré séparément et rangé dans le même dossier que les données réelles. La consigne de ne jamais y saisir de donnée réelle figure dans le bandeau affiché en permanence et dans les procédures ; le formateur peut régénérer le jeu à tout moment, ce qui efface son contenu.
+
+## 4. Information des personnes
 
 Les patients sont informés par les moyens habituels de l'établissement (livret d'accueil, affichage, politique de confidentialité), en mentionnant ce traitement, ses finalités et les modalités d'exercice des droits.
 
