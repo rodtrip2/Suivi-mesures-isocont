@@ -53,7 +53,7 @@ IDE et AS disposent des mêmes droits.
 Onglet *JLD* : les mesures en cours, triées par urgence.
 - *Saisir un envoi* : information du JLD, saisine, ou décision reçue (maintien ou mainlevée), avec la date et l'heure réelles.
 - Une décision de **maintien** ouvre automatiquement le cycle suivant ; pensez au tiers, qui doit être informé de ce renouvellement.
-- *Décompte* (onglet *Mesures*) : document à joindre à la communication, mis en forme selon le masque du service. *Imprimer / PDF* : choisissez « Enregistrer au format PDF » comme imprimante. *Exporter (CSV)* : mêmes données, pour un tableur ; le fichier est nominatif, enregistrez-le uniquement sur le réseau de l'établissement.
+- *Décompte* (onglet *Mesures*) : document à joindre à la communication, mis en forme selon le masque du service. Les levées temporaires y figurent dans un tableau (début, reprise, durée, motif, psychiatre, prise en compte) précédé d'une phrase qui explique la règle de l'établissement ; si les pauses sont déduites, chacune interrompt le tableau du décompte par une ligne grisée « PAUSE — non décomptée », et la ligne suivante reprend à l'heure de reprise. *Imprimer / PDF* : choisissez « Enregistrer au format PDF » comme imprimante. *Exporter (CSV)* : mêmes données, pour un tableur ; le fichier est nominatif, enregistrez-le uniquement sur le réseau de l'établissement.
 
 ## Cadre de santé
 
@@ -77,7 +77,7 @@ L'accès au mode formation est ouvert à tous les comptes ; l'administrateur peu
 
 ## Administrateur
 
-**Masques du décompte JLD** (*Administration → Masques du décompte JLD*) : choisissez *Masque de l'établissement* ou un service, puis réglez l'en-tête, le destinataire, le bandeau confidentiel, les données d'identité, les colonnes (cochées et ordonnées avec ↑ ↓), les sections, le pied de page et le bloc signature. L'aperçu se met à jour sur un patient fictif. Un service sans masque propre utilise celui de l'établissement ; *Revenir au masque de l'établissement* supprime le masque propre.
+**Masques du décompte JLD** (*Administration → Masques du décompte JLD*) : choisissez *Masque de l'établissement* ou un service, puis réglez l'en-tête, le destinataire, le bandeau confidentiel, les données d'identité, les colonnes (cochées et ordonnées avec ↑ ↓), les sections (dont la date d'édition et l'auteur, séparément), le pied de page, le bloc signature et le **papier à en-tête** : image A4 du papier de l'établissement (celui des courriers, exporté en PNG ou JPEG), sur toutes les pages ou la première seulement, avec les marges du texte en millimètres. Pour imprimer, gardez le format A4 et les marges « par défaut ». L'aperçu se met à jour sur un patient fictif. Un service sans masque propre utilise celui de l'établissement ; *Revenir au masque de l'établissement* supprime le masque propre.
 
 Réglage des **pauses** (*Administration → Pauses*) : retrancher ou non les pauses des décomptes, reprise automatique à l'heure prévue, seuils d'alerte et de refus. Retrancher les pauses reporte les échéances JLD de toutes les mesures concernées, y compris passées : décision à prendre avec la direction.
 

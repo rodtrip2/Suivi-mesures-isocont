@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.7.0 — 31 octobre 2026
+
+- Décompte JLD, masques : **date d'édition** et **auteur** deviennent deux sections distinctes (l'ancien réglage commun est repris pour les deux).
+- **Papier à en-tête** : image de fond A4 (PNG ou JPEG, compressée à l'import), sur toutes les pages ou la première seulement, **marges du texte** réglables en millimètres et respectées sur chaque page imprimée. Images partagées entre masques, supprimées quand plus aucun masque ne les utilise.
+- **Pauses plus lisibles** : tableau des levées temporaires (début, reprise, durée, motif, psychiatre, prise en compte) précédé d'une phrase expliquant la règle de l'établissement.
+- **Pauses déduites : rupture dans les lignes du décompte** — chaque pause interrompt le tableau par une ligne grisée « PAUSE — non décomptée » (sans numéro, cumul inchangé), et la ligne suivante « Reprise de la mesure après levée temporaire » repart de l'heure de reprise. Pauses comptées : le commentaire de la ligne concernée les signale.
+- Aperçu du décompte au format de la page A4.
+
 ## 1.6.0 — 31 octobre 2026
 
 - **Masques du décompte JLD** (*Administration*) : un masque pour l'établissement, et un masque propre à chaque service si besoin (hérite du masque de l'établissement).

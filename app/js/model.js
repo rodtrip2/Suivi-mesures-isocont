@@ -325,11 +325,16 @@
    */
   function exclusions(m, maintenant, config) {
     if (!optionsPauses(config).retrancher) return [];
+    return plagesPauses(m, maintenant).map(function (x) { return [x.debut, x.fin]; });
+  }
+
+  /** Plages de pause d'une mesure telles qu'elles seraient déduites : jusqu'à la reprise, ou au plus jusqu'à l'heure prévue. */
+  function plagesPauses(m, maintenant) {
     var limite = typeof m.fin === 'number' ? Math.min(m.fin, maintenant) : maintenant;
     return (m.pauses || []).map(function (p) {
       var f = p.reprise != null ? p.reprise : p.reprisePrevue;
-      return [p.debut, Math.min(f, limite)];
-    }).filter(function (x) { return x[1] > x[0]; });
+      return { debut: p.debut, fin: Math.min(f, limite), pause: p, nonConfirmee: p.reprise == null && f < limite };
+    }).filter(function (x) { return x.fin > x.debut; }).sort(function (a, b) { return a.debut - b.debut; });
   }
 
   /** Mesures prêtes pour le moteur de règles : copies portant leurs plages retranchées si l'option est active. */
@@ -633,14 +638,16 @@
   // ------------------------------------------------ Masques du décompte JLD
   var COLONNES_DECOMPTE = ['N', 'Debut', 'Fin', 'Duree', 'Cumul', 'Statut', 'Commentaire'];
   var IDENTITE_DECOMPTE = ['patient', 'naissance', 'ipp', 'service', 'modeHospi', 'protection', 'mesure', 'lieu', 'psychiatre'];
-  var SECTIONS_DECOMPTE = ['periode', 'situation', 'total', 'cycle', 'jld', 'tiers', 'pauses', 'mentionLegale', 'editeur'];
+  var SECTIONS_DECOMPTE = ['periode', 'situation', 'total', 'cycle', 'jld', 'tiers', 'pauses', 'mentionLegale', 'dateEdition', 'auteur'];
   var MASQUE_DEFAUT = {
     titreIsolement: 'Cumul des mesures d’isolement', titreContention: 'Cumul des mesures de contention', sousTitre: '',
     entete: '', destinataire: '', confidentiel: false,
     identite: ['patient', 'naissance', 'ipp', 'mesure', 'lieu', 'psychiatre'],
     colonnes: COLONNES_DECOMPTE.slice(),
-    sections: { periode: true, situation: true, total: true, cycle: true, jld: false, tiers: false, pauses: true, mentionLegale: true, editeur: true },
-    piedPage: '', signature: ''
+    sections: { periode: true, situation: true, total: true, cycle: true, jld: false, tiers: false, pauses: true, mentionLegale: true, dateEdition: true, auteur: true },
+    piedPage: '', signature: '',
+    // Papier à en-tête : image de fond (identifiant dans config.imagesDecompte), sur toutes les pages ou la première, marges (mm).
+    fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 }
   };
 
   /**
@@ -653,7 +660,15 @@
       if (!x) return;
       Object.keys(x).forEach(function (k) {
         if (k === 'masquer' || x[k] == null) return;
-        if (k === 'sections') Object.assign(r.sections, x.sections);
+        if (k === 'sections') {
+          Object.assign(r.sections, x.sections);
+          if (x.sections.editeur !== undefined) {           // ancien réglage commun « date d'édition et auteur »
+            if (x.sections.dateEdition === undefined) r.sections.dateEdition = !!x.sections.editeur;
+            if (x.sections.auteur === undefined) r.sections.auteur = !!x.sections.editeur;
+          }
+          delete r.sections.editeur;
+        }
+        else if (k === 'marges') Object.assign(r.marges, x.marges);
         else if (k === 'titreIsolement' || k === 'titreContention') { if (x[k]) r[k] = x[k]; }
         else r[k] = cloner(x[k]);
       });
@@ -661,21 +676,56 @@
     });
     r.colonnes = r.colonnes.filter(function (c) { return COLONNES_DECOMPTE.indexOf(c) >= 0; });
     r.identite = r.identite.filter(function (c) { return IDENTITE_DECOMPTE.indexOf(c) >= 0; });
+    Object.keys(r.marges).forEach(function (k) { var v = +r.marges[k]; r.marges[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; });
+    if (r.fond && !((config && config.imagesDecompte) || {})[r.fond]) r.fond = '';
     r.propre = !!(service && service !== '*' && dec[service]);
     return r;
   }
 
+  /**
+   * Décompte JLD d'une mesure à une date de référence : lignes des mesures antérieures (15 jours glissants),
+   * puis de la mesure par tranches de 24 h (isolement) ou 12 h (contention).
+   * Pauses déduites (option) : chaque pause interrompt le décompte par une ligne « pause » non décomptée,
+   * et la ligne suivante reprend à l'heure de reprise. Sinon, les pauses sont signalées dans le commentaire.
+   */
   function decompte(st, m, reference) {
     var toutes = mesuresCalcul(st, reference);
     m = toutes.filter(function (x) { return x.id === m.id; })[0] || m;
+    var deduire = optionsPauses(st.config).retrancher;
     var fin = typeof m.fin === 'number' && m.fin < reference ? m.fin : reference;
     var pas = (m.type === 'Isolement' ? 24 : 12) * H;
     var borne = Math.max(m.debut - 15 * J, rules.derniereLeveeJLD(toutes, m.patientId, m.type, m.debut));
     var intervalles = [], lignes = [];
-    function net(x, d, f) { return rules.retrancher(d, f, x.exclusions); }
-    function pauseNote(x, d, f) {
-      var p = (f - d) / H - rules.heuresFusionnees(net(x, d, f));
-      return p > 1 / 120 ? ' (pause retranchée : ' + (Math.round(p * 60) >= 60 ? Math.floor(p) + ' h ' + String(Math.round(p * 60) % 60).padStart(2, '0') : Math.round(p * 60) + ' min') + ')' : '';
+    function hhmm(t) { var d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function libPause(p) { return 'levée temporaire' + (p.motif ? ' (' + p.motif + ')' : '') + (p.psychiatre ? ', décidée par ' + p.psychiatre : ''); }
+    function notePausesComptees(x, d, f) {
+      var notes = plagesPauses(x, reference).filter(function (q) { return q.debut < f && q.fin > d; }).map(function (q) {
+        return 'levée temporaire de ' + hhmm(Math.max(q.debut, d)) + ' à ' + hhmm(Math.min(q.fin, f)) + (q.pause.motif ? ' (' + q.pause.motif + ')' : '');
+      });
+      return notes.length ? ' — dont ' + notes.join(', ') + ', comptée dans la durée' : '';
+    }
+    function ligneMesure(x, d, f, commentaire, statut) {
+      intervalles.push([d, f]);
+      lignes.push({ type: 'mesure', debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
+    }
+    function lignePause(q, d, f) {
+      lignes.push({ type: 'pause', debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'PAUSE',
+        commentaire: 'Interruption du décompte : ' + libPause(q.pause) + '. Durée non décomptée.' + (q.nonConfirmee ? ' Reprise non saisie : décompte repris à l’heure de reprise prévue.' : '') });
+    }
+    /** Découpe [d, f] d'une mesure aux bornes `grille` et aux pauses déduites ; appelle `ligne(d, f, apresPause, premiere)`. */
+    function parcourir(x, d, f, grille, ligne) {
+      var plages = deduire ? plagesPauses(x, reference).filter(function (q) { return q.debut < f && q.fin > d; }) : [];
+      var t = d, apresPause = false, premiere = true, k = 0;
+      while (t < f || (premiere && t === f)) {
+        var q = plages.filter(function (z) { return z.debut <= t && z.fin > t; })[0];
+        if (q) { var fp = Math.min(q.fin, f); lignePause(q, t, fp); t = fp; apresPause = true; premiere = false; continue; }
+        while (grille && grille(k) <= t) k++;
+        var suivante = Math.min(f, grille ? grille(k) : f);
+        plages.forEach(function (z) { if (z.debut > t && z.debut < suivante) suivante = z.debut; });
+        ligne(t, suivante, apresPause, premiere);
+        if (suivante === t) break;
+        t = suivante; apresPause = false; premiere = false;
+      }
     }
     toutes.filter(function (x) {
       return x.id !== m.id && x.patientId === m.patientId && x.type === m.type && x.debut < m.debut &&
@@ -683,25 +733,24 @@
     }).sort(function (a, b) { return a.debut - b.debut; }).forEach(function (x) {
       var d = Math.max(x.debut, borne), f = Math.min(typeof x.fin === 'number' ? x.fin : m.debut, m.debut);
       if (f <= d) return;
-      var morceaux = net(x, d, f);
-      intervalles = intervalles.concat(morceaux);
-      lignes.push({ debut: d, fin: f, duree: rules.heuresFusionnees(morceaux), cumul: rules.heuresFusionnees(intervalles), statut: 'TERMINÉE', commentaire: 'Mesure antérieure comptée dans les 15 jours glissants' + (x.debut < borne ? ' (partiellement)' : '') + pauseNote(x, d, f) });
+      parcourir(x, d, f, null, function (a, b, apres) {
+        ligneMesure(x, a, b, apres ? 'Mesure antérieure : reprise après levée temporaire' : 'Mesure antérieure comptée dans les 15 jours glissants' + (x.debut < borne ? ' (partiellement)' : ''), 'TERMINÉE');
+      });
     });
     var cumulAvant = rules.heuresFusionnees(intervalles);
-    for (var t = m.debut, i = 0; t < fin || i === 0; t += pas, i++) {
-      var f2 = Math.min(t + pas, fin);
-      var morceaux2 = net(m, t, f2);
-      intervalles = intervalles.concat(morceaux2);
-      var dernier = f2 >= fin;
-      lignes.push({
-        debut: t, fin: f2, duree: rules.heuresFusionnees(morceaux2), cumul: rules.heuresFusionnees(intervalles),
-        statut: dernier && typeof m.fin !== 'number' ? 'EN COURS' : 'TERMINÉE',
-        commentaire: (i === 0 ? 'Début de la mesure' : 'Prolongation de la mesure') + pauseNote(m, t, f2)
-      });
-      if (dernier) break;
-    }
-    lignes.forEach(function (l, k) { l.n = k + 1; });
-    return { lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: typeof m.fin !== 'number', reference: fin, fenetreDebut: borne, pausesRetranchees: optionsPauses(st.config).retrancher };
+    var grille = function (k) { return m.debut + (k + 1) * pas; };
+    parcourir(m, m.debut, fin, grille, function (a, b, apres, premiere) {
+      var enCours = b >= fin && typeof m.fin !== 'number';
+      ligneMesure(m, a, b, premiere ? 'Début de la mesure' : apres ? 'Reprise de la mesure après levée temporaire' : 'Prolongation de la mesure', enCours ? 'EN COURS' : 'TERMINÉE');
+    });
+    var n = 0;
+    lignes.forEach(function (l) { l.n = l.type === 'pause' ? '' : ++n; });
+    var dernier = lignes[lignes.length - 1];
+    if (dernier && dernier.type === 'pause' && typeof m.fin !== 'number') dernier.statut = 'PAUSE EN COURS';
+    return {
+      lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: typeof m.fin !== 'number', reference: fin, fenetreDebut: borne,
+      pausesRetranchees: deduire, pauses: plagesPauses(m, fin)
+    };
   }
 
   return {
@@ -713,7 +762,7 @@
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
     registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
-    exclusions: exclusions, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
+    exclusions: exclusions, plagesPauses: plagesPauses, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, masqueDecompte: masqueDecompte
   };
 });

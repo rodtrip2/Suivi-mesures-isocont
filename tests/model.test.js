@@ -181,7 +181,13 @@ test('Option : pauses retranchées des décomptes et échéances reportées d’
   // Décompte et registre
   const dc = M.decompte(avec, avec.mesures.M1, t);
   assert.equal(dc.total, 18);
-  assert.match(dc.lignes[0].commentaire, /pause retranchée : 2 h 00/);
+  // La pause interrompt le décompte : ligne de pause non décomptée, puis reprise
+  assert.deepEqual(dc.lignes.map(l => [l.n, l.type, l.duree, l.cumul]), [[1, 'mesure', 4, 4], ['', 'pause', 2, 4], [2, 'mesure', 14, 18]]);
+  assert.match(dc.lignes[1].commentaire, /Durée non décomptée/);
+  assert.match(dc.lignes[2].commentaire, /Reprise de la mesure après levée temporaire/);
+  const dcSans = M.decompte(sans, sans.mesures.M1, t);
+  assert.equal(dcSans.lignes.length, 1);
+  assert.match(dcSans.lignes[0].commentaire, /dont levée temporaire de 12:00 à 14:00, comptée dans la durée/);
   assert.equal(M.registre(avec, 'U1', 2026, t)[0].dureeHeures, 18);
   // Mesure suivante : le cumul des 15 jours tient compte de la pause retranchée
   const suite = evts({ retrancher: true }).concat([
@@ -242,4 +248,19 @@ test('Masque du décompte JLD : défaut, établissement, service, anciens régla
   assert.equal(u2.titreIsolement, M.MASQUE_DEFAUT.titreIsolement);     // titre vide : titre par défaut
   assert.deepEqual(u2.colonnes, ['Debut', 'Fin', 'Duree', 'Cumul', 'Statut']);
   assert.equal(M.masqueDecompte(config, 'U3').propre, false);
+});
+
+test('Masque du décompte : date d’édition et auteur séparés, ancien réglage commun repris, marges et fond', () => {
+  const d = M.masqueDecompte({}, 'U1');
+  assert.equal(d.sections.dateEdition, true); assert.equal(d.sections.auteur, true);
+  assert.equal(d.sections.editeur, undefined);
+  const ancien = M.masqueDecompte({ decompte: { '*': { sections: { editeur: false } } } }, 'U1');
+  assert.equal(ancien.sections.dateEdition, false); assert.equal(ancien.sections.auteur, false);
+  const sep = M.masqueDecompte({ decompte: { '*': { sections: { auteur: false } } } }, 'U1');
+  assert.equal(sep.sections.dateEdition, true); assert.equal(sep.sections.auteur, false);
+  const cfg = { imagesDecompte: { img1: { nom: 'courrier.png', donnees: 'data:image/jpeg;base64,AA' } }, decompte: { U1: { fond: 'img1', marges: { haut: 45, gauche: 200 } }, U2: { fond: 'absente' } } };
+  const u1 = M.masqueDecompte(cfg, 'U1');
+  assert.equal(u1.fond, 'img1');
+  assert.deepEqual(u1.marges, { haut: 45, droite: 15, bas: 15, gauche: 80 });
+  assert.equal(M.masqueDecompte(cfg, 'U2').fond, '');                 // image supprimée : pas de fond
 });

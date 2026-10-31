@@ -11,7 +11,7 @@
 
   var LIB_COLONNES = { N: 'N°', Debut: 'Début', Fin: 'Fin ou référence', Duree: 'Durée', Cumul: 'Cumul', Statut: 'Statut', Commentaire: 'Commentaire' };
   var LIB_IDENTITE = { patient: 'Patient (nom, prénom)', naissance: 'Date de naissance', ipp: 'IPP', service: 'Service', modeHospi: "Mode d'hospitalisation", protection: 'Protection juridique', mesure: 'Mesure (type, date de décision)', lieu: 'Lieu', psychiatre: 'Psychiatre décisionnaire' };
-  var LIB_SECTIONS = { periode: 'Période analysée', situation: 'Situation (en cours ou terminée)', total: 'Totaux (cumul antérieur, durée décomptée)', cycle: 'Cycle et échéances JLD', jld: 'Envois au JLD déjà effectués', tiers: 'Information du tiers', pauses: 'Levées temporaires (pauses)', mentionLegale: 'Mention du mode de calcul (art. L. 3222-5-1)', editeur: 'Date d’édition et auteur' };
+  var LIB_SECTIONS = { periode: 'Période analysée', situation: 'Situation (en cours ou terminée)', total: 'Totaux (cumul antérieur, durée décomptée)', cycle: 'Cycle et échéances JLD', jld: 'Envois au JLD déjà effectués', tiers: 'Information du tiers', pauses: 'Levées temporaires (pauses)', mentionLegale: 'Mention du mode de calcul (art. L. 3222-5-1)', dateEdition: 'Date d’édition', auteur: 'Auteur du document' };
   var LIB_NATURE = { INFO: 'information', SAISINE: 'saisine', DECISION: 'décision' };
 
   function dateNaissance(iso) { return iso ? iso.split('-').reverse().join('/') : '—'; }
@@ -40,7 +40,7 @@
         case 'N': return String(l.n);
         case 'Debut': return U.date(l.debut);
         case 'Fin': return U.date(l.fin);
-        case 'Duree': return U.duree(l.duree);
+        case 'Duree': return l.type === 'pause' ? U.duree(l.duree) + ' non décomptée' : U.duree(l.duree);
         case 'Cumul': return U.duree(l.cumul);
         case 'Statut': return l.statut;
         default: return l.commentaire;
@@ -56,31 +56,66 @@
     var tiers = m.tiers.filter(function (t) { return t.date <= d.reference; }).map(function (t) {
       return 'Cycle ' + t.cycle + ' — ' + (U.LIB_TIERS[t.statut] || t.statut) + (t.personne ? ' (' + t.personne + ')' : '') + ' le ' + U.date(t.date) + ', par ' + (t.informateur === 'IDE' ? 'l’IDE' : (t.nomInformateur || 'le psychiatre'));
     });
+    var deduire = d.pausesRetranchees;
     var pauses = (m.pauses || []).filter(function (x) { return x.debut <= d.reference; }).map(function (x) {
       var f = Math.min(M.finPause(m, x, d.reference, etat.config), d.reference);
-      return 'du ' + U.date(x.debut) + ' au ' + U.date(f) + (x.reprise == null && f === d.reference ? ' (en cours)' : '') + ' — ' + U.duree((f - x.debut) / H) + (x.motif ? ' — ' + x.motif : '');
+      var plage = d.pauses.filter(function (q) { return q.pause.evt === x.evt; })[0];
+      var reprise = x.reprise != null ? U.date(x.reprise)
+        : M.repriseAutomatique(m, x, d.reference, etat.config) ? U.date(x.reprisePrevue) + ' (automatique)'
+        : typeof m.fin === 'number' && m.fin <= d.reference ? 'aucune — fin de la mesure le ' + U.date(m.fin)
+        : d.reference > x.reprisePrevue ? 'non saisie (prévue le ' + U.date(x.reprisePrevue) + ')'
+        : 'pause en cours (reprise prévue le ' + U.date(x.reprisePrevue) + ')';
+      var prise = !deduire ? 'Comptée dans la durée'
+        : plage && plage.nonConfirmee ? 'Non décomptée jusqu’à l’heure prévue, décomptée ensuite'
+        : 'Non décomptée';
+      var duree = deduire && plage ? (plage.fin - plage.debut) / H : (f - x.debut) / H;
+      return { debut: U.date(x.debut), reprise: reprise, duree: U.duree(duree), motif: x.motif || '—', psychiatre: x.psychiatre || '—', prise: prise };
     });
+    var explicationPauses = deduire
+      ? 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées n’est pas décomptée : chacune interrompt le tableau ci-dessus par une ligne « PAUSE », et les échéances JLD sont reportées d’autant.'
+      : 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées reste comptée dans la durée de la mesure : le tableau ci-dessus n’est pas interrompu et les échéances JLD ne sont pas reportées.';
     return {
       d: d, j: j, titre: m.type === 'Isolement' ? masque.titreIsolement : masque.titreContention,
       identite: identite,
       entetes: masque.colonnes.map(function (c) { return LIB_COLONNES[c]; }),
       lignes: d.lignes.map(function (l) { return masque.colonnes.map(function (c) { return cellule(l, c); }); }),
+      typesLignes: d.lignes.map(function (l) { return l.type; }),
+      explicationPauses: explicationPauses,
       total: 'Cumul des mesures antérieures sur 15 jours : ' + U.duree(d.cumulAvant) + ' — Durée totale décomptée : ' + U.duree(d.total) + '.',
       cycle: 'Cycle de contrôle n° ' + j.cycle + ' — information avant le ' + U.date(j.info.echeance) + ', saisine avant le ' + U.date(j.saisine.echeance) + ', décision avant le ' + U.date(j.decision.echeance) + '.',
       envois: envois, tiers: tiers, pauses: pauses
     };
   }
 
-  /** Document imprimable. `auteur` : nom affiché dans la mention d'édition. */
-  function document_(etat, m, reference, masque, auteur) {
+  // ------------------------------------------------------------ Page A4, papier à en-tête
+  // La page imprimée n'a pas de marge (@page decompte, feuille de style) : l'image de fond couvre toute la feuille,
+  // et les marges du texte sont réservées par l'en-tête et le pied d'un tableau, répétés par le navigateur sur chaque page.
+
+  /** Ajuste l'aperçu (page A4 réduite) à la largeur de son cadre. */
+  function ajusterApercu(cadre, page) {
+    requestAnimationFrame(function () {
+      var l = cadre.clientWidth - 28;
+      if (l > 0) page.style.zoom = String(Math.min(1, l / page.offsetWidth));
+    });
+  }
+
+  /** Document imprimable. `options` : { auteur, images } (images : papier à en-tête disponible, sinon celles du paramétrage). */
+  function document_(etat, m, reference, masque, options) {
+    options = options || {};
     var c = contenu(etat, m, reference, masque), s = masque.sections;
+    var images = options.images || etat.config.imagesDecompte || {};
+    var fond = masque.fond && images[masque.fond];
     function liste(titre, items, vide) {
       return h('div', { class: 'doc-section' }, h('p', {}, h('b', { text: titre })), items.length ? h('ul', {}, items.map(function (t) { return h('li', { text: t }); })) : h('p', { text: vide }));
     }
-    var mentions = [];
-    if (s.editeur) mentions.push('Édité le ' + U.date(Date.now()) + (auteur ? ' par ' + auteur : '') + '.');
-    if (s.mentionLegale) mentions.push('Décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois' + (c.d.pausesRetranchees ? ' ; levées temporaires retranchées' : '') + ').');
-    return h('article', { class: 'document-jld' },
+    var edition = '';
+    if (s.dateEdition && s.auteur && options.auteur) edition = 'Édité le ' + U.date(Date.now()) + ' par ' + options.auteur + '.';
+    else if (s.dateEdition) edition = 'Édité le ' + U.date(Date.now()) + '.';
+    else if (s.auteur && options.auteur) edition = 'Édité par ' + options.auteur + '.';
+    var mentions = [edition];
+    if (s.mentionLegale) mentions.push('Décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois' + (c.d.pausesRetranchees ? ' ; levées temporaires non décomptées' : '') + ').');
+    mentions = mentions.filter(Boolean);
+    var corps = [
       masque.confidentiel ? h('div', { class: 'doc-confidentiel', text: 'Document confidentiel — données personnelles de santé' }) : null,
       (masque.entete || masque.destinataire) ? h('div', { class: 'doc-haut' },
         masque.entete ? multiligne(masque.entete, 'doc-entete') : h('div'),
@@ -92,15 +127,29 @@
       c.identite.length ? h('table', { class: 'doc-identite' }, h('tbody', {}, c.identite.map(function (x) { return h('tr', {}, h('th', { text: x[0] }), h('td', { text: x[1] })); }))) : null,
       c.entetes.length ? h('table', { class: 'doc-tableau' },
         h('thead', {}, h('tr', {}, c.entetes.map(function (t) { return h('th', { text: t }); }))),
-        h('tbody', {}, c.lignes.map(function (l) { return h('tr', {}, l.map(function (v) { return h('td', { text: v }); })); }))) : null,
+        h('tbody', {}, c.lignes.map(function (l, i) { return h('tr', { class: c.typesLignes[i] === 'pause' ? 'doc-ligne-pause' : null }, l.map(function (v) { return h('td', { text: v }); })); }))) : null,
       s.total ? h('p', { class: 'doc-total', text: c.total }) : null,
       s.cycle ? h('p', { text: c.cycle }) : null,
       s.jld ? liste('Envois au juge des libertés et de la détention', c.envois, 'Aucun envoi enregistré.') : null,
       s.tiers ? liste('Information du tiers', c.tiers, 'Non renseignée.') : null,
-      s.pauses && c.pauses.length ? liste('Levées temporaires décidées par le psychiatre' + (c.d.pausesRetranchees ? ' (retranchées des durées ci-dessus)' : ' (comptées dans la durée de la mesure)'), c.pauses, '') : null,
+      s.pauses && c.pauses.length ? h('div', { class: 'doc-section doc-pauses' },
+        h('p', {}, h('b', { text: 'Levées temporaires de la mesure (pauses)' })),
+        h('p', { class: 'doc-explication', text: c.explicationPauses }),
+        h('table', {}, h('thead', {}, h('tr', {}, ['Début de la pause', 'Reprise', 'Durée', 'Motif', 'Décidée par', 'Prise en compte'].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', {}, c.pauses.map(function (x) { return h('tr', {}, [x.debut, x.reprise, x.duree, x.motif, x.psychiatre, x.prise].map(function (v) { return h('td', { text: v }); })); })))) : null,
       masque.piedPage ? multiligne(masque.piedPage, 'doc-pied') : null,
       masque.signature ? h('div', { class: 'doc-signature' }, h('div', { text: 'Fait le ' + U.date(Date.now()).split(' ')[0] }), multiligne(masque.signature, '')) : null,
-      mentions.length ? h('footer', { text: mentions.join(' ') }) : null);
+      mentions.length ? h('footer', { text: mentions.join(' ') }) : null];
+    var page = h('article', { class: 'document-jld doc-page' + (fond ? ' avec-fond' : '') },
+      fond ? h('img', { class: 'doc-fond ' + (masque.fondPages === 'premiere' ? 'premiere' : 'toutes'), src: fond.donnees, alt: '' }) : null,
+      h('table', { class: 'doc-cadre' },
+        h('thead', {}, h('tr', {}, h('td', {}, h('div', { class: 'doc-espace-haut' })))),
+        h('tfoot', {}, h('tr', {}, h('td', {}, h('div', { class: 'doc-espace-bas' })))),
+        h('tbody', {}, h('tr', {}, h('td', {}, corps)))));
+    var mg = masque.marges;
+    page.style.setProperty('--mh', mg.haut + 'mm'); page.style.setProperty('--md', mg.droite + 'mm');
+    page.style.setProperty('--mb', mg.bas + 'mm'); page.style.setProperty('--mg', mg.gauche + 'mm');
+    return page;
   }
 
   /** Export CSV (séparateur « ; », UTF-8 avec BOM, lisible par Excel) des données retenues par le masque. */
@@ -113,7 +162,13 @@
     if (s.cycle) lignes.push(['Cycle', c.j.cycle, 'Information avant', U.date(c.j.info.echeance), 'Saisine avant', U.date(c.j.saisine.echeance), 'Décision avant', U.date(c.j.decision.echeance)]);
     if (s.jld) c.envois.forEach(function (t) { lignes.push(['Envoi JLD', t]); });
     if (s.tiers) c.tiers.forEach(function (t) { lignes.push(['Tiers', t]); });
-    if (s.pauses) c.pauses.forEach(function (t) { lignes.push(['Pause', t]); });
+    if (s.pauses && c.pauses.length) {
+      lignes.push([]); lignes.push(['Levées temporaires', c.explicationPauses]);
+      lignes.push(['Début de la pause', 'Reprise', 'Durée', 'Motif', 'Décidée par', 'Prise en compte']);
+      c.pauses.forEach(function (x) { lignes.push([x.debut, x.reprise, x.duree, x.motif, x.psychiatre, x.prise]); });
+    }
+    if (s.dateEdition) lignes.push(['Édité le', U.date(Date.now())]);
+    if (s.auteur && U.App.session) lignes.push(['Édité par', U.App.session.utilisateur.nom]);
     return '﻿' + lignes.map(function (l) { return l.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
   }
 
@@ -126,14 +181,18 @@
     var etat = U.st(), masque = M.masqueDecompte(etat.config, m.service);
     var ref = h('input', { type: 'datetime-local', value: U.versSaisie(typeof m.fin === 'number' ? Math.min(m.fin, Date.now()) : Date.now()) });
     var apercu = h('div', { class: 'apercu-document' });
-    var auteur = U.App.session.utilisateur.nom;
-    function maj() { U.vider(apercu); try { apercu.appendChild(document_(etat, m, U.depuisSaisie(ref.value), masque, auteur)); } catch (e) { apercu.appendChild(h('div', { class: 'erreur', text: e.message })); } }
-    ref.addEventListener('change', maj); maj();
+    var options = { auteur: U.App.session.utilisateur.nom };
+    function maj() {
+      U.vider(apercu);
+      try { var doc = document_(etat, m, U.depuisSaisie(ref.value), masque, options); apercu.appendChild(doc); ajusterApercu(apercu, doc); }
+      catch (e) { apercu.appendChild(h('div', { class: 'erreur', text: e.message })); }
+    }
+    ref.addEventListener('change', maj);
     U.modale('Décompte JLD', h('div', { class: 'pile' },
       h('label', {}, 'Date et heure de référence (en général : maintenant)', ref),
       h('small', { class: 'muted', text: 'Masque : ' + (masque.propre ? 'propre au service ' + U.libService(m.service) : 'de l’établissement') + ' (modifiable par l’administrateur).' }),
       apercu,
-      h('small', { class: 'muted', text: 'Pour un PDF, choisissez « Enregistrer au format PDF » comme imprimante. L’export CSV contient des données nominatives : enregistrez-le uniquement sur le réseau de l’établissement.' })), [
+      h('small', { class: 'muted', text: 'Pour un PDF, choisissez « Enregistrer au format PDF » comme imprimante' + (masque.fond ? ', format A4, sans marges ajoutées par le navigateur (« Marges : par défaut »)' : '') + '. L’export CSV contient des données nominatives : enregistrez-le uniquement sur le réseau de l’établissement.' })), [
       { texte: 'Fermer' },
       { texte: 'Exporter (CSV)', action: function () {
         var p = etat.patients[m.patientId] || {};
@@ -141,14 +200,39 @@
         return false;
       } },
       { texte: 'Imprimer / PDF', classe: 'primaire', action: function () {
-        var doc = document_(etat, m, U.depuisSaisie(ref.value), masque, auteur);
+        var doc = document_(etat, m, U.depuisSaisie(ref.value), masque, options);
         setTimeout(function () { U.imprimer(doc); }, 50);
         return true;
       } }]);
+    setTimeout(maj, 0);
   };
 
   // ================================================================ Éditeur des masques (administration)
   var cibleMasque = '*';
+
+  /** Image de papier à en-tête, ramenée à 1654 px de large au plus (A4 à 200 ppp), fond blanc, JPEG. */
+  function preparerImage(fichier) {
+    return new Promise(function (resoudre, rejeter) {
+      if (!/^image\/(png|jpeg|webp|gif|bmp)$/.test(fichier.type)) return rejeter(new Error('Choisissez une image PNG ou JPEG. Pour un modèle Word ou PDF, enregistrez d’abord la page en image (format A4 portrait).'));
+      var lecteur = new FileReader();
+      lecteur.onerror = function () { rejeter(new Error('Lecture du fichier impossible.')); };
+      lecteur.onload = function () {
+        var img = new Image();
+        img.onerror = function () { rejeter(new Error('Image illisible.')); };
+        img.onload = function () {
+          var l = Math.min(1654, img.naturalWidth), ht = Math.round(img.naturalHeight * l / img.naturalWidth);
+          var cv = document.createElement('canvas'); cv.width = l; cv.height = ht;
+          var ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, l, ht); ctx.drawImage(img, 0, 0, l, ht);
+          var donnees = cv.toDataURL('image/jpeg', 0.85);
+          if (donnees.length > 1500000) donnees = cv.toDataURL('image/jpeg', 0.7);
+          if (donnees.length > 2500000) return rejeter(new Error('Image trop lourde, même compressée : réduisez sa taille.'));
+          resoudre({ nom: fichier.name, donnees: donnees, largeur: l, hauteur: ht });
+        };
+        img.src = lecteur.result;
+      };
+      lecteur.readAsDataURL(fichier);
+    });
+  }
 
   /** Patient et mesures fictifs pour l'aperçu du masque (aucune donnée réelle). */
   function etatApercu(service, config) {
@@ -163,7 +247,7 @@
       evt('MESURE_FIN', { mesureId: 'A', fin: t(-24 * 6 + 14) }),
       evt('MESURE_DEBUT', { mesureId: 'B', patientId: 'X', service: service, typeMesure: 'Isolement', debut: t(-40), lieu: 'CSI', csi: true, psychiatre: 'Dr Exemple (fictif)' }),
       evt('TIERS', { mesureId: 'B', cycle: 1, statut: 'INFORME', personne: 'Mère', informateur: 'PSYCHIATRE', nomInformateur: 'Dr Exemple (fictif)', date: t(-39) }),
-      evt('PAUSE', { mesureId: 'B', debut: t(-20), reprisePrevue: t(-19), motif: 'Repas' }),
+      evt('PAUSE', { mesureId: 'B', debut: t(-20), reprisePrevue: t(-19), motif: 'Repas', psychiatre: 'Dr Exemple (fictif)' }),
       evt('REPRISE', { mesureId: 'B', date: t(-19) }),
       evt('JLD', { mesureId: 'B', cycle: 1, nature: 'INFO', date: t(-6) })
     ];
@@ -210,6 +294,35 @@
       }
       dessinerColonnes();
 
+      // Papier à en-tête
+      var images = JSON.parse(JSON.stringify(cfg.imagesDecompte || {}));
+      var selFond = h('select', {});
+      function remplirFonds(valeur) {
+        U.vider(selFond);
+        selFond.appendChild(h('option', { value: '', text: 'Aucune image de fond' }));
+        Object.keys(images).forEach(function (id) { selFond.appendChild(h('option', { value: id, text: images[id].nom, selected: id === valeur })); });
+        selFond.value = valeur || '';
+      }
+      remplirFonds(mq.fond);
+      var infoFond = h('small', { class: 'muted' });
+      var fichier = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', onchange: async function () {
+        var f = fichier.files[0]; if (!f) return;
+        try {
+          var im = await preparerImage(f);
+          var id = 'img' + Date.now().toString(36);
+          images[id] = im; remplirFonds(id); apercu();
+          var ratio = im.hauteur / im.largeur;
+          infoFond.textContent = 'Image importée (' + Math.round(im.donnees.length / 1024) + ' Ko). ' + (Math.abs(ratio - 1.414) > 0.1 ? 'Elle n’est pas au format A4 portrait : elle sera étirée sur la page.' : 'Format A4 portrait.') + ' Enregistrez le masque pour la conserver.';
+        } catch (e) { alert(e.message); }
+        fichier.value = '';
+      } });
+      var selPages = h('select', {}, h('option', { value: 'toutes', text: 'Sur toutes les pages', selected: mq.fondPages !== 'premiere' }), h('option', { value: 'premiere', text: 'Sur la première page seulement', selected: mq.fondPages === 'premiere' }));
+      var marges = {};
+      var blocMarges = h('div', { class: 'grille-4' }, [['haut', 'Haut'], ['droite', 'Droite'], ['bas', 'Bas'], ['gauche', 'Gauche']].map(function (x) {
+        marges[x[0]] = h('input', { type: 'number', min: 0, max: 80, step: 1, value: mq.marges[x[0]] });
+        return h('label', {}, x[1] + ' (mm)', marges[x[0]]);
+      }));
+
       function lire() {
         return {
           titreIsolement: tIso.value.trim(), titreContention: tCont.value.trim(), sousTitre: sous.value.trim(),
@@ -217,7 +330,9 @@
           identite: M.IDENTITE_DECOMPTE.filter(function (k) { return casesIdentite[k].checked; }),
           colonnes: ordre.filter(function (c) { return actives[c]; }),
           sections: M.SECTIONS_DECOMPTE.reduce(function (o, k) { o[k] = casesSections[k].checked; return o; }, {}),
-          piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, '')
+          piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, ''),
+          fond: selFond.value, fondPages: selPages.value,
+          marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
         };
       }
       var vue = h('div', { class: 'apercu-document' });
@@ -228,17 +343,24 @@
         try {
           var m2 = Object.assign({}, M.MASQUE_DEFAUT, lire()); m2.sections = Object.assign({}, M.MASQUE_DEFAUT.sections, m2.sections);
           if (!m2.titreIsolement) m2.titreIsolement = M.MASQUE_DEFAUT.titreIsolement;
-          vue.appendChild(document_(etatEx, etatEx.mesures.B, Date.now(), m2, U.App.session.utilisateur.nom));
+          var doc = document_(etatEx, etatEx.mesures.B, Date.now(), m2, { auteur: U.App.session.utilisateur.nom, images: images });
+          vue.appendChild(doc); ajusterApercu(vue, doc);
         } catch (e) { vue.appendChild(h('div', { class: 'erreur', text: e.message })); }
       }
-      [tIso, tCont, sous, entete, dest, pied, sign, conf].forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
+      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
       Object.keys(casesIdentite).concat([]).forEach(function (k) { casesIdentite[k].addEventListener('change', apercu); });
       Object.keys(casesSections).forEach(function (k) { casesSections[k].addEventListener('change', apercu); });
-      apercu();
+      setTimeout(apercu, 0);
 
       async function enregistrer(valeur) {
         var nouveau = JSON.parse(JSON.stringify(U.config().decompte || {}));
         if (valeur === null) delete nouveau[cible]; else nouveau[cible] = valeur;
+        // Images : ne conserver que celles utilisées par un masque (enregistrées avant le masque qui les cite)
+        var utilisees = {};
+        Object.keys(nouveau).forEach(function (k) { if (nouveau[k] && nouveau[k].fond) utilisees[nouveau[k].fond] = 1; });
+        var gardees = {};
+        Object.keys(utilisees).forEach(function (id) { var im = images[id] || (U.config().imagesDecompte || {})[id]; if (im) gardees[id] = im; });
+        if (JSON.stringify(gardees) !== JSON.stringify(U.config().imagesDecompte || {})) await U.App.session.enregistrer('CONFIG', { cle: 'imagesDecompte', valeur: gardees });
         await U.App.session.enregistrer('CONFIG', { cle: 'decompte', valeur: nouveau });
         U.toast(valeur === null ? 'Masque propre supprimé : le service utilise le masque de l’établissement.' : 'Masque enregistré.');
       }
@@ -269,6 +391,12 @@
           h('fieldset', {}, h('legend', { text: 'Sections exportées' }), blocSections),
           h('label', {}, 'Texte en pied de document', pied),
           h('label', {}, 'Bloc signature (ex. « Le directeur, par délégation » ; laisser vide pour aucun)', sign),
+          h('fieldset', {}, h('legend', { text: 'Papier à en-tête (image de fond)' }),
+            h('p', { class: 'muted' }, h('small', { text: 'Image A4 portrait (PNG ou JPEG) du papier à en-tête de l’établissement, par exemple celui des courriers : exportez la page vierge du modèle en image. Réglez les marges pour que le texte n’empiète ni sur l’en-tête ni sur le pied de page.' })),
+            h('div', { class: 'grille-2' }, h('label', {}, 'Image', selFond), h('label', {}, 'Importer une image…', fichier)),
+            infoFond,
+            h('label', {}, 'Affichage', selPages),
+            h('div', {}, h('b', { text: 'Marges du texte' }), blocMarges)),
           boutons),
         h('div', { class: 'pile' }, h('b', { text: 'Aperçu (patient fictif)' }), vue));
     }

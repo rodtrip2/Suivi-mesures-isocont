@@ -189,7 +189,8 @@ figcaption { font-size: .85rem; color: var(--ink-2); display: flex; align-items:
 .puce.n1 { background: var(--ink-2); opacity: .4; }
 
 /* ---------- Document du décompte JLD */
-.apercu-document { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: #fff; color: #111; max-height: 45vh; overflow: auto; }
+.apercu-document { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: #d9d9d9; color: #111; max-height: 55vh; overflow: auto; }
+.apercu-document .doc-page { box-shadow: 0 1px 6px rgba(0,0,0,.25); margin: 0 auto; }
 .document-jld { font-size: 12.5px; color: #111; }
 .document-jld h1 { font-size: 17px; margin: 4px 0; }
 .document-jld .doc-etab { font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: .04em; }
@@ -267,3 +268,32 @@ tr.en-pause td:first-child { box-shadow: inset 3px 0 0 var(--ink-2); }
 .document-jld .doc-section p { margin: 6px 0 2px; }
 .document-jld .doc-pied { margin-top: 10px; }
 .document-jld .doc-signature { margin: 18px 0 0 auto; width: 45%; min-height: 70px; }
+
+.grille-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .grille-4 { grid-template-columns: 1fr 1fr; } }
+
+/* Page A4 du décompte, papier à en-tête */
+@page decompte { size: A4 portrait; margin: 0; }
+.document-jld.doc-page { position: relative; box-sizing: border-box; width: 210mm; min-height: 297mm; background: #fff; padding: 0 var(--md, 15mm) 0 var(--mg, 15mm); overflow: hidden; }
+.document-jld .doc-fond { position: absolute; top: 0; left: 0; width: 210mm; height: 297mm; object-fit: fill; pointer-events: none; z-index: 0; }
+.document-jld table.doc-cadre { position: relative; z-index: 1; width: 100%; margin: 0; border-collapse: collapse; font-size: inherit; }
+.document-jld table.doc-cadre > * > tr > td { border: none; padding: 0; background: none; }
+.document-jld .doc-espace-haut { height: var(--mh, 15mm); }
+.document-jld .doc-espace-bas { height: var(--mb, 15mm); }
+.document-jld.avec-fond .doc-identite th, .document-jld.avec-fond .doc-tableau th, .document-jld.avec-fond .doc-pauses th { background: rgba(241, 241, 241, .85); }
+.document-jld.avec-fond .doc-identite td, .document-jld.avec-fond .doc-tableau td, .document-jld.avec-fond .doc-pauses td { background: rgba(255, 255, 255, .7); }
+.document-jld tr.doc-ligne-pause td { background: #ececec; font-style: italic; color: #444; border-style: dashed; }
+.document-jld .doc-pauses table { font-size: 11px; }
+.document-jld .doc-explication { font-size: 11.5px; color: #333; margin: 2px 0 4px; }
+@media print {
+  .document-jld { page: decompte; }
+  .document-jld.doc-page { width: 210mm; min-height: 0; overflow: visible; box-shadow: none; }
+  .document-jld .doc-fond.toutes { position: fixed; }
+  .document-jld .doc-tableau tr, .document-jld .doc-identite tr { break-inside: avoid; }
+  .document-jld tr.doc-ligne-pause td, .document-jld.avec-fond td, .document-jld.avec-fond th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+.document-jld tr.doc-ligne-pause td { border-top: 1.5px dashed #666; border-bottom: 1.5px dashed #666; }
+@media print {
+  .document-jld .doc-pauses { break-inside: avoid; }
+  .document-jld .doc-section > p:first-child { break-after: avoid; }
+}
