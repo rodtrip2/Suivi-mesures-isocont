@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.24.0 — 31 octobre 2026
+
+- **Sous-onglet *Alertes* dans l'administration** : alertes propres à l'établissement, par service. Chacune se déclenche pour une situation (patient en soins libres au début de la mesure, patient mineur, protection juridique, contention ou isolement hors CSI, toute contention, toute mesure) et est soit un **rappel** affiché dans le formulaire de la nouvelle mesure, soit une **personne à informer** dans un délai (sans délai à 24 h).
+- **Traçabilité de l'information** : à l'enregistrement de la mesure, l'outil demande qui a été informé, comment et quand (saisie « Information » au journal, visible dans le détail de la mesure). Information non tracée : point de vigilance en rouge au tableau de bord avec bouton *Tracer l'information*, indicateur, badge et bouton *Informer* dans la liste des mesures.
+- Alertes proposées : *Patient en soins libres* (informer sans délai le cadre de santé ou l'administrateur de garde ; désactivée par défaut) et *Contention hors CSI : exceptions prévues* (rappel de l'article L. 3222-5-1 et de la seule exception prévue par la HAS, la contention mécanique ambulatoire ; active).
+- Point de vigilance « soins libres » : durée de la mesure affichée, avec le rappel des 12 h maximum recommandées par la HAS au-delà.
+- Une alerte ne concerne que les mesures saisies après son activation, jamais l'historique importé ; en mode formation, seules les saisies de formation la déclenchent.
+
 ## 1.23.0 — 31 octobre 2026
 
 - **Administration en sous-onglets** : *Comptes et sécurité* (comptes, moyens de déblocage, mode formation), *Établissement et services* (services, CSI, postes de surveillance), *Règles et pauses*, *Registre et statistiques* (compteurs, numérotation des mesures importées, colonnes de l'onglet Patients), *Décompte JLD* (masques), *Reprise des données*, *Informations*. Seul le sous-onglet choisi est affiché ; il est conservé après un enregistrement et retenu d'une visite à l'autre. En mode formation, seuls les sous-onglets de paramétrage apparaissent.

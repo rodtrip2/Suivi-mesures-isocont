@@ -67,7 +67,7 @@
   var LIB_NATURE = { INFO: 'Information du JLD', SAISINE: 'Saisine du JLD', DECISION: 'Décision reçue du JLD' };
   var LIB_EVT = {
     CONFIG: 'Paramétrage', PATIENT: 'Patient', MODE_HOSPI: "Mode d'hospitalisation", MESURE_DEBUT: 'Début de mesure',
-    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
+    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
   var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
@@ -488,7 +488,18 @@
     var libres = enCours.filter(function (m) { return !M.estContrainte(config(), M.modeA(st(), m.patientId, maintenant) || m.modeHospi); });
     var mineurs = enCours.filter(function (m) { return M.estMineur(st(), m.patientId, maintenant); });
     var vigilance = [];
-    libres.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ', m.type.toLowerCase() + ' en cours alors que le patient est en ' + (M.modeA(st(), m.patientId, maintenant) || m.modeHospi) + ' (soins libres) : régulariser le mode d’hospitalisation ou mettre fin à la mesure.')); });
+    var aTracer = SIC.ui.alertes.aTracer();
+    aTracer.forEach(function (x) {
+      vigilance.push(h('li', { class: x.retard ? 'urgent' : '' }, h('b', { text: nomPatient(x.mesure.patientId) }), ' — ' + x.regle.libelle.toLowerCase() + ' : informer ' + x.regle.destinataires + ' ' + SIC.ui.alertes.delaiTexte(x.regle.delaiMinutes) +
+        ' (' + x.mesure.type.toLowerCase() + ' du ' + court(x.mesure.debut) + ')' + (x.retard && x.regle.delaiMinutes ? ', délai dépassé' : '') + ' : information non tracée. ',
+        App.session.peut('INFORMATION') ? h('button', { class: 'btn petit', onclick: function () {
+          SIC.ui.alertes.modaleInformations(aTracer.filter(function (y) { return y.regle.id === x.regle.id && y.mesure.patientId === x.mesure.patientId; }));
+        } }, 'Tracer l’information') : null));
+    });
+    libres.forEach(function (m) {
+      var depuis = (maintenant - m.debut) / H;
+      vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ', m.type.toLowerCase() + ' en cours depuis ' + duree(depuis) + ' alors que le patient est en ' + (M.modeA(st(), m.patientId, maintenant) || m.modeHospi) + ' (soins libres) : régulariser le mode d’hospitalisation ou mettre fin à la mesure' + (depuis > 12 ? ' (12 h au maximum selon les recommandations de la HAS).' : '.')));
+    });
     mineurs.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — patient mineur : vigilance renforcée.')); });
     var enPause = enCours.filter(function (m) { return M.pauseEnCours(m, maintenant, config()); });
     enPause.forEach(function (m) {
@@ -542,7 +553,8 @@
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
         ind(postesIncomplets.length, 'Postes CSI incomplets (48 h)', postesIncomplets.length ? 'warn' : 'ok'),
         ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok'),
-        ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok')),
+        ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok'),
+        aTracer.length || M.alertesConfig(config()).some(function (r) { return r.active && r.nature === 'information'; }) ? ind(aTracer.length, 'Informations à tracer (alertes de l’établissement)', aTracer.some(function (x) { return x.retard; }) ? 'bad' : aTracer.length ? 'warn' : 'ok') : null),
       vigilance.length ? h('section', { class: 'panneau' }, h('h2', { text: 'Points de vigilance' }), h('ul', { class: 'vigilance' }, vigilance)) : null,
       h('div', { class: 'deux-colonnes' },
         h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch),
@@ -571,9 +583,10 @@
       var enCours = etat === 'en-cours';
       var pause = enCours ? M.pauseEnCours(m, maintenant, config()) : null;
       var hPauses = M.dureePausesHeures(m, maintenant, config());
+      var infos = M.informationsATracer(st(), maintenant, function (x) { return x.id === m.id; });
       tbody.appendChild(h('tr', { class: etat + (pause ? ' en-pause' : '') },
         h('td', { class: 'patient' }, h('b', { text: nomPatient(m.patientId) }), h('br'), h('small', { text: 'IPP ' + (patient(m.patientId).ipp || '—') + ' · ' + libService(m.service) })),
-        h('td', {}, badgeType(m.type), m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
+        h('td', {}, badgeType(m.type), infos.length ? h('div', {}, h('span', { class: 'badge bad', title: infos.map(function (x) { return x.regle.libelle + ' : informer ' + x.regle.destinataires; }).join(' ; '), text: 'Information à tracer' })) : null, m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
         h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
         h('td', { class: 'nowrap', text: court(m.debut) }),
         h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
@@ -582,6 +595,7 @@
         h('td', {}, cellEcheance(j.info)), h('td', {}, cellEcheance(j.saisine)), h('td', {}, cellEcheance(j.decision)),
         h('td', {}, tiersBadge(m)),
         h('td', { class: 'actions-ligne' },
+          infos.length && App.session.peut('INFORMATION') ? h('button', { class: 'btn petit danger', title: 'Informer ' + infos[0].regle.destinataires + ' (' + infos[0].regle.libelle + ')', onclick: function () { SIC.ui.alertes.modaleInformations(infos); } }, 'Informer') : null, ' ',
           enCours && App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { modaleJLD(m); } }, 'JLD') : null, ' ',
           App.session.peut('TIERS') ? h('button', { class: 'btn petit', onclick: function () { modaleTiers(m); } }, 'Tiers') : null, ' ',
           enCours && !pause && App.session.peut('PAUSE') && M.optionsPauses(config()).active ? h('button', { class: 'btn petit', title: 'Levée temporaire décidée par le psychiatre', onclick: function () { modalePause(m); } }, 'Pause') : null,
@@ -716,7 +730,7 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
   };
   var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', type: 'type de mesure' };
 
@@ -778,6 +792,10 @@
       case 'services': return (v || []).map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ');
       case 'lieuxCSI': return Object.keys(v || {}).map(function (k) { return k + ' : ' + (v[k] || []).join(', '); }).join(' ; ');
       case 'pauses': return resumePauses(v);
+      case 'alertes': return M.alertesConfig({ alertes: v }).map(function (r) {
+        return '« ' + r.libelle + ' » ' + (r.active ? 'active' : 'inactive') + ' (' + M.DECLENCHEURS_ALERTE[r.declencheur].toLowerCase() + ', ' +
+          (r.nature === 'information' ? 'informer ' + r.destinataires + ' ' + SIC.ui.alertes.delaiTexte(r.delaiMinutes) : 'rappel à la saisie') + ', ' + SIC.ui.alertes.servicesTexte(r) + ')';
+      }).join(' ; ') || 'aucune alerte';
       case 'compteursRegistre': case 'derniersClasseur': return Object.keys(v || {}).map(function (k) { return libService(k) + ' : ' + Object.keys(v[k]).map(function (an) { return an + ' → ' + v[k][an]; }).join(', '); }).join(' ; ') || 'aucun';
       case 'registreFigeMesures': var vals = Object.keys(v || {}).map(function (k) { return v[k]; }); return vals.filter(Boolean).length + ' mesure(s) gardant leur n° d’origine, ' + vals.filter(function (x) { return x === false; }).length + ' recalculée(s)';
       case 'registreFige': return Object.keys(v || {}).map(function (k) { return libService(k) + ' : ' + Object.keys(v[k]).join(', '); }).join(' ; ') || 'aucune année (tout est recalculé)';
@@ -822,6 +840,7 @@
       case 'MESURE_FIN': return sur + 'fin le ' + date(d.fin) + ', décidée par ' + (d.psychiatre || '?') + (d.motif ? ' (' + d.motif.toLowerCase() + ')' : '');
       case 'PAUSE': return sur + 'pause à partir du ' + date(d.debut) + ', reprise prévue le ' + date(d.reprisePrevue) + (d.motif ? ' — motif : ' + d.motif : '') + (d.psychiatre ? ' — décidée par ' + d.psychiatre : '');
       case 'REPRISE': return sur + 'reprise après pause le ' + date(d.date);
+      case 'INFORMATION': return sur + 'information tracée (' + (d.libelle || d.regle) + ') — ' + d.personne + ' informé(e) le ' + date(d.date) + ' (' + String(d.moyen || '').toLowerCase() + ')' + (d.commentaire ? ' — ' + d.commentaire : '');
       case 'TIERS': return sur + 'information du tiers (cycle ' + d.cycle + ') le ' + date(d.date) + ' — ' + (LIB_TIERS[d.statut] || d.statut).toLowerCase() + (d.personne ? ' (' + d.personne + ')' : '') + ', par ' + (d.informateur === 'IDE' ? 'l’IDE (dernier recours)' : (d.nomInformateur || 'le psychiatre'));
       case 'JLD': return sur + LIB_NATURE[d.nature].toLowerCase() + ' — cycle ' + d.cycle + ' — le ' + date(d.date) + (d.decision ? ' — décision : ' + (d.decision === 'LEVEE' ? 'mainlevée' : 'maintien') : '');
       case 'PROFESSIONNEL':
@@ -988,6 +1007,7 @@
 
     // Alertes sous les champs
     var aPatient = alerteChamp(), aIpp = alerteChamp(), aNaissance = alerteChamp(), aMode = alerteChamp(), aType = alerteChamp(), aDebut = alerteChamp(), aLieu = alerteChamp();
+    var aEtab = h('div', { class: 'pile' });   // alertes de l'établissement (rappels, personnes à informer)
     var labelNaissance = h('label', {}, 'Date de naissance (obligatoire)', naissance, aNaissance);
 
     blocNouveau.appendChild(h('div', { class: 'grille-2' }, h('label', {}, 'IPP', ipp, aIpp), h('label', {}, 'Protection juridique', protection)));
@@ -1091,6 +1111,17 @@
       if (selLieu.value === '__hors' && type.value === 'Contention' && !exception.checked) al.push('Contention hors espace d’isolement (catégorie D du registre) : à n’utiliser qu’à titre exceptionnel.');
       if (!((config().lieuxCSI || {})[selSv.value] || []).length) al.push('Aucune chambre de soins intensifs n’est paramétrée pour ce service.');
       aLieu.afficher(al);
+
+      // Alertes de l'établissement (Administration → Alertes)
+      vider(aEtab);
+      var faits = { type: type.value, csi: selLieu.value !== '__hors', service: selSv.value, libre: libre,
+        mineur: (age !== null && age >= 0 && age < 18) || selMode.value === 'SL mineur', protection: p ? !!p.protection : !!protection.value };
+      SIC.ui.alertes.encadres(faits).forEach(function (el) { aEtab.appendChild(el); });
+      if (!blocIso.hidden && avecIso.checked && type.value === 'Contention') {
+        // L'isolement créé avec la contention peut déclencher d'autres alertes
+        var vus = {}; Array.prototype.forEach.call(aEtab.children, function (c) { vus[c.textContent] = 1; });
+        SIC.ui.alertes.encadres(Object.assign({}, faits, { type: 'Isolement' })).forEach(function (el) { if (!vus[el.textContent]) aEtab.appendChild(el); });
+      }
     }
 
     selSv.addEventListener('change', remplirPatients);
@@ -1098,7 +1129,7 @@
     type.addEventListener('change', majLieu);
     selLieu.addEventListener('change', majLieu);
     [naissance, ipp, debut, chambre].forEach(function (x) { x.addEventListener('input', alertes); });
-    [selMode, exception, avecIso].forEach(function (x) { x.addEventListener('change', alertes); });
+    [selMode, exception, avecIso, protection].forEach(function (x) { x.addEventListener('change', alertes); });
     remplirPatients();
 
     var corps = h('div', { class: 'pile' },
@@ -1107,7 +1138,7 @@
       h('label', {}, "Mode d'hospitalisation", selMode, infoMode, aMode),
       h('div', { class: 'grille-2' }, h('label', {}, 'Type de mesure', type, aType), h('label', {}, 'Date et heure de la décision de début', debut, aDebut)),
       h('label', {}, 'Psychiatre décisionnaire', psy),
-      h('label', {}, 'Lieu', selLieu, chambre, aLieu), blocException, blocIso,
+      h('label', {}, 'Lieu', selLieu, chambre, aLieu), blocException, blocIso, aEtab,
       h('p', { class: 'muted' }, h('small', { text: 'Vous reportez la décision médicale prise par le psychiatre ; la prescription reste dans le DPI.' })));
 
     modale('Nouvelle mesure — report de la décision médicale', corps, [
@@ -1143,10 +1174,14 @@
           if (naissanceRequise()) await s.enregistrer('PATIENT', { patientId: patientId, naissance: naissance.value });
           if (modeActuel(patient(patientId)) !== selMode.value) await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
         }
+        var crees = [];
         var commun = { patientId: patientId, service: selSv.value, debut: tDebut, lieu: hors ? 'Chambre ' + chambre.value.trim() : selLieu.value, csi: !hors, psychiatre: psyNom, modeHospi: selMode.value };
-        if (!blocIso.hidden && avecIso.checked) await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: idMesure(), typeMesure: 'Isolement' }, commun));
-        await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: idMesure(), typeMesure: type.value, exception: hors && type.value === 'Contention' && exception.checked }, commun));
+        if (!blocIso.hidden && avecIso.checked) { crees.push(idMesure()); await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: crees[crees.length - 1], typeMesure: 'Isolement' }, commun)); }
+        crees.push(idMesure());
+        await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: crees[crees.length - 1], typeMesure: type.value, exception: hors && type.value === 'Contention' && exception.checked }, commun));
         toast('Mesure enregistrée.');
+        // Personnes à informer (alertes de l'établissement) : traçabilité demandée aussitôt
+        setTimeout(function () { var l = SIC.ui.alertes.aTracer(crees); if (l.length && App.session.peut('INFORMATION')) SIC.ui.alertes.modaleInformations(l); }, 60);
       } }
     ]);
   }
@@ -1398,6 +1433,7 @@
             : (typeof m.fin === 'number' ? 'fin de mesure pendant la pause' : (maintenant > p.reprisePrevue ? 'reprise non confirmée' : 'en cours'));
           return h('div', { text: date(p.debut) + ' → reprise prévue ' + date(p.reprisePrevue) + ' — ' + effective + (p.motif ? ' — ' + p.motif : '') + ' (' + (p.psychiatre || '?') + ')' });
         })) : null,
+      SIC.ui.alertes.detailMesure(m),
       h('h3', { text: 'Historique' }),
       h('div', { class: 'table-wrap' }, h('table', {}, h('tbody', {}, evts.map(function (e) {
         var annule = st().annules[e.id];
@@ -1840,6 +1876,7 @@
       return sousOngletsAdmin([
         ['services', 'Établissement et services', [note, pServices, pSurv]],
         ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
+        ['alertes', 'Alertes', [note, SIC.ui.alertes.panneauAdmin()]],
         ['registre', 'Registre et statistiques', [note, pDocs, pColsP]],
         ['decompte', 'Décompte JLD', [note, pMasques]],
         ['infos', 'Informations', [note, infos]]
@@ -1849,6 +1886,7 @@
       ['comptes', 'Comptes et sécurité', [comptes, deblocage, SIC.ui.formation.sectionAdmin()]],
       ['services', 'Établissement et services', [pServices, pSurv]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
+      ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
       ['registre', 'Registre et statistiques', [pDocs, pColsP]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
@@ -1986,6 +2024,7 @@
     App: App, st: st, config: config, services: services, tousServices: tousServices, libService: libService, etablissement: etablissement,
     patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
     badgeType: badgeType, badgePause: badgePause, alerteChamp: alerteChamp, tiersBadge: tiersBadge,
+    boutonEnregistrer: boutonEnregistrer, enregistrerConfig: enregistrerConfig,
     detailMesure: function (m) { modaleDetail(m); }, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
     demarrer: rendre, verrouiller: verrouiller

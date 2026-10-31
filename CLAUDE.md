@@ -39,6 +39,8 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - Mode d'hospitalisation retenu au registre : le nouveau mode s'il passe des soins libres à la contrainte dans les 12 h suivant le début (délai paramétrable).
 - Une mesure qui change réellement de lieu est terminée et une nouvelle commence au nouveau lieu ; une erreur de saisie se corrige (cadre, motif obligatoire).
 - Nouvelle mesure : **date de naissance obligatoire** pour un nouveau patient ; **alertes en rouge sous les champs** concernés (mineur, soins libres, « SL mineur » incohérent, mesure du même type en cours, cumul élevé, protection juridique, IPP existant, saisie tardive ou future, contention hors CSI, service sans CSI). Les alertes n'empêchent pas l'enregistrement, sauf les dates impossibles.
+- **Alertes de l'établissement** (`config.alertes`, `M.alertesConfig`, `app/js/ui-alertes.js`) : déclencheur (soins libres au début, mineur, protection juridique, contention / isolement hors CSI, toute contention, toute mesure), services, nature **rappel** (affiché à la saisie) ou **information** d'une personne dans un délai (0 = sans délai), avec **traçabilité** (saisie `INFORMATION` : qui, moyen, date) et suivi au tableau de bord tant qu'elle n'est pas tracée. Ne s'appliquent qu'aux mesures saisies après l'activation (`depuis`), jamais à l'historique importé. Besoin exprimé au CHHA : informer **sans délai** le cadre ou l'administrateur de garde quand un patient en soins libres est mis en isolement ou en contention (règle fournie, désactivée par défaut).
+- Textes légaux proposés : contention « prise dans le cadre d'une mesure d'isolement » (art. L. 3222-5-1) ; seule exception, la contention mécanique ambulatoire (HAS 2017 : troubles gravissimes de longue évolution, plan de soins du psychiatre traitant, hors urgence) ; soins libres : isolement exceptionnel, en urgence, 12 h au maximum (HAS 2017).
 
 ## 5. Pauses (levées temporaires)
 
@@ -95,7 +97,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 ## 10. Interface
 
 - Interface en français, vocabulaire du soin et du droit (pas de jargon technique). Libellés du journal lisibles : patient et mesure concernés, ancienne → nouvelle valeur, motif.
-- **Administration en sous-onglets** : Comptes et sécurité · Établissement et services · Règles et pauses · Registre et statistiques · Décompte JLD · Reprise des données · Informations (sous-onglet retenu par navigateur). Tout nouveau réglage se range dans le sous-onglet correspondant.
+- **Administration en sous-onglets** : Comptes et sécurité · Établissement et services · Règles et pauses · Alertes · Registre et statistiques · Décompte JLD · Reprise des données · Informations (sous-onglet retenu par navigateur). Tout nouveau réglage se range dans le sous-onglet correspondant.
 - Actualisation automatique **sans retour en haut de page ni perte de saisie** (synchronisation toutes les 5 s sans reconstruction si rien n'a changé ; bandeau « Actualiser » pendant une saisie ou en administration).
 - Tout changement de paramétrage passe par une saisie `CONFIG` tracée au journal ; les choix à fort impact demandent une confirmation qui décrit l'effet.
 - Les options nouvelles sont **désactivées par défaut** quand elles changent un comportement existant, sauf demande contraire du porteur.
@@ -120,7 +122,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 ## 13. Points à faire valider par l'établissement
 
 - Déduire ou non les pauses (lecture des textes), portée de la déduction.
-- Formulation des alertes (ex. information des titulaires de l'autorité parentale pour un mineur).
+- Formulation des alertes (ex. information des titulaires de l'autorité parentale pour un mineur) ; textes des alertes de l'établissement (soins libres, contention hors CSI) et personnes à informer.
 - Version du registre communiquée au titre du CRPA.
 - Acceptation du CSV du décompte par le greffe du JLD.
 - Test physique de la clé YubiKey sur un poste de l'établissement.

@@ -31,10 +31,10 @@
   // Types d'événements autorisés par rôle. L'IDE dispose en permanence des
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
   var DROITS = {
-    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD'],
-    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD'],   // mêmes droits que l'IDE
+    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION'],
+    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD'],
-    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'CORRECTION', 'ANNULATION', 'STATS'],
+    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'CORRECTION', 'ANNULATION', 'STATS'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -93,7 +93,15 @@
     // contentionSeule (pauses déduites partout) : pause de la contention seule, l'isolement continuant —
     // 'isolement' : ce temps devient de l'isolement seul (entrée A) ; 'contention' : il reste dans l'entrée C, non déduit.
     // verrouContention : interdit la pause de l'isolement seul pendant une contention (pause commune ou fin de la contention).
-    pauses: { active: true, retrancher: false, portee: 'jld', contentionSeule: 'isolement', verrouContention: false, colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
+    pauses: { active: true, retrancher: false, portee: 'jld', contentionSeule: 'isolement', verrouContention: false, colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 },
+    // Alertes de l'établissement (voir alertesConfig) : 'rappel' affiché à la saisie, ou 'information' d'une personne
+    // à tracer dans un délai (0 = sans délai). services [] = tous. depuis : mesures saisies à partir de cette date.
+    alertes: [
+      { id: 'soins-libres', libelle: 'Patient en soins libres', active: false, declencheur: 'soins-libres', services: [], nature: 'information',
+        destinataires: 'Cadre de santé ou administrateur de garde', delaiMinutes: 0, message: '', depuis: 0 },
+      { id: 'contention-hors-csi', libelle: 'Contention hors CSI : exceptions prévues', active: true, declencheur: 'contention-hors-csi', services: [], nature: 'rappel',
+        destinataires: '', delaiMinutes: 0, message: '', depuis: 0 }
+    ]
   };
 
   function cloner(o) { return JSON.parse(JSON.stringify(o)); }
@@ -203,6 +211,7 @@
           origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', correctionImport: d.correctionImport || '', suite: d.suiteDe || '',
           // Import d'un registre : entrées d'origine (numéro, catégorie, période, soignants) et soignants cités
           entreesOrigine: d.entreesOrigine || null, professionnelsOrigine: d.professionnelsOrigine || '',
+          informations: {},
           version: 1, champs: {}, evts: [e.id]
         };
         break;
@@ -244,6 +253,10 @@
       case 'REPRISE':
         var ouverte = m.pauses.filter(function (x) { return x.reprise == null && (!d.pause || x.evt === d.pause); }).pop();
         if (ouverte) { ouverte.reprise = d.date; ouverte.evtReprise = e.id; }
+        break;
+      case 'INFORMATION':
+        m.informations = m.informations || {};
+        m.informations[d.regle] = { regle: d.regle, libelle: d.libelle || '', personne: d.personne || '', moyen: d.moyen || '', date: d.date, commentaire: d.commentaire || '', evt: e.id, by: e.by };
         break;
       case 'TIERS':
         m.tiers.push({ cycle: d.cycle || m.cycle, statut: d.statut, personne: d.personne || '', informateur: d.informateur, nomInformateur: d.nomInformateur || '', date: d.date, motif: d.motif || '', evt: e.id, by: e.by });
@@ -432,6 +445,100 @@
     var n = new Date(p.naissance + 'T00:00:00'), d = new Date(date);
     var age = d.getFullYear() - n.getFullYear() - ((d.getMonth() < n.getMonth() || (d.getMonth() === n.getMonth() && d.getDate() < n.getDate())) ? 1 : 0);
     return age < 18;
+  }
+
+  // ------------------------------------------------------- Alertes de l'établissement
+  var DECLENCHEURS_ALERTE = {
+    'soins-libres': 'Patient en soins libres au début de la mesure',
+    'mineur': 'Patient mineur',
+    'protection': 'Patient sous protection juridique',
+    'contention-hors-csi': 'Contention hors chambre de soins intensifs',
+    'isolement-hors-csi': 'Isolement hors chambre de soins intensifs',
+    'contention': 'Toute contention',
+    'toute-mesure': 'Toute nouvelle mesure'
+  };
+  // Textes proposés par défaut (modifiables par l'établissement).
+  var TEXTES_ALERTE = {
+    'soins-libres': 'L’isolement et la contention ne peuvent concerner que des patients en hospitalisation complète sans consentement (art. L. 3222-5-1 CSP). ' +
+      'À titre exceptionnel et en urgence, l’isolement d’un patient en soins libres doit être le plus court possible, 12 heures au maximum, ' +
+      'le temps de résoudre la situation ou d’engager la transformation du mode d’hospitalisation (recommandations HAS, 2017).',
+    'contention-hors-csi': 'La contention mécanique est une pratique de dernier recours, « prise dans le cadre d’une mesure d’isolement » (art. L. 3222-5-1 CSP), ' +
+      'dans un espace dédié et équipé. Seule exception prévue (recommandations HAS, 2017) : la contention mécanique ambulatoire (vêtement de contention par exemple) ' +
+      'pour des troubles psychiatriques gravissimes de longue évolution avec conduites auto-agressives ou mutilations répétées, afin de préserver l’intégrité physique du patient. ' +
+      'Elle s’inscrit dans un plan de soins spécifique établi par le psychiatre traitant, en dehors de l’urgence, et fait l’objet d’une évaluation clinique régulière : ' +
+      'cochez alors « exception prévue » (catégorie E). Toute autre contention hors espace d’isolement doit rester très exceptionnelle et être motivée dans le dossier du patient (catégorie D).',
+    'mineur': 'Patient mineur : vigilance renforcée ; informer les titulaires de l’autorité parentale.',
+    'protection': 'Patient sous mesure de protection juridique : informer la personne chargée de la mesure de protection.',
+    'isolement-hors-csi': 'Isolement hors chambre de soins intensifs : situation qui doit rester très exceptionnelle, à motiver dans le dossier du patient.',
+    'contention': '', 'toute-mesure': ''
+  };
+  var DELAIS_ALERTE = [0, 15, 30, 60, 120, 240, 720, 1440];
+
+  /** Règles d'alerte validées (texte par défaut si le message est vide). */
+  function alertesConfig(config) {
+    var liste = Array.isArray(config && config.alertes) ? config.alertes : CONFIG_DEFAUT.alertes;
+    return liste.filter(function (r) { return r && DECLENCHEURS_ALERTE[r.declencheur]; }).map(function (r, i) {
+      return {
+        id: String(r.id || 'alerte-' + i), libelle: String(r.libelle || DECLENCHEURS_ALERTE[r.declencheur]), active: !!r.active, declencheur: r.declencheur,
+        services: Array.isArray(r.services) ? r.services.filter(Boolean) : [], nature: r.nature === 'information' ? 'information' : 'rappel',
+        destinataires: String(r.destinataires || ''), delaiMinutes: Math.max(0, Math.round(+r.delaiMinutes || 0)),
+        message: String(r.message || '').trim() || TEXTES_ALERTE[r.declencheur] || '', messagePropre: !!String(r.message || '').trim(), depuis: +r.depuis || 0
+      };
+    });
+  }
+
+  /** Faits qui déclenchent les alertes, pour une mesure enregistrée. */
+  function faitsMesure(st, m) {
+    var p = st.patients[m.patientId] || {};
+    return {
+      type: m.type, csi: !!m.csi, service: m.service,
+      libre: !estContrainte(st.config, modeA(st, m.patientId, m.debut) || m.modeHospi),
+      mineur: estMineur(st, m.patientId, m.debut), protection: !!p.protection
+    };
+  }
+
+  function declenche(regle, f) {
+    switch (regle.declencheur) {
+      case 'soins-libres': return f.libre;
+      case 'mineur': return f.mineur;
+      case 'protection': return f.protection;
+      case 'contention-hors-csi': return f.type === 'Contention' && !f.csi;
+      case 'isolement-hors-csi': return f.type === 'Isolement' && !f.csi;
+      case 'contention': return f.type === 'Contention';
+      case 'toute-mesure': return true;
+      default: return false;
+    }
+  }
+
+  /** Règles actives déclenchées par des faits (saisie en cours ou mesure enregistrée). */
+  function reglesDeclenchees(config, f) {
+    return alertesConfig(config).filter(function (r) {
+      return r.active && (!r.services.length || r.services.indexOf(f.service) >= 0) && declenche(r, f);
+    });
+  }
+
+  /**
+   * Alertes d'une mesure enregistrée. Les mesures importées et celles saisies avant l'activation
+   * de la règle ne déclenchent rien (l'information n'a pas pu être tracée dans l'outil).
+   */
+  function alertesMesure(st, m) {
+    if (m.origine) return [];
+    var saisie = Date.parse(m.creeLe) || m.debut;
+    return reglesDeclenchees(st.config, faitsMesure(st, m)).filter(function (r) { return saisie >= r.depuis; });
+  }
+
+  /** Informations à tracer : [{ mesure, regle, echeance, retard }], les plus urgentes d'abord. */
+  function informationsATracer(st, maintenant, filtre) {
+    var res = [];
+    listeMesures(st).forEach(function (m) {
+      if (filtre && !filtre(m)) return;
+      alertesMesure(st, m).forEach(function (r) {
+        if (r.nature !== 'information' || (m.informations && m.informations[r.id])) return;
+        var ech = m.debut + r.delaiMinutes * 60000;
+        res.push({ mesure: m, regle: r, echeance: ech, retard: maintenant > ech });
+      });
+    });
+    return res.sort(function (a, b) { return a.echeance - b.echeance; });
   }
 
   /** Cumuls glissants d'un patient (heures) et niveau d'alerte V1.3 (vert / jaune / rouge). */
@@ -1082,6 +1189,8 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
+    DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
+    reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte
   };
 });

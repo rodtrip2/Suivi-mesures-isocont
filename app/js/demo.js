@@ -30,6 +30,8 @@
       ['services', 'lieuxCSI', 'periodes', 'periodesService', 'modesHospitalisation', 'parametres', 'delaiModeHospiHeures', 'decompte', 'inactiviteMinutes', 'pauses', 'imagesDecompte', 'colonnesPatients'].forEach(function (k) {
         if (reel[k] !== undefined) cfg(k, reel[k]);
       });
+      // Alertes : seules les mesures saisies pendant la formation les déclenchent.
+      if (reel.alertes !== undefined) cfg('alertes', reel.alertes.map(function (r) { return Object.assign({}, r, { depuis: r.active ? now : 0 }); }));
       cfg('etablissement', ((reel.etablissement || '') + ' — FORMATION').replace(/^ — /, ''));
       var svs = (reel.services || []).map(function (x) { return x.code; });
       if (!svs.length) { svs = ['U1']; cfg('services', [{ code: 'U1', libelle: 'Unité 1 (fictive)' }]); }
@@ -44,6 +46,10 @@
       cfg('services', [{ code: 'U1', libelle: 'Unité 1 (fictive)' }, { code: 'U2', libelle: 'Unité 2 (fictive)' }]);
       cfg('etablissement', 'Établissement fictif de démonstration');
       cfg('lieuxCSI', { U1: ['CSI 1', 'CSI 2'], U2: ['CSI A'] });
+      // Démonstration : information du cadre ou de l'administrateur de garde pour un patient en soins libres (Unité 1)
+      cfg('alertes', SIC.model.CONFIG_DEFAUT.alertes.map(function (r) {
+        return r.declencheur === 'soins-libres' ? Object.assign({}, r, { active: true, services: ['U1'], depuis: now }) : Object.assign({}, r, { depuis: r.active ? now : 0 });
+      }));
     }
     cfg('psychiatres', ['Dr Arnaud (fictif)', 'Dr Benoît (fictif)', 'Dr Chen (fictif)', 'Dr Diallo (fictif)']);
 

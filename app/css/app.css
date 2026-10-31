@@ -346,3 +346,17 @@ dialog.large { width: min(1150px, calc(100vw - 32px)); }
 .sous-onglets button:hover { color: var(--ink); border-color: var(--ink-2); }
 .sous-onglets button[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .contenu-sous-onglet { display: grid; gap: 16px; }
+
+/* Alertes de l'établissement */
+.alerte-etab { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 8px 12px; border-radius: var(--radius); font-size: .9rem; display: grid; gap: 4px; }
+.alerte-etab p { margin: 0; line-height: 1.4; }
+.alerte-etab.information { border-left-color: var(--bad); background: var(--bad-soft); }
+.alerte-etab.information > b { color: var(--bad); }
+.carte-alerte, .carte-information { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 14px; display: grid; gap: 10px; }
+.carte-alerte legend, .carte-information legend { padding: 0 6px; font-weight: 600; }
+.carte-alerte.inactive { opacity: .7; }
+.carte-alerte textarea { width: 100%; font: inherit; }
+.etiquette { font-size: .9rem; margin-bottom: 4px; }
+.pile.serre { gap: 4px; }
+.texte-bad { color: var(--bad); font-weight: 600; }
+ul.vigilance li.urgent { color: var(--bad); font-weight: 600; }
