@@ -399,7 +399,7 @@
 
   /** Badge de pause d'une mesure en cours (ou null). */
   function badgePause(m, maintenant) {
-    var p = M.pauseEnCours(m, maintenant);
+    var p = M.pauseEnCours(m, maintenant, config());
     if (!p) return null;
     var heure = function (ms) { return Math.abs(ms - maintenant) < 20 * H ? new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : court(ms); };
     return p.depassee
@@ -435,12 +435,12 @@
     var vigilance = [];
     libres.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ', m.type.toLowerCase() + ' en cours alors que le patient est en ' + (M.modeA(st(), m.patientId, maintenant) || m.modeHospi) + ' (soins libres) : régulariser le mode d’hospitalisation ou mettre fin à la mesure.')); });
     mineurs.forEach(function (m) { vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — patient mineur : vigilance renforcée.')); });
-    var enPause = enCours.filter(function (m) { return M.pauseEnCours(m, maintenant); });
+    var enPause = enCours.filter(function (m) { return M.pauseEnCours(m, maintenant, config()); });
     enPause.forEach(function (m) {
-      var p = M.pauseEnCours(m, maintenant);
+      var p = M.pauseEnCours(m, maintenant, config());
       if (p.depassee) vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ' + m.type.toLowerCase() + ' en pause : la reprise était prévue le ' + date(p.reprisePrevue) + '. Confirmez la reprise ou saisissez la fin de la mesure.'));
       if (m.type === 'Isolement') enCours.forEach(function (c) {
-        if (c.type === 'Contention' && c.patientId === m.patientId && !M.pauseEnCours(c, maintenant)) vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — contention en cours alors que l’isolement est en pause : mettez aussi la contention en pause ou saisissez sa fin.'));
+        if (c.type === 'Contention' && c.patientId === m.patientId && !M.pauseEnCours(c, maintenant, config())) vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — contention en cours alors que l’isolement est en pause : mettez aussi la contention en pause ou saisissez sa fin.'));
       });
     });
     var vusRouge = {};
@@ -483,7 +483,7 @@
         ind(enCours.length, 'Mesures en cours (' + nIso + ' isolement, ' + (enCours.length - nIso) + ' contention)'),
         ind(depassees, 'Échéances JLD dépassées', depassees ? 'bad' : 'ok'),
         ind(proches, 'Échéances JLD dans les 12 h', proches ? 'warn' : 'ok'),
-        ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant).depassee; }) ? 'bad' : ''),
+        ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant, config()).depassee; }) ? 'bad' : ''),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
         ind(postesIncomplets.length, 'Postes CSI incomplets (48 h)', postesIncomplets.length ? 'warn' : 'ok'),
         ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok'),
@@ -514,15 +514,15 @@
       var etat = R.etatAffichage(m, maintenant);
       var j = M.suiviJLD(st(), m, maintenant);
       var enCours = etat === 'en-cours';
-      var pause = enCours ? M.pauseEnCours(m, maintenant) : null;
-      var hPauses = M.dureePausesHeures(m, maintenant);
+      var pause = enCours ? M.pauseEnCours(m, maintenant, config()) : null;
+      var hPauses = M.dureePausesHeures(m, maintenant, config());
       tbody.appendChild(h('tr', { class: etat + (pause ? ' en-pause' : '') },
         h('td', { class: 'patient' }, h('b', { text: nomPatient(m.patientId) }), h('br'), h('small', { text: 'IPP ' + (patient(m.patientId).ipp || '—') + ' · ' + libService(m.service) })),
         h('td', {}, badgeType(m.type), m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
         h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
         h('td', { class: 'nowrap', text: court(m.debut) }),
-        h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant)), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
-          hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: 'Levées temporaires, comptées dans la durée', text: 'dont pauses ' + duree(hPauses) })) : null),
+        h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
+          hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: M.optionsPauses(config()).retrancher ? 'Levées temporaires, retranchées de la durée' : 'Levées temporaires, comptées dans la durée', text: (M.optionsPauses(config()).retrancher ? 'pauses retranchées ' : 'dont pauses ') + duree(hPauses) })) : null),
         h('td', { text: String(j.cycle) }),
         h('td', {}, cellEcheance(j.info)), h('td', {}, cellEcheance(j.saisine)), h('td', {}, cellEcheance(j.decision)),
         h('td', {}, tiersBadge(m)),
@@ -553,7 +553,7 @@
       var t = M.tiersCycle(x.m);
       tbody.appendChild(h('tr', { class: 'en-cours' },
         h('td', {}, h('b', { text: nomPatient(x.m.patientId) }), h('br'), h('small', { text: libService(x.m.service) })),
-        h('td', {}, badgeType(x.m.type), h('br'), h('small', { text: 'depuis ' + duree(M.dureeHeures(x.m, maintenant)) }), badgePause(x.m, maintenant) ? h('div', {}, badgePause(x.m, maintenant)) : null),
+        h('td', {}, badgeType(x.m.type), h('br'), h('small', { text: 'depuis ' + duree(M.dureeHeures(x.m, maintenant, config())) }), badgePause(x.m, maintenant) ? h('div', {}, badgePause(x.m, maintenant)) : null),
         h('td', {}, String(x.j.cycle), x.j.rythmeLong ? h('div', {}, h('small', { text: 'rythme long' })) : null),
         h('td', { class: 'nowrap', text: duree(x.j.cumulAvant) }),
         h('td', {}, cellEcheance(x.j.info)), h('td', {}, cellEcheance(x.j.saisine)), h('td', {}, cellEcheance(x.j.decision)),
@@ -745,7 +745,7 @@
   function recapMesure(m, maintenant) {
     return h('div', { class: 'recap' },
       h('div', {}, h('b', { text: nomPatient(m.patientId) }), ' — ', m.type, ' — ', m.lieu || ''),
-      h('div', { text: 'Début ' + date(m.debut) + ' (' + (m.psychiatreDebut || '?') + ') · durée ' + duree(M.dureeHeures(m, maintenant || Date.now())) }));
+      h('div', { text: 'Début ' + date(m.debut) + ' (' + (m.psychiatreDebut || '?') + ') · durée ' + duree(M.dureeHeures(m, maintenant || Date.now(), config())) }));
   }
 
   // ---------------------------------------------------------------- Nouvelle mesure
@@ -957,7 +957,7 @@
   // ---------------------------------------------------------------- Fin
   function modaleFin(m) {
     var base = m.version;
-    var pause = M.pauseEnCours(m, Date.now());
+    var pause = M.pauseEnCours(m, Date.now(), config());
     var fin = h('input', { type: 'datetime-local', value: versSaisie(pause ? pause.debut : Date.now()) });
     var psy = selectPsychiatre(m.psychiatreDebut);
     var lies = M.listeMesures(st()).filter(function (x) { return x.patientId === m.patientId && x.id !== m.id && typeof x.fin !== 'number'; });
@@ -980,12 +980,12 @@
   function contentionsLiees(m, maintenant, enPause) {
     if (m.type !== 'Isolement') return [];
     return M.listeMesures(st()).filter(function (c) {
-      return c.type === 'Contention' && c.patientId === m.patientId && typeof c.fin !== 'number' && !!M.pauseEnCours(c, maintenant) === enPause;
+      return c.type === 'Contention' && c.patientId === m.patientId && typeof c.fin !== 'number' && !!M.pauseEnCours(c, maintenant, config()) === enPause;
     });
   }
 
   function modalePause(m) {
-    var maintenant = Date.now();
+    var maintenant = Date.now(), op = M.optionsPauses(config());
     var debut = h('input', { type: 'datetime-local', value: versSaisie(maintenant) });
     var mode = h('select', {}, h('option', { value: 'duree', text: 'Pour une durée' }), h('option', { value: 'heure', text: 'Jusqu’à une heure de reprise' }));
     var dH = h('input', { type: 'number', min: 0, max: 47, step: 1, value: 1, 'aria-label': 'Heures' });
@@ -1022,8 +1022,8 @@
       ]);
       aReprise.afficher([
         b.t1 <= b.t0 ? 'La reprise doit être postérieure au début de la pause.' : null,
-        b.heures >= M.PAUSE_MAX_HEURES ? 'Au-delà de ' + M.PAUSE_MAX_HEURES + ' h, il ne s’agit plus d’une levée temporaire : saisissez la fin de la mesure.' : null,
-        b.heures > M.PAUSE_LONGUE_HEURES && b.heures < M.PAUSE_MAX_HEURES ? 'Pause de plus de ' + M.PAUSE_LONGUE_HEURES + ' h : vérifiez auprès du psychiatre qu’il ne s’agit pas d’une fin de mesure.' : null
+        b.heures >= op.refusHeures ? 'À partir de ' + op.refusHeures + ' h, la pause n’est pas acceptée : saisissez la fin de la mesure.' : null,
+        op.alerteHeures && b.heures > op.alerteHeures && b.heures < op.refusHeures ? 'Pause de plus de ' + op.alerteHeures + ' h : vérifiez auprès du psychiatre qu’il ne s’agit pas d’une fin de mesure.' : null
       ]);
       aCont.afficher([conts.length && !avecCont.checked ? 'Une contention ne peut pas se poursuivre hors isolement : mettez-la aussi en pause ou saisissez sa fin.' : null]);
       resume.textContent = b.t1 > b.t0 ? 'Reprise prévue le ' + date(b.t1) + ' (pause de ' + duree(b.heures) + ').' : '';
@@ -1032,7 +1032,10 @@
     maj();
 
     modale('Pause — levée temporaire de la mesure', h('div', { class: 'pile' }, recapMesure(m, maintenant),
-      h('p', { class: 'muted' }, h('small', { text: 'Report de la décision du psychiatre (repas, hygiène, visite…). La pause ne met pas fin à la mesure : sa durée et les échéances JLD continuent de courir. Si le patient ne réintègre pas la mesure, saisissez la fin de mesure.' })),
+      h('p', { class: 'muted' }, h('small', { text: 'Report de la décision du psychiatre (repas, hygiène, visite…). La pause ne met pas fin à la mesure. ' +
+        (op.retrancher ? 'Selon le paramétrage de l’établissement, sa durée est retranchée des décomptes et les échéances JLD sont reportées d’autant (jusqu’à l’heure de reprise prévue au plus). ' : 'Sa durée et les échéances JLD continuent de courir. ') +
+        (op.repriseAuto ? 'La mesure reprendra automatiquement à l’heure prévue ; saisissez une reprise seulement si elle a lieu plus tôt. ' : 'Saisissez la reprise au retour du patient. ') +
+        'Si le patient ne réintègre pas la mesure, saisissez la fin de mesure.' })),
       h('div', { class: 'grille-2' }, h('label', {}, 'Début de la pause', debut, aDebut), h('label', {}, 'Reprise', mode)),
       blocDuree, blocHeure, aReprise, resume,
       h('div', { class: 'grille-2' }, h('label', {}, 'Motif', motif), h('label', {}, 'Précision', precision)),
@@ -1044,7 +1047,7 @@
         if (b.t0 < m.debut) throw new Error('La pause ne peut pas commencer avant le début de la mesure.');
         if (b.t0 > Date.now() + 10 * 60000) throw new Error('Le début de la pause ne peut pas être dans le futur.');
         if (b.t1 <= b.t0) throw new Error('Indiquez une durée ou une heure de reprise postérieure au début de la pause.');
-        if (b.heures >= M.PAUSE_MAX_HEURES) throw new Error('Une pause de ' + M.PAUSE_MAX_HEURES + ' h ou plus n’est pas une levée temporaire : saisissez la fin de la mesure.');
+        if (b.heures >= op.refusHeures) throw new Error('Une pause de ' + op.refusHeures + ' h ou plus n’est pas acceptée : saisissez la fin de la mesure.');
         var nomPsy = psy.valeur();
         var texteMotif = motif.value + (precision.value.trim() ? ' — ' + precision.value.trim() : '');
         var cibles = [m].concat(blocCont && avecCont.checked ? conts : []);
@@ -1057,7 +1060,7 @@
 
   function modaleReprise(m) {
     var maintenant = Date.now();
-    var p = M.pauseEnCours(m, maintenant);
+    var p = M.pauseEnCours(m, maintenant, config());
     if (!p) return;
     var quand = h('input', { type: 'datetime-local', value: versSaisie(Math.min(maintenant, Math.max(p.reprisePrevue, p.debut))) });
     var conts = contentionsLiees(m, maintenant, true);
@@ -1084,7 +1087,7 @@
         if (t > Date.now() + 10 * 60000) throw new Error('La reprise ne peut pas être dans le futur.');
         await App.session.enregistrer('REPRISE', { mesureId: m.id, pause: p.evt, date: t }, m.version);
         if (conts.length && avecCont.checked) for (var i = 0; i < conts.length; i++) {
-          var pc = M.pauseEnCours(conts[i], Date.now());
+          var pc = M.pauseEnCours(conts[i], Date.now(), config());
           if (pc) await App.session.enregistrer('REPRISE', { mesureId: conts[i].id, pause: pc.evt, date: Math.max(t, pc.debut) }, conts[i].version);
         }
         toast('Reprise enregistrée.');
@@ -1162,9 +1165,11 @@
         h('div', { text: 'Mode d’hospitalisation retenu : ' + (M.modeRetenu(st(), m).mode || '—') }),
         m.fin ? h('div', { text: 'Fin : ' + date(m.fin) + ' (' + (m.psychiatreFin || '?') + ')' }) : null),
       (m.pauses || []).length ? h('div', { class: 'recap' },
-        h('b', { text: 'Levées temporaires (' + m.pauses.length + ', total ' + duree(M.dureePausesHeures(m, maintenant)) + ', comptées dans la durée de la mesure)' }),
+        h('b', { text: 'Levées temporaires (' + m.pauses.length + ', total ' + duree(M.dureePausesHeures(m, maintenant, config())) + (M.optionsPauses(config()).retrancher ? ', retranchées de la durée et des échéances' : ', comptées dans la durée de la mesure') + ')' }),
         m.pauses.map(function (p) {
-          var effective = p.reprise != null ? 'reprise le ' + date(p.reprise) : (typeof m.fin === 'number' ? 'fin de mesure pendant la pause' : (maintenant > p.reprisePrevue ? 'reprise non confirmée' : 'en cours'));
+          var effective = p.reprise != null ? 'reprise le ' + date(p.reprise)
+            : M.repriseAutomatique(m, p, maintenant, config()) ? 'reprise automatique le ' + date(p.reprisePrevue)
+            : (typeof m.fin === 'number' ? 'fin de mesure pendant la pause' : (maintenant > p.reprisePrevue ? 'reprise non confirmée' : 'en cours'));
           return h('div', { text: date(p.debut) + ' → reprise prévue ' + date(p.reprisePrevue) + ' — ' + effective + (p.motif ? ' — ' + p.motif : '') + ' (' + (p.psychiatre || '?') + ')' });
         })) : null,
       h('h3', { text: 'Historique' }),
@@ -1414,6 +1419,32 @@
         await enregistrerConfig([['parametres', par], ['delaiModeHospiHeures', Math.max(0, +delaiMode.value || 0)], ['inactiviteMinutes', Math.max(2, Math.min(60, +inact.value || 10))]]);
       }));
 
+    // -- Pauses (levées temporaires)
+    var op = M.optionsPauses(cfg);
+    var cbRetr = h('input', { type: 'checkbox', checked: op.retrancher });
+    var cbAuto = h('input', { type: 'checkbox', checked: op.repriseAuto });
+    var nAlerte = h('input', { type: 'number', min: 0, max: M.PAUSE_MAX_HEURES, step: 0.5, value: op.alerteHeures, class: 'champ-court' });
+    var nRefus = h('input', { type: 'number', min: 1, max: M.PAUSE_MAX_HEURES, step: 0.5, value: op.refusHeures, class: 'champ-court' });
+    var avertRetr = h('div', { class: 'alerte', hidden: !cbRetr.checked, text: 'Retrancher les pauses reporte les échéances JLD de la durée des pauses. Ce choix relève d’une lecture des textes à valider par la direction (et, si possible, avec le JLD) : par défaut, la loi prévoit qu’une mesure reprise moins de 48 h après la fin de la précédente s’y ajoute, ce qui plaide pour laisser courir la durée. Le réglage s’applique à toutes les mesures, y compris passées (échéances, cumuls, décompte, registre, statistiques), et il est tracé dans le journal.' });
+    cbRetr.addEventListener('change', function () { avertRetr.hidden = !cbRetr.checked; });
+    var pPauses = h('section', { class: 'panneau' }, h('h2', { text: 'Pauses (levées temporaires)' }),
+      h('label', { class: 'case' }, cbRetr, h('span', { text: 'Retrancher les pauses des décomptes (durées, cumuls sur 15 jours, échéances JLD, décompte, registre, statistiques)' })),
+      avertRetr,
+      h('small', { class: 'muted', text: 'Une pause sans reprise saisie n’est retranchée que jusqu’à son heure de reprise prévue.' }),
+      h('label', { class: 'case' }, cbAuto, h('span', { text: 'Reprise automatique à l’heure prévue (sans saisie de la reprise)' })),
+      h('small', { class: 'muted', text: 'Sans cette option, une reprise prévue dépassée et non saisie est signalée en rouge. Avec elle, la mesure reprend d’elle-même ; une reprise plus tôt que prévu se saisit toujours avec le bouton Reprise, et un patient qui ne réintègre pas la mesure doit faire l’objet d’une fin de mesure.' }),
+      h('div', { class: 'grille-2' },
+        h('label', {}, 'Alerte : pause de plus de … heures (0 = aucune alerte)', nAlerte),
+        h('label', {}, 'Refus : pause de … heures ou plus (' + M.PAUSE_MAX_HEURES + ' h au maximum)', nRefus)),
+      h('small', { class: 'muted', text: 'Le refus ne peut pas dépasser ' + M.PAUSE_MAX_HEURES + ' h : une interruption de 48 h ou plus n’est pas une levée temporaire, c’est une fin de mesure.' }),
+      boutonEnregistrer(async function () {
+        var a = +nAlerte.value, r = +nRefus.value;
+        if (!isFinite(r) || r <= 0 || r > M.PAUSE_MAX_HEURES) throw new Error('Le seuil de refus doit être compris entre 0 et ' + M.PAUSE_MAX_HEURES + ' h.');
+        if (!isFinite(a) || a < 0 || (a && a >= r)) throw new Error('Le seuil d’alerte doit être inférieur au seuil de refus (0 pour aucune alerte).');
+        if (cbRetr.checked !== op.retrancher && !confirm(cbRetr.checked ? 'Retrancher les pauses va reporter les échéances JLD de toutes les mesures concernées. Confirmer ?' : 'Ne plus retrancher les pauses va avancer les échéances JLD des mesures concernées. Confirmer ?')) return false;
+        await enregistrerConfig([['pauses', { retrancher: cbRetr.checked, repriseAuto: cbAuto.checked, alerteHeures: a, refusHeures: r }]]);
+      }));
+
     // -- Registre et décompte
     var lignesC = [];
     Object.keys(cfg.compteursRegistre || {}).forEach(function (sv) { Object.keys(cfg.compteursRegistre[sv]).forEach(function (an) { lignesC.push(sv + ' ; ' + an + ' ; ' + cfg.compteursRegistre[sv][an]); }); });
@@ -1455,9 +1486,9 @@
       // Les comptes et les clés sont ceux des données réelles : ils ne se gèrent pas depuis le jeu de formation.
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
-      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pDocs, infos);
+      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pPauses, pDocs, infos);
     }
-    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pDocs, pImport, demo, infos);
+    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pPauses, pDocs, pImport, demo, infos);
   }
 
   function casesRoles(actuels) {

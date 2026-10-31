@@ -35,10 +35,10 @@ IDE et AS disposent des mêmes droits.
 **Fin de mesure** : bouton *Fin* sur la ligne, avec la date, l'heure et le psychiatre qui a décidé l'arrêt. Une mainlevée du juge ne termine pas la mesure : c'est toujours la décision médicale qui y met fin.
 
 **Pause (levée temporaire)** : quand le psychiatre lève temporairement la mesure (repas, douche, visite…), bouton *Pause* sur la ligne. Indiquez le début, puis **une durée** (raccourcis 30 min, 1 h, 2 h, 4 h) **ou une heure de reprise**, le motif et le psychiatre. Pour un isolement avec une contention en cours, la contention est mise en pause en même temps (case cochée par défaut : une contention ne peut pas se poursuivre hors isolement).
-- La pause **ne met pas fin à la mesure** : la durée et les échéances JLD continuent de courir. La ligne apparaît hachurée avec un badge *Pause → heure de reprise*.
-- Au retour du patient, bouton *Reprise* : l'heure prévue est proposée, corrigez-la si besoin. Si l'heure prévue est dépassée sans reprise saisie, le badge passe au rouge et le tableau de bord le signale.
+- La pause **ne met pas fin à la mesure**. Selon le choix de l'établissement, sa durée est soit comptée (la durée et les échéances JLD continuent de courir, réglage par défaut), soit retranchée des décomptes (les échéances JLD sont alors reportées d'autant). La fenêtre de pause indique le réglage en vigueur. La ligne apparaît hachurée avec un badge *Pause → heure de reprise*.
+- Au retour du patient, bouton *Reprise* : l'heure prévue est proposée, corrigez-la si besoin. Si l'heure prévue est dépassée sans reprise saisie, le badge passe au rouge et le tableau de bord le signale. Si l'établissement a activé la **reprise automatique**, la mesure reprend d'elle-même à l'heure prévue : ne saisissez une reprise que si elle a lieu plus tôt.
 - Si le psychiatre décide de ne pas reprendre, utilisez *Fin* : la date proposée est le début de la pause.
-- Au-delà de 12 h, une alerte demande de vérifier qu'il ne s'agit pas d'une fin de mesure ; 48 h ou plus est refusé (c'est une fin de mesure).
+- Au-delà d'une durée réglée par l'administrateur (12 h par défaut), une alerte demande de vérifier qu'il ne s'agit pas d'une fin de mesure ; au-delà d'un second seuil (48 h par défaut, et jamais plus), la pause est refusée : c'est une fin de mesure.
 
 **Changement de lieu** (de CSI vers une chambre, par exemple) : *Détail → Changer de lieu…*. Pour une simple erreur de saisie, demandez une correction à votre cadre.
 
@@ -76,6 +76,8 @@ Le mode formation ouvre un jeu de données **entièrement fictif**, rangé à pa
 L'accès au mode formation est ouvert à tous les comptes ; l'administrateur peut le retirer à un agent. Votre mot de passe est le même dans les deux modes : un changement fait en formation vaut aussi pour les données réelles.
 
 ## Administrateur
+
+Réglage des **pauses** (*Administration → Pauses*) : retrancher ou non les pauses des décomptes, reprise automatique à l'heure prévue, seuils d'alerte et de refus. Retrancher les pauses reporte les échéances JLD de toutes les mesures concernées, y compris passées : décision à prendre avec la direction.
 
 Comptes (rôles, services affectés, accès au mode formation), régénération du jeu de formation, clés de sécurité, code de secours, paramétrage, import du classeur Excel : voir le guide d'installation et les procédures de secours.
 

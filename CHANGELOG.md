@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.5.0 — 31 octobre 2026
+
+- **Option « Retrancher les pauses des décomptes »** (*Administration → Pauses*) : durées, cumuls sur 15 jours, échéances JLD (reportées de la durée des pauses), décompte JLD (pause retranchée indiquée par ligne), registre et statistiques. Une pause sans reprise saisie n'est retranchée que jusqu'à son heure de reprise prévue. Désactivée par défaut.
+- **Option « Reprise automatique »** à l'heure prévue, sans saisie ; la reprise anticipée reste possible. Désactivée par défaut.
+- **Seuils réglables** : alerte (12 h par défaut, 0 pour aucune) et refus (48 h par défaut, plafonné à 48 h).
+- Textes de la fenêtre de pause, du détail et du décompte adaptés au réglage en vigueur.
+
 ## 1.4.0 — 31 octobre 2026
 
 - **Pause d'une mesure (levée temporaire décidée par le psychiatre)** : bouton *Pause* avec durée (raccourcis 30 min, 1 h, 2 h, 4 h) ou heure de reprise prévue, motif et psychiatre ; bouton *Reprise* pour la reprise effective.

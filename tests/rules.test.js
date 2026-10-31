@@ -193,3 +193,13 @@ test('Registre : un passage de SL à SDT dans les 12 h est retenu', () => {
   assert.equal(r.mode, 'SDT');
   assert.equal(r.bascule, true);
 });
+
+test('Plages retranchées : retrait et report d’un instant', () => {
+  const R = require('../app/js/rules.js');
+  const H = 3600 * 1000;
+  assert.deepEqual(R.retrancher(0, 10 * H, [[2 * H, 3 * H], [9 * H, 12 * H]]), [[0, 2 * H], [3 * H, 9 * H]]);
+  assert.equal(R.instantEffectif(0, 5, [[2 * H, 3 * H]]), 6 * H);
+  assert.equal(R.instantEffectif(0, 1, [[2 * H, 3 * H]]), 1 * H);
+  assert.equal(R.instantEffectif(0, 2, [[2 * H, 3 * H]]), 2 * H);
+  assert.equal(R.instantEffectif(0, 3, [[0, 1 * H], [1.5 * H, 2 * H]]), 4.5 * H);
+});

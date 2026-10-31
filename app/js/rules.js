@@ -6,6 +6,8 @@
  *    jamais avant la fin de la dernière mesure levée par le JLD ;
  *  - échéances JLD ancrées sur le DÉBUT de la mesure (jamais sur les décisions du juge) ;
  *  - rythme des mesures longues (isolement, à partir du cycle 3).
+ * Option : les plages `exclusions` d'une mesure (pauses retranchées) sont
+ * soustraites de toutes les durées, et les échéances sont reportées d'autant.
  * Toutes les dates sont des nombres (millisecondes depuis l'époque).
  * Utilisable dans le navigateur (window.SIC.rules) et dans Node (require).
  */
@@ -58,6 +60,41 @@
     return total / H;
   }
 
+  /** Morceaux de [debut, fin] restant après retrait des plages `exclusions`. */
+  function retrancher(debut, fin, exclusions) {
+    var morceaux = [[debut, fin]];
+    (exclusions || []).forEach(function (x) {
+      var res = [];
+      morceaux.forEach(function (m) {
+        if (x[1] <= m[0] || x[0] >= m[1]) { res.push(m); return; }
+        if (x[0] > m[0]) res.push([m[0], x[0]]);
+        if (x[1] < m[1]) res.push([x[1], m[1]]);
+      });
+      morceaux = res;
+    });
+    return morceaux.filter(function (m) { return m[1] > m[0]; });
+  }
+
+  /** Heures décomptées d'une mesure entre `debut` et `fin` (pauses retranchées le cas échéant). */
+  function heuresEffectives(mesure, debut, fin) {
+    return heuresFusionnees(retrancher(debut, fin, mesure.exclusions));
+  }
+
+  /** Instant où `heures` décomptées sont atteintes depuis `debut`, les plages exclues ne comptant pas. */
+  function instantEffectif(debut, heures, exclusions) {
+    var t = debut, reste = heures * H;
+    var ex = (exclusions || []).filter(function (x) { return x[1] > debut; }).sort(function (a, b) { return a[0] - b[0]; });
+    for (var i = 0; i < ex.length; i++) {
+      var d = Math.max(ex[i][0], t);
+      if (d > t) {
+        if (d - t >= reste) return t + reste;
+        reste -= d - t; t = d;
+      }
+      if (ex[i][1] > t) t = ex[i][1];
+    }
+    return t + reste;
+  }
+
   function memePatientType(m, patientId, type) {
     return m.patientId === patientId && m.type === type && typeof m.debut === 'number';
   }
@@ -80,7 +117,7 @@
       if (m.id === mesure.id || !memePatientType(m, mesure.patientId, mesure.type)) return;
       if (m.debut >= mesure.debut) return;
       var fin = typeof m.fin === 'number' ? m.fin : mesure.debut;
-      iv.push([Math.max(m.debut, borne), Math.min(fin, mesure.debut)]);
+      iv = iv.concat(retrancher(Math.max(m.debut, borne), Math.min(fin, mesure.debut), m.exclusions));
     });
     return heuresFusionnees(iv);
   }
@@ -92,7 +129,7 @@
     mesures.forEach(function (m) {
       if (!memePatientType(m, patientId, type) || m.debut > reference) return;
       var fin = typeof m.fin === 'number' ? m.fin : reference;
-      iv.push([Math.max(m.debut, borne), Math.min(fin, reference)]);
+      iv = iv.concat(retrancher(Math.max(m.debut, borne), Math.min(fin, reference), m.exclusions));
     });
     return heuresFusionnees(iv);
   }
@@ -110,6 +147,14 @@
    * Cycles suivants : cycle 1 + (n − 1) × intervalle, puis rythme long éventuel.
    */
   function echeances(mesures, mesure, cycle, surcharge) {
+    var e = echeancesBrutes(mesures, mesure, cycle, surcharge);
+    if (!mesure.exclusions || !mesure.exclusions.length) return e;
+    // Pauses retranchées : chaque échéance est reportée de la durée des pauses qui la précèdent.
+    var conv = function (t) { return instantEffectif(mesure.debut, (t - mesure.debut) / H, mesure.exclusions); };
+    return { cycle: e.cycle, info: conv(e.info), saisine: conv(e.saisine), decision: conv(e.decision), rythmeLong: e.rythmeLong };
+  }
+
+  function echeancesBrutes(mesures, mesure, cycle, surcharge) {
     var p = params(mesure.type, surcharge);
     cycle = Math.max(1, cycle || 1);
     var cumul = cumulAvantMesure(mesures, mesure, 15);
@@ -143,6 +188,9 @@
     PARAMETRES_DEFAUT: PARAMETRES_DEFAUT,
     params: params,
     heuresFusionnees: heuresFusionnees,
+    retrancher: retrancher,
+    heuresEffectives: heuresEffectives,
+    instantEffectif: instantEffectif,
     derniereLeveeJLD: derniereLeveeJLD,
     cumulAvantMesure: cumulAvantMesure,
     cumulHeures: cumulHeures,

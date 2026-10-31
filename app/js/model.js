@@ -75,7 +75,9 @@
     delaiModeHospiHeures: 12,  // registre : bascule SL -> contrainte retenue si < 12 h
     compteursRegistre: {},     // { U1: { 2026: 37 } } : dernier numéro déjà utilisé (registre papier antérieur)
     decompte: {},              // { U1: { titreIsolement, titreContention, sousTitre, masquer: ['N','Cumul'] } }
-    inactiviteMinutes: 10
+    inactiviteMinutes: 10,
+    // Levées temporaires : retrancher les pauses des décomptes, reprise automatique à l'heure prévue, seuils (h).
+    pauses: { retrancher: false, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
   };
 
   function cloner(o) { return JSON.parse(JSON.stringify(o)); }
@@ -258,7 +260,8 @@
   /** Échéances et statuts JLD d'une mesure pour un cycle (par défaut le cycle courant). */
   function suiviJLD(st, m, maintenant, cycle) {
     cycle = cycle || m.cycle;
-    var toutes = listeMesures(st);
+    var toutes = mesuresCalcul(st, maintenant);
+    m = toutes.filter(function (x) { return x.id === m.id; })[0] || m;
     var e = rules.echeances(toutes, m, cycle, st.config.parametres);
     var p = rules.params(m.type, st.config.parametres);
     var c = m.jld[cycle] || {};
@@ -279,31 +282,72 @@
   }
 
   // ------------------------------------------------- Levées temporaires
-  // Une pause (levée temporaire décidée par le psychiatre, avec reprise prévue) ne met pas fin à la mesure :
-  // la durée et les échéances JLD continuent de courir. Au-delà de 48 h, il s'agit d'une fin de mesure.
-  var PAUSE_MAX_HEURES = 48, PAUSE_LONGUE_HEURES = 12;
+  // Une pause (levée temporaire décidée par le psychiatre, avec reprise prévue) ne met pas fin à la mesure.
+  // Par défaut, la durée et les échéances JLD continuent de courir ; l'option `retrancher` soustrait les
+  // pauses des durées et reporte les échéances d'autant. Au-delà de `refusHeures`, c'est une fin de mesure.
+  var PAUSE_MAX_HEURES = 48;   // plafond légal : une interruption de 48 h ou plus n'est pas une levée temporaire
 
-  /** Pause en cours (ou null) ; `depassee` : l'heure de reprise prévue est passée sans reprise saisie. */
-  function pauseEnCours(m, maintenant) {
+  function optionsPauses(config) {
+    var o = Object.assign({}, CONFIG_DEFAUT.pauses, (config && config.pauses) || {});
+    o.refusHeures = Math.min(PAUSE_MAX_HEURES, Math.max(1, +o.refusHeures || PAUSE_MAX_HEURES));
+    o.alerteHeures = Math.max(0, Math.min(o.refusHeures, +o.alerteHeures || 0));
+    return o;
+  }
+
+  /**
+   * Pause en cours (ou null). `depassee` : l'heure de reprise prévue est passée sans reprise saisie.
+   * Avec la reprise automatique, la mesure reprend d'elle-même à l'heure prévue.
+   */
+  function pauseEnCours(m, maintenant, config) {
     if (typeof m.fin === 'number' || !m.pauses) return null;
     var p = m.pauses.filter(function (x) { return x.reprise == null && x.debut <= maintenant; }).pop();
     if (!p) return null;
+    if (optionsPauses(config).repriseAuto && maintenant >= p.reprisePrevue) return null;
     return Object.assign({}, p, { depassee: maintenant > p.reprisePrevue });
   }
 
-  /** Fin effective d'une pause : reprise saisie, sinon fin de la mesure, sinon maintenant. */
-  function finPause(m, p, maintenant) {
+  /** Vrai si la pause a repris automatiquement (option activée, aucune reprise saisie, heure prévue atteinte). */
+  function repriseAutomatique(m, p, maintenant, config) {
+    return p.reprise == null && optionsPauses(config).repriseAuto && p.reprisePrevue <= Math.min(maintenant, typeof m.fin === 'number' ? m.fin : Infinity);
+  }
+
+  /** Fin effective d'une pause : reprise saisie, sinon reprise automatique, sinon fin de la mesure, sinon maintenant. */
+  function finPause(m, p, maintenant, config) {
     if (p.reprise != null) return p.reprise;
-    return typeof m.fin === 'number' ? m.fin : maintenant;
+    var limite = typeof m.fin === 'number' ? Math.min(m.fin, maintenant) : maintenant;
+    if (optionsPauses(config).repriseAuto) return Math.min(p.reprisePrevue, limite);
+    return limite;
   }
 
-  /** Durée cumulée des pauses d'une mesure (heures), à titre d'information : elle reste comptée dans la durée légale. */
-  function dureePausesHeures(m, maintenant) {
-    return (m.pauses || []).reduce(function (s, p) { return s + Math.max(0, finPause(m, p, maintenant) - p.debut); }, 0) / H;
+  /**
+   * Plages retranchées des décomptes (option `retrancher`), sinon aucune.
+   * Une pause non reprise n'est retranchée que jusqu'à l'heure de reprise prévue (calcul prudent).
+   */
+  function exclusions(m, maintenant, config) {
+    if (!optionsPauses(config).retrancher) return [];
+    var limite = typeof m.fin === 'number' ? Math.min(m.fin, maintenant) : maintenant;
+    return (m.pauses || []).map(function (p) {
+      var f = p.reprise != null ? p.reprise : p.reprisePrevue;
+      return [p.debut, Math.min(f, limite)];
+    }).filter(function (x) { return x[1] > x[0]; });
   }
 
-  function dureeHeures(m, maintenant) {
-    return ((typeof m.fin === 'number' ? m.fin : maintenant) - m.debut) / H;
+  /** Mesures prêtes pour le moteur de règles : copies portant leurs plages retranchées si l'option est active. */
+  function mesuresCalcul(st, maintenant) {
+    var ms = listeMesures(st);
+    if (!optionsPauses(st.config).retrancher) return ms;
+    return ms.map(function (m) { return Object.assign({}, m, { exclusions: exclusions(m, maintenant, st.config) }); });
+  }
+
+  /** Durée cumulée des pauses d'une mesure (heures). */
+  function dureePausesHeures(m, maintenant, config) {
+    return (m.pauses || []).reduce(function (s, p) { return s + Math.max(0, finPause(m, p, maintenant, config) - p.debut); }, 0) / H;
+  }
+
+  /** Durée décomptée d'une mesure (heures) ; avec `config`, les pauses sont retranchées si l'option est active. */
+  function dureeHeures(m, maintenant, config) {
+    var fin = typeof m.fin === 'number' ? m.fin : maintenant;
+    return rules.heuresEffectives({ exclusions: exclusions(m, maintenant, config) }, m.debut, fin);
   }
 
   /** Dernière information du tiers pour le cycle courant (ou null). */
@@ -345,7 +389,7 @@
 
   /** Cumuls glissants d'un patient (heures) et niveau d'alerte V1.3 (vert / jaune / rouge). */
   function cumulsPatient(st, patientId, maintenant) {
-    var toutes = listeMesures(st);
+    var toutes = mesuresCalcul(st, maintenant);
     var c = {
       iso48: rules.cumulHeures(toutes, patientId, 'Isolement', maintenant, 2),
       cont48: rules.cumulHeures(toutes, patientId, 'Contention', maintenant, 2),
@@ -493,7 +537,7 @@
       return {
         numero: x.fin === null ? '' : x.cat + (depart + i + 1),
         categorie: x.cat, debut: x.debut, fin: x.fin,
-        dureeHeures: (finRef - x.debut) / H, type: x.mesure.type, lieu: x.mesure.lieu,
+        dureeHeures: rules.heuresEffectives({ exclusions: exclusions(x.mesure, maintenant, st.config) }, x.debut, finRef), type: x.mesure.type, lieu: x.mesure.lieu,
         psychiatre: x.mesure.psychiatreDebut, modeHospi: mode.mode, basculeMode: mode.bascule,
         professionnels: (x.cat === 'A' || x.cat === 'C') ? professionnelsSur(st, service, x.debut, finRef) : [],
         mesureId: x.mesure.id, patientId: x.mesure.patientId, service: service
@@ -538,7 +582,9 @@
     var mesures = listeMesures(st).filter(function (m) { return services.indexOf(m.service) >= 0 && m.debut >= debutAn && m.debut < finAn; });
     var tiers = { INFORME: 0, NON: 0, TENTATIVE: 0, A_RENSEIGNER: 0 };
     var jld = { info: 0, saisine: 0, decision: 0, levee: 0, cyclesHorsDelai: 0 };
+    var calc = mesuresCalcul(st, maintenant);
     mesures.forEach(function (m) {
+      m = calc.filter(function (x) { return x.id === m.id; })[0] || m;
       var t = m.tiers.length ? m.tiers[m.tiers.length - 1] : null;
       if (!t) tiers.A_RENSEIGNER++;
       else if (t.statut === 'INFORME') tiers.INFORME++;
@@ -546,7 +592,7 @@
       else tiers.NON++;
       if (m.leveeJLD) jld.levee++;
       Object.keys(m.jld).forEach(function (c) {
-        var x = m.jld[c], e = rules.echeances(listeMesures(st), m, +c, st.config.parametres), hors = false;
+        var x = m.jld[c], e = rules.echeances(calc, m, +c, st.config.parametres), hors = false;
         if (x.INFO) { jld.info++; if (typeof x.INFO.date === 'number' && x.INFO.date > e.info) hors = true; }
         if (x.SAISINE) { jld.saisine++; if (typeof x.SAISINE.date === 'number' && x.SAISINE.date > e.saisine) hors = true; }
         if (x.DECISION) { jld.decision++; if (typeof x.DECISION.date === 'number' && x.DECISION.date > e.decision) hors = true; }
@@ -585,34 +631,42 @@
    * segments de 24 h (isolement) ou 12 h (contention), avec cumul progressif.
    */
   function decompte(st, m, reference) {
-    var toutes = listeMesures(st);
+    var toutes = mesuresCalcul(st, reference);
+    m = toutes.filter(function (x) { return x.id === m.id; })[0] || m;
     var fin = typeof m.fin === 'number' && m.fin < reference ? m.fin : reference;
     var pas = (m.type === 'Isolement' ? 24 : 12) * H;
     var borne = Math.max(m.debut - 15 * J, rules.derniereLeveeJLD(toutes, m.patientId, m.type, m.debut));
     var intervalles = [], lignes = [];
+    function net(x, d, f) { return rules.retrancher(d, f, x.exclusions); }
+    function pauseNote(x, d, f) {
+      var p = (f - d) / H - rules.heuresFusionnees(net(x, d, f));
+      return p > 1 / 120 ? ' (pause retranchée : ' + (Math.round(p * 60) >= 60 ? Math.floor(p) + ' h ' + String(Math.round(p * 60) % 60).padStart(2, '0') : Math.round(p * 60) + ' min') + ')' : '';
+    }
     toutes.filter(function (x) {
       return x.id !== m.id && x.patientId === m.patientId && x.type === m.type && x.debut < m.debut &&
         (typeof x.fin !== 'number' || x.fin > borne);
     }).sort(function (a, b) { return a.debut - b.debut; }).forEach(function (x) {
       var d = Math.max(x.debut, borne), f = Math.min(typeof x.fin === 'number' ? x.fin : m.debut, m.debut);
       if (f <= d) return;
-      intervalles.push([d, f]);
-      lignes.push({ debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'TERMINÉE', commentaire: 'Mesure antérieure comptée dans les 15 jours glissants' + (x.debut < borne ? ' (partiellement)' : '') });
+      var morceaux = net(x, d, f);
+      intervalles = intervalles.concat(morceaux);
+      lignes.push({ debut: d, fin: f, duree: rules.heuresFusionnees(morceaux), cumul: rules.heuresFusionnees(intervalles), statut: 'TERMINÉE', commentaire: 'Mesure antérieure comptée dans les 15 jours glissants' + (x.debut < borne ? ' (partiellement)' : '') + pauseNote(x, d, f) });
     });
     var cumulAvant = rules.heuresFusionnees(intervalles);
     for (var t = m.debut, i = 0; t < fin || i === 0; t += pas, i++) {
       var f2 = Math.min(t + pas, fin);
-      intervalles.push([t, f2]);
+      var morceaux2 = net(m, t, f2);
+      intervalles = intervalles.concat(morceaux2);
       var dernier = f2 >= fin;
       lignes.push({
-        debut: t, fin: f2, duree: (f2 - t) / H, cumul: rules.heuresFusionnees(intervalles),
+        debut: t, fin: f2, duree: rules.heuresFusionnees(morceaux2), cumul: rules.heuresFusionnees(intervalles),
         statut: dernier && typeof m.fin !== 'number' ? 'EN COURS' : 'TERMINÉE',
-        commentaire: i === 0 ? 'Début de la mesure' : 'Prolongation de la mesure'
+        commentaire: (i === 0 ? 'Début de la mesure' : 'Prolongation de la mesure') + pauseNote(m, t, f2)
       });
       if (dernier) break;
     }
     lignes.forEach(function (l, k) { l.n = k + 1; });
-    return { lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: typeof m.fin !== 'number', reference: fin, fenetreDebut: borne };
+    return { lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: typeof m.fin !== 'number', reference: fin, fenetreDebut: borne, pausesRetranchees: optionsPauses(st.config).retrancher };
   }
 
   return {
@@ -623,6 +677,7 @@
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
     registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
-    PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, PAUSE_LONGUE_HEURES: PAUSE_LONGUE_HEURES, pauseEnCours: pauseEnCours, finPause: finPause, dureePausesHeures: dureePausesHeures
+    PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
+    exclusions: exclusions, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures
   };
 });

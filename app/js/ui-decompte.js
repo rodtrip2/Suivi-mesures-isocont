@@ -42,13 +42,13 @@
         'Cumul des mesures antérieures sur 15 jours : ', h('b', { text: U.duree(d.cumulAvant) }),
         ' — Durée totale décomptée : ', h('b', { text: U.duree(d.total) }), '.'),
       (m.pauses || []).filter(function (x) { return x.debut <= reference; }).length ? h('div', { class: 'doc-pauses' },
-        h('p', {}, h('b', { text: 'Levées temporaires décidées par le psychiatre' }), ' (comptées dans la durée de la mesure) :'),
+        h('p', {}, h('b', { text: 'Levées temporaires décidées par le psychiatre' }), d.pausesRetranchees ? ' (retranchées des durées ci-dessus) :' : ' (comptées dans la durée de la mesure) :'),
         h('ul', {}, m.pauses.filter(function (x) { return x.debut <= reference; }).map(function (x) {
-          var f = Math.min(M.finPause(m, x, reference), reference);
+          var f = Math.min(M.finPause(m, x, reference, U.config()), reference);
           return h('li', { text: 'du ' + U.date(x.debut) + ' au ' + U.date(f) + (x.reprise == null && f === reference ? ' (en cours)' : '') + ' — ' + U.duree((f - x.debut) / 3600000) + (x.motif ? ' — ' + x.motif : '') });
         }))) : null,
       h('p', {}, 'Cycle de contrôle n° ' + j.cycle + ' — information avant le ' + U.date(j.info.echeance) + ', saisine avant le ' + U.date(j.saisine.echeance) + ', décision avant le ' + U.date(j.decision.echeance) + '.'),
-      h('footer', { text: 'Édité le ' + U.date(Date.now()) + ' par ' + U.App.session.utilisateur.nom + ' — décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois).' }));
+      h('footer', { text: 'Édité le ' + U.date(Date.now()) + ' par ' + U.App.session.utilisateur.nom + ' — décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois' + (d.pausesRetranchees ? ' ; levées temporaires retranchées' : '') + ').' }));
   }
 
   U.actions.decompte = function (m) {

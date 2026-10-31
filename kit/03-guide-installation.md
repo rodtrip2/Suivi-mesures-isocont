@@ -54,6 +54,7 @@ Onglet *Administration* :
 | Établissement et services | Nom de l'établissement (en-tête des documents), services (code ; libellé), chambres de soins intensifs par service, liste des psychiatres. |
 | Postes de surveillance | Postes par défaut (matin, après-midi, nuit…) ou propres à un service (par exemple jour et nuit en 12 h). |
 | Règles légales | Valeurs par défaut conformes aux textes en vigueur : ne les modifier qu'en cas d'évolution réglementaire. |
+| Pauses (levées temporaires) | Par défaut, les pauses restent comptées dans les durées, sans reprise automatique, alerte au-delà de 12 h et refus à 48 h. Retrancher les pauses des décomptes reporte les échéances JLD : décision de la direction, à tracer dans le projet d'établissement. |
 | Registre et décompte | Dernier numéro du registre papier de l'année en cours, si l'outil démarre en cours d'année ; titres du décompte JLD. |
 | Comptes | Un compte par agent, avec ses rôles (IDE, AS, secrétaire, cadre, administrateur) et ses **services affectés**. Pour toute une équipe : *Créer des comptes en lot…* (voir ci-dessous). Chaque compte reçoit un mot de passe provisoire tiré au hasard ; l'agent doit le remplacer à sa première connexion. |
 

@@ -157,3 +157,64 @@ test('Pause (levée temporaire) : ne termine pas la mesure, ne décale pas les �
   assert.ok(M.peut(['AS'], 'PAUSE') && M.peut(['IDE'], 'REPRISE') && M.peut(['CADRE'], 'PAUSE'));
   assert.ok(!M.peut(['SECRETAIRE'], 'PAUSE'));
 });
+
+test('Option : pauses retranchées des décomptes et échéances reportées d’autant', () => {
+  const d0 = local(2026, 4, 1, 8);
+  const evts = (cfg) => [
+    evt('CONFIG', { cle: 'pauses', valeur: cfg }),
+    evt('CONFIG', { cle: 'services', valeur: [{ code: 'U1', libelle: 'U1' }] }),
+    evt('PATIENT', { patientId: 'P1' }),
+    evt('MODE_HOSPI', { patientId: 'P1', mode: 'SDT', date: local(2026, 1, 1) }),
+    evt('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0, csi: true, lieu: 'CSI 1' }),
+    evt('PAUSE', { mesureId: 'M1', debut: d0 + 4 * H, reprisePrevue: d0 + 6 * H }, { base: 1 }),
+    evt('REPRISE', { mesureId: 'M1', date: d0 + 6 * H }, { base: 2 })
+  ];
+  const sans = M.reduire(evts({ retrancher: false }));
+  const avec = M.reduire(evts({ retrancher: true }));
+  const t = d0 + 20 * H;
+  assert.equal(M.dureeHeures(sans.mesures.M1, t, sans.config), 20);
+  assert.equal(M.dureeHeures(avec.mesures.M1, t, avec.config), 18);
+  assert.equal(M.cumulsPatient(avec, 'P1', t).iso15, 18);
+  const eSans = M.suiviJLD(sans, sans.mesures.M1, t), eAvec = M.suiviJLD(avec, avec.mesures.M1, t);
+  assert.equal(eAvec.info.echeance - eSans.info.echeance, 2 * H);           // 48 h décomptées = début + 50 h
+  assert.equal(eAvec.saisine.echeance - eSans.saisine.echeance, 2 * H);
+  // Décompte et registre
+  const dc = M.decompte(avec, avec.mesures.M1, t);
+  assert.equal(dc.total, 18);
+  assert.match(dc.lignes[0].commentaire, /pause retranchée : 2 h 00/);
+  assert.equal(M.registre(avec, 'U1', 2026, t)[0].dureeHeures, 18);
+  // Mesure suivante : le cumul des 15 jours tient compte de la pause retranchée
+  const suite = evts({ retrancher: true }).concat([
+    evt('MESURE_FIN', { mesureId: 'M1', fin: d0 + 20 * H }, { base: 3 }),
+    evt('MESURE_DEBUT', { mesureId: 'M2', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0 + 30 * H, csi: true })
+  ]);
+  const st2 = M.reduire(suite);
+  assert.equal(M.suiviJLD(st2, st2.mesures.M2, d0 + 31 * H).cumulAvant, 18);
+});
+
+test('Option : pause non reprise retranchée jusqu’à la reprise prévue seulement ; reprise automatique', () => {
+  const d0 = local(2026, 5, 1, 8);
+  const evts = (cfg) => [
+    evt('CONFIG', { cle: 'pauses', valeur: cfg }),
+    evt('PATIENT', { patientId: 'P1' }),
+    evt('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P1', service: 'U1', typeMesure: 'Contention', debut: d0, csi: true }),
+    evt('PAUSE', { mesureId: 'M1', debut: d0 + 2 * H, reprisePrevue: d0 + 3 * H }, { base: 1 })
+  ];
+  let st = M.reduire(evts({ retrancher: true }));
+  const m = st.mesures.M1;
+  assert.deepEqual(M.exclusions(m, d0 + 2.5 * H, st.config), [[d0 + 2 * H, d0 + 2.5 * H]]);   // pause en cours : jusqu'à maintenant
+  assert.deepEqual(M.exclusions(m, d0 + 10 * H, st.config), [[d0 + 2 * H, d0 + 3 * H]]);    // reprise non saisie : plafonnée à l'heure prévue
+  assert.ok(M.pauseEnCours(m, d0 + 10 * H, st.config).depassee);                                 // sans reprise automatique : à confirmer
+
+  st = M.reduire(evts({ repriseAuto: true }));
+  assert.equal(M.pauseEnCours(st.mesures.M1, d0 + 2.5 * H, st.config).depassee, false);
+  assert.equal(M.pauseEnCours(st.mesures.M1, d0 + 3 * H, st.config), null);                     // reprise automatique
+  assert.ok(M.repriseAutomatique(st.mesures.M1, st.mesures.M1.pauses[0], d0 + 4 * H, st.config));
+  assert.equal(M.dureePausesHeures(st.mesures.M1, d0 + 10 * H, st.config), 1);
+  assert.equal(M.dureeHeures(st.mesures.M1, d0 + 10 * H, st.config), 10);                          // non retranchée par défaut
+
+  // Seuils réglables, plafonnés à 48 h ; l'alerte reste sous le refus
+  assert.deepEqual([M.optionsPauses({}).alerteHeures, M.optionsPauses({}).refusHeures], [12, 48]);
+  assert.equal(M.optionsPauses({ pauses: { refusHeures: 72 } }).refusHeures, 48);
+  assert.equal(M.optionsPauses({ pauses: { alerteHeures: 30, refusHeures: 24 } }).alerteHeures, 24);
+});
