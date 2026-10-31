@@ -326,3 +326,7 @@ dialog .apercu-registre { max-width: 100%; overflow: auto; }
 .document-jld tr.doc-ligne-actuelle.doc-ligne-pause td { background: #f3ead0; font-weight: 400; }
 .document-jld tr.doc-ligne-anterieure td { color: #8a8a8a; background: #f6f6f6; }
 @media print { .document-jld tr.doc-ligne-actuelle td, .document-jld tr.doc-ligne-anterieure td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+td.centre, th.centre { text-align: center; }
+th.col-annuelle, td.col-annuelle { border-left: 1px solid var(--line); }
+th.col-annuelle { white-space: normal; min-width: 7em; }
+input[type=number].champ-court[aria-label="Année des statistiques"] { width: 6.5em; }

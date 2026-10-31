@@ -382,3 +382,32 @@ test('Décompte : lignes de la mesure actuelle repérées, réglage de mise en �
   assert.equal(M.masqueDecompte({ decompte: { U1: { miseEnEvidence: 'les-deux' } } }, 'U1').miseEnEvidence, 'les-deux');
   assert.equal(M.masqueDecompte({ decompte: { U1: { miseEnEvidence: 'x' } } }, 'U1').miseEnEvidence, 'aucune');
 });
+
+test('Statistiques annuelles par patient : colonnes de catégories paramétrables, mesures comptées comme le juge', () => {
+  const d = (j, h) => local(2026, 3, j, h);
+  const evts = [
+    evt('CONFIG', { cle: 'services', valeur: [{ code: 'U1', libelle: 'U1' }] }),
+    evt('PATIENT', { patientId: 'P1' }), evt('PATIENT', { patientId: 'P2' }),
+    // P1 : isolement en CSI 8 h–20 h, contention en CSI 10 h–14 h → A (8–10), C (10–14), A (14–20)
+    evt('MESURE_DEBUT', { mesureId: 'I1', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d(2, 8), csi: true }),
+    evt('MESURE_DEBUT', { mesureId: 'C1', patientId: 'P1', service: 'U1', typeMesure: 'Contention', debut: d(2, 10), csi: true }),
+    evt('MESURE_FIN', { mesureId: 'C1', fin: d(2, 14) }),
+    evt('MESURE_FIN', { mesureId: 'I1', fin: d(2, 20) }),
+    // P2 : contention hors espace d'isolement (D), 2 h
+    evt('MESURE_DEBUT', { mesureId: 'C2', patientId: 'P2', service: 'U1', typeMesure: 'Contention', debut: d(5, 8), csi: false, lieu: 'Chambre 3' }),
+    evt('MESURE_FIN', { mesureId: 'C2', fin: d(5, 10) })
+  ];
+  const st = M.reduire(evts);
+  const s = M.statistiquesPatients(st, ['U1'], 2026, local(2026, 12, 1));
+  assert.deepEqual(s.colonnes.map(c => c.libelle), ['Isolement seul', 'Contention seule', 'Isolement + contention']);
+  const p1 = s.parPatient.P1, p2 = s.parPatient.P2;
+  assert.deepEqual(p1.colonnes.map(c => [c.n, c.heures]), [[2, 8], [0, 0], [1, 4]]);
+  assert.deepEqual([p1.isolements, p1.contentions], [1, 1]);                   // le juge : 1 isolement et 1 contention
+  assert.deepEqual(p2.colonnes.map(c => c.n), [0, 1, 0]);
+  assert.equal(s.colonnes[1].alerte, true);
+  // Colonnes paramétrées : une seule colonne « En CSI » (A et C), catégorie inconnue écartée
+  const st2 = M.reduire(evts.concat([evt('CONFIG', { cle: 'colonnesPatients', valeur: [{ libelle: 'En CSI', categories: ['A', 'C', 'Z'] }, { libelle: '', categories: ['B'] }] })]));
+  const s2 = M.statistiquesPatients(st2, ['U1'], 2026, local(2026, 12, 1));
+  assert.deepEqual(s2.colonnes, [{ libelle: 'En CSI', categories: ['A', 'C'], alerte: false }]);
+  assert.deepEqual(s2.parPatient.P1.colonnes.map(c => [c.n, c.heures]), [[3, 12]]);
+});

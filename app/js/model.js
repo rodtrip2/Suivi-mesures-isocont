@@ -77,6 +77,13 @@
     decompte: {},              // masques du décompte JLD : { '*': masque de l'établissement, U1: masque du service } (voir masqueDecompte)
     inactiviteMinutes: 10,
     // Levées temporaires : retrancher les pauses des décomptes, reprise automatique à l'heure prévue, seuils (h).
+    // Onglet Patients : colonnes annuelles, chacune regroupant des catégories du registre (A à E) ;
+    // `alerte` : la colonne devrait rester à 0 (affichée en rouge sinon).
+    colonnesPatients: [
+      { libelle: 'Isolement seul', categories: ['A', 'B'], alerte: false },
+      { libelle: 'Contention seule', categories: ['D', 'E'], alerte: true },
+      { libelle: 'Isolement + contention', categories: ['C'], alerte: false }
+    ],
     // active : bouton Pause disponible (toujours vrai si les pauses sont déduites) ;
     // portee : 'jld' (déduction pour les délais JLD seulement) ou 'partout' (aussi registre et statistiques) ;
     // colonneRegistre : colonne des levées temporaires dans le registre.
@@ -585,6 +592,46 @@
     });
   }
 
+  // ------------------------------------------ Statistiques annuelles par patient
+  /** Colonnes annuelles de l'onglet Patients (paramétrage validé : catégories A à E connues, libellé non vide). */
+  function colonnesPatients(config) {
+    var c = (config && config.colonnesPatients) || CONFIG_DEFAUT.colonnesPatients;
+    return c.map(function (x) {
+      return { libelle: String(x.libelle || '').trim(), categories: (x.categories || []).filter(function (k) { return LIB_CATEGORIES[k]; }), alerte: !!x.alerte };
+    }).filter(function (x) { return x.libelle && x.categories.length; });
+  }
+
+  /**
+   * Pour une année (année du début de l'entrée) et des services : par patient, nombre d'entrées du registre
+   * et durée cumulée pour chaque colonne paramétrée, et nombre de mesures d'isolement et de contention
+   * (décompte du juge, qui les compte séparément).
+   * Retourne { colonnes, parPatient: { id: { colonnes: [{ n, heures }], isolements, contentions } } }.
+   */
+  function statistiquesPatients(st, services, annee, maintenant) {
+    var cols = colonnesPatients(st.config), res = {};
+    var debutAn = new Date(annee, 0, 1).getTime(), finAn = new Date(annee + 1, 0, 1).getTime();
+    function ligne(id) {
+      if (!res[id]) res[id] = { colonnes: cols.map(function () { return { n: 0, heures: 0, enCours: 0 }; }), isolements: 0, contentions: 0 };
+      return res[id];
+    }
+    services.forEach(function (sv) {
+      registre(st, sv, annee, maintenant).forEach(function (e) {
+        var l = ligne(e.patientId);
+        cols.forEach(function (c, i) {
+          if (c.categories.indexOf(e.categorie) < 0) return;
+          l.colonnes[i].n++; l.colonnes[i].heures += e.dureeHeures;
+          if (e.fin === null) l.colonnes[i].enCours++;
+        });
+      });
+    });
+    listeMesures(st).forEach(function (m) {
+      if (services.indexOf(m.service) < 0 || m.debut < debutAn || m.debut >= finAn) return;
+      var l = ligne(m.patientId);
+      if (m.type === 'Isolement') l.isolements++; else l.contentions++;
+    });
+    return { colonnes: cols, parPatient: res };
+  }
+
   // ------------------------------------------ Registre pour communication (CADA)
   /**
    * Options d'occultation du registre communiqué à un tiers (demande CADA, art. L. 311-6 CRPA).
@@ -910,7 +957,7 @@
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
-    registre: registre, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
+    registre: registre, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

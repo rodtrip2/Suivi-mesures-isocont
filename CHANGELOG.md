@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.13.0 — 31 octobre 2026
+
+- Onglet Patients : **statistiques par année** pour chaque patient — colonnes regroupant des catégories du registre, avec nombre d'entrées, durée cumulée et entrées en cours. Par défaut : isolement seul (A, B), contention seule (D, E ; en rouge si elle n'est pas à 0), isolement + contention (C).
+- Colonne **« Mesures (JLD) »** : isolements et contentions comptés séparément, comme le juge (une contention en CSI avec isolement = 1 entrée C au registre, mais 1 isolement et 1 contention pour le juge).
+- **Colonnes paramétrables** par l'administrateur (*Administration → Onglet Patients : statistiques annuelles*) : libellé, catégories A à E, signalement si la colonne devrait rester à 0.
+
 ## 1.12.0 — 31 octobre 2026
 
 - Décompte JLD, masques : **mise en évidence** au choix — aucune (par défaut), mesure actuelle en surbrillance (fond jaune pâle, texte en gras), mesures antérieures grisées, ou les deux. Conservée à l'impression et dans le PDF.

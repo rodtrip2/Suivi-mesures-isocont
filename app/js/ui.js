@@ -714,7 +714,7 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', colonnesPatients: 'Statistiques annuelles de l’onglet Patients'
   };
   var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', type: 'type de mesure' };
 
@@ -774,6 +774,7 @@
       case 'services': return (v || []).map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ');
       case 'lieuxCSI': return Object.keys(v || {}).map(function (k) { return k + ' : ' + (v[k] || []).join(', '); }).join(' ; ');
       case 'pauses': return resumePauses(v);
+      case 'colonnesPatients': return (v || []).map(function (c) { return c.libelle + ' (' + (c.categories || []).join(', ') + ')'; }).join(', ');
       case 'decompte': return Object.keys(v || {}).map(function (k) { return k === '*' ? 'établissement' : libService(k); }).join(', ') || 'aucun masque';
       case 'imagesDecompte': return Object.keys(v || {}).map(function (k) { return v[k].nom; }).join(', ') || 'aucune image';
       default: return '';
@@ -1662,6 +1663,42 @@
 
     var pMasques = SIC.ui.actions.panneauMasquesDecompte ? SIC.ui.actions.panneauMasquesDecompte() : null;
 
+    // -- Colonnes annuelles de l'onglet Patients
+    var colsP = M.colonnesPatients(cfg).map(function (c) { return { libelle: c.libelle, categories: c.categories.slice(), alerte: c.alerte }; });
+    var corpsCols = h('tbody');
+    function dessinerColsP() {
+      vider(corpsCols);
+      colsP.forEach(function (c, i) {
+        var lib = h('input', { type: 'text', value: c.libelle, oninput: function () { c.libelle = lib.value; } });
+        corpsCols.appendChild(h('tr', {},
+          h('td', {}, lib),
+          ['A', 'B', 'C', 'D', 'E'].map(function (k) {
+            var cb = h('input', { type: 'checkbox', checked: c.categories.indexOf(k) >= 0, 'aria-label': 'Catégorie ' + k, title: M.LIB_CATEGORIES[k], onchange: function () { c.categories = ['A', 'B', 'C', 'D', 'E'].filter(function (x) { return x === k ? cb.checked : c.categories.indexOf(x) >= 0; }); } });
+            return h('td', { class: 'centre' }, cb);
+          }),
+          h('td', { class: 'centre' }, h('input', { type: 'checkbox', checked: c.alerte, 'aria-label': 'Alerte si différent de 0', onchange: function (ev) { c.alerte = ev.target.checked; } })),
+          h('td', {}, h('button', { class: 'btn petit', onclick: function () { colsP.splice(i, 1); dessinerColsP(); } }, 'Retirer'))));
+      });
+    }
+    dessinerColsP();
+    var pColsP = h('section', { class: 'panneau' }, h('h2', { text: 'Onglet Patients : statistiques annuelles' }),
+      h('p', { class: 'muted', text: 'Chaque colonne regroupe des catégories du registre et affiche, pour l’année choisie, le nombre d’entrées et leur durée cumulée. Rappel : une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C, alors que le juge compte une mesure d’isolement et une mesure de contention (colonne « Mesures (JLD) », toujours affichée).' }),
+      h('div', { class: 'table-wrap' }, h('table', {},
+        h('thead', {}, h('tr', {}, h('th', { text: 'Libellé de la colonne' }), ['A', 'B', 'C', 'D', 'E'].map(function (k) { return h('th', { class: 'centre', title: M.LIB_CATEGORIES[k], text: k }); }), h('th', { class: 'centre', text: 'Devrait rester à 0' }), h('th'))),
+        corpsCols)),
+      h('small', { class: 'muted', text: Object.keys(M.LIB_CATEGORIES).map(function (k) { return k + ' : ' + M.LIB_CATEGORIES[k]; }).join(' · ') }),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', onclick: function () { colsP.push({ libelle: '', categories: [], alerte: false }); dessinerColsP(); } }, '+ Ajouter une colonne'),
+        h('button', { class: 'btn', onclick: function () { colsP = M.CONFIG_DEFAUT.colonnesPatients.map(function (c) { return { libelle: c.libelle, categories: c.categories.slice(), alerte: c.alerte }; }); dessinerColsP(); } }, 'Colonnes par défaut')),
+      boutonEnregistrer(async function () {
+        var v = colsP.map(function (c) { return { libelle: String(c.libelle || '').trim(), categories: c.categories, alerte: !!c.alerte }; });
+        v.forEach(function (c, i) {
+          if (!c.libelle) throw new Error('Colonne ' + (i + 1) + ' : indiquez un libellé.');
+          if (!c.categories.length) throw new Error('Colonne « ' + c.libelle + ' » : cochez au moins une catégorie.');
+        });
+        await enregistrerConfig([['colonnesPatients', v]]);
+      }));
+
     // -- Registre
     var lignesC = [];
     Object.keys(cfg.compteursRegistre || {}).forEach(function (sv) { Object.keys(cfg.compteursRegistre[sv]).forEach(function (an) { lignesC.push(sv + ' ; ' + an + ' ; ' + cfg.compteursRegistre[sv][an]); }); });
@@ -1698,9 +1735,9 @@
       // Les comptes et les clés sont ceux des données réelles : ils ne se gèrent pas depuis le jeu de formation.
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
-      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pPauses, pMasques, pDocs, infos);
+      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pPauses, pMasques, pDocs, pColsP, infos);
     }
-    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pPauses, pMasques, pDocs, pImport, demo, infos);
+    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pPauses, pMasques, pDocs, pColsP, pImport, demo, infos);
   }
 
   function casesRoles(actuels) {

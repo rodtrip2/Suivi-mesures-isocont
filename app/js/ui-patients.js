@@ -4,6 +4,17 @@
   'use strict';
   var SIC = self.SIC, U = SIC.ui, M = SIC.model, h = U.h;
   var recherche = '';
+  var annee = new Date().getFullYear();
+
+  function servicesAffiches() {
+    return U.App.service === '*' ? U.services().map(function (x) { return x.code; }) : [U.App.service];
+  }
+
+  function celluleAnnuelle(c, x) {
+    if (!x || !x.n) return h('td', { class: 'col-annuelle muted', text: '0' });
+    var nb = c.alerte ? h('span', { class: 'badge bad', title: 'Cette colonne devrait rester à 0.', text: String(x.n) }) : h('b', { text: String(x.n) });
+    return h('td', { class: 'col-annuelle' }, nb, h('br'), h('small', { class: 'nowrap', text: U.duree(x.heures) + (x.enCours ? ', dont ' + x.enCours + ' en cours' : '') }));
+  }
 
   function patientsVisibles() {
     var etat = U.st(), miens = U.App.session.mesServices();
@@ -28,10 +39,14 @@
       .sort(function (a, b) { return b.enCours - a.enCours || ({ rouge: 0, jaune: 1, vert: 2 }[a.c.niveau] - { rouge: 0, jaune: 1, vert: 2 }[b.c.niveau]) || (a.p.nom || '').localeCompare(b.p.nom || ''); });
 
     var niveaux = { rouge: 'bad', jaune: 'warn', vert: 'ok' };
+    var stats = M.statistiquesPatients(etat, servicesAffiches(), annee, maintenant);
+    var champAn = h('input', { type: 'number', min: 2000, max: 2100, value: annee, class: 'champ-court', 'aria-label': 'Année des statistiques', onchange: function () { annee = +champAn.value || annee; U.rendreContenu(); } });
     return h('div', {},
-      h('div', { class: 'barre' }, h('h1', { text: 'Patients' }), h('div', { class: 'espace' }), champ),
+      h('div', { class: 'barre' }, h('h1', { text: 'Patients' }), h('div', { class: 'espace' }), h('label', { class: 'en-ligne' }, 'Statistiques de l’année', champAn), champ),
       liste.length ? h('div', { class: 'table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['Patient', 'Service', "Mode d'hospitalisation", 'Isolement 48 h / 15 j', 'Contention 48 h / 15 j', 'Vigilance', 'Mesures', ''].map(function (t) { return h('th', { text: t }); }))),
+        h('thead', {}, h('tr', {}, ['Patient', 'Service', "Mode d'hospitalisation", 'Isolement 48 h / 15 j', 'Contention 48 h / 15 j', 'Vigilance', 'Mesures'].map(function (t) { return h('th', { text: t }); }),
+           stats.colonnes.map(function (c) { return h('th', { class: 'col-annuelle', title: 'Entrées du registre ' + annee + ' en catégorie ' + c.categories.join(', ') + ' : nombre et durée cumulée' }, c.libelle, h('br'), h('small', { text: annee + ' · ' + c.categories.join(', ') })); }),
+           h('th', { class: 'col-annuelle', title: 'Mesures débutées en ' + annee + ', comptées séparément comme le fait le juge' }, 'Mesures (JLD)', h('br'), h('small', { text: annee + ' · isolement / contention' })), h('th'))),
         h('tbody', {}, liste.map(function (x) {
           var p = x.p, mode = U.modeActuel(p), depuis = p.modes.length ? p.modes[p.modes.length - 1].date : null;
           return h('tr', { class: x.enCours ? 'en-cours' : '' },
@@ -43,10 +58,13 @@
             h('td', { class: 'nowrap', text: U.duree(x.c.cont48) + ' / ' + U.duree(x.c.cont15) }),
             h('td', {}, h('span', { class: 'badge ' + niveaux[x.c.niveau], title: 'Rouge : isolement ≥ 48 h ou contention ≥ 24 h sur 15 jours. Jaune : isolement ≥ 24 h ou contention ≥ 12 h.', text: x.c.niveau })),
             h('td', { text: x.enCours ? x.enCours + ' en cours / ' + x.total : String(x.total) }),
+            stats.colonnes.map(function (c, i) { var s = stats.parPatient[p.id]; return celluleAnnuelle(c, s && s.colonnes[i]); }),
+            (function () { var s = stats.parPatient[p.id]; return h('td', { class: 'nowrap col-annuelle' }, s ? s.isolements + ' / ' + s.contentions : '0 / 0'); })(),
             h('td', { class: 'actions-ligne' },
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleMode(p); } }, 'Mode') : null, ' ',
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleFiche(p); } }, 'Fiche') : null));
         })))) : h('div', { class: 'panneau vide', text: 'Aucun patient.' }),
+      h('p', { class: 'muted' }, h('small', { text: 'Colonnes de l’année : entrées du registre (une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C), comptées l’année de leur début, avec leur durée cumulée ; la dernière colonne compte les mesures comme le juge, l’isolement et la contention séparément. Colonnes paramétrables par l’administrateur.' })),
       h('p', { class: 'muted' }, h('small', { text: 'Cumuls glissants calculés à l’instant, périodes qui se chevauchent comptées une seule fois, remis à zéro après une mainlevée du JLD. Indicateur de charge, non clinique.' })));
   };
 
