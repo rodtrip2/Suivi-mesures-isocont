@@ -289,14 +289,41 @@
       if (!sv || !an || !isFinite(dernier)) return;
       compteurs.push({ service: sv, annee: an, dernier: dernier, mesuresNumerotees: numeros[sv + '|' + an] || 0 });
     });
-    var prep = { evenements: evts, config: config, rapport: rapport, attendus: attendus, compteurs: compteurs, servicesACreer: servicesACreer, etatAvant: etat, maintenant: maintenant };
-    var sim = simuler(prep, {});
+    var anneesNumerotees = Object.keys(numeros).map(function (k) { var x = k.split('|'); return { service: x[0], annee: +x[1], mesures: numeros[k] }; });
+    var prep = { evenements: evts, config: config, rapport: rapport, attendus: attendus, compteurs: compteurs, servicesACreer: servicesACreer, etatAvant: etat, maintenant: maintenant, anneesNumerotees: anneesNumerotees };
+    var sim = simuler(prep, {}, {});
     compteurs.forEach(function (c) {
       c.entreesNumerotees = M.registre(sim, c.service, c.annee, maintenant).filter(function (e) { return e.fin !== null && (sim.mesures[e.mesureId] || {}).numeroOrigine; }).length;
       c.propose = Math.max(0, c.dernier - c.entreesNumerotees);
       c.existantes = M.listeMesures(etat).some(function (m) { return m.service === c.service && new Date(m.debut).getFullYear() === c.annee; });
     });
     return prep;
+  }
+
+  /**
+   * Années dont la numérotation du classeur est conservée, selon le choix fait à l'import :
+   * 'conserver' : toutes les années importées ; 'annee' : toutes sauf l'année en cours (recalculée) ;
+   * 'tout' : aucune (tout est recalculé selon les règles de l'outil). Retourne { service: { annee: true } }.
+   */
+  function figeSelon(prep, mode, anneeCourante) {
+    var r = {};
+    if (mode === 'tout') return r;
+    prep.anneesNumerotees.forEach(function (x) {
+      if (mode === 'annee' && x.annee >= anneeCourante) return;
+      r[x.service] = r[x.service] || {}; r[x.service][x.annee] = true;
+    });
+    return r;
+  }
+
+  /** Années figées choisies, fusionnées avec le paramétrage existant (les années recalculées en sont retirées). */
+  function fusionFige(etat, prep, fige) {
+    var r = JSON.parse(JSON.stringify((etat.config && etat.config.registreFige) || {}));
+    prep.anneesNumerotees.forEach(function (x) {
+      if (fige[x.service] && fige[x.service][x.annee]) { r[x.service] = r[x.service] || {}; r[x.service][x.annee] = true; }
+      else if (r[x.service]) delete r[x.service][x.annee];
+    });
+    Object.keys(r).forEach(function (sv) { if (!Object.keys(r[sv]).length) delete r[sv]; });
+    return r;
   }
 
   /** Compteurs choisis, fusionnés avec ceux déjà paramétrés : { service: { annee: n } }. */
@@ -310,13 +337,14 @@
    * État obtenu si l'import était enregistré (paramétrage actuel + paramétrage du classeur + services créés
    * + compteurs choisis + mesures importées). Les mesures déjà présentes dans l'outil n'y figurent pas.
    */
-  function simuler(prep, compteurs) {
+  function simuler(prep, compteurs, fige) {
     var etat = prep.etatAvant, n = 0, evts = [];
     function evt(type, data) { n++; evts.push({ id: 'sim' + String(n).padStart(6, '0'), at: new Date(Date.UTC(2000, 0, 1) + n * 1000).toISOString(), by: 'import', type: type, data: data }); }
     Object.keys(etat.config).forEach(function (k) { evt('CONFIG', { cle: k, valeur: etat.config[k] }); });
     prep.config.forEach(function (c) { evt('CONFIG', { cle: c.cle, valeur: c.valeur }); });
     if (prep.servicesACreer.length) evt('CONFIG', { cle: 'services', valeur: (etat.config.services || []).concat(prep.servicesACreer) });
     evt('CONFIG', { cle: 'compteursRegistre', valeur: fusionCompteurs(etat, compteurs) });
+    evt('CONFIG', { cle: 'registreFige', valeur: fusionFige(etat, prep, fige || {}) });
     evt('LOT', { evenements: prep.evenements });
     return M.reduire(evts);
   }
@@ -325,8 +353,8 @@
    * Compare les numéros du registre du classeur (« A11 ») à ceux que l'outil attribue après import.
    * Retourne { verifiees, ecarts: [{ ref, classeur, outil, motif }] }.
    */
-  function controleNumeros(prep, compteurs) {
-    var sim = simuler(prep, compteurs), parMesure = {}, vus = {};
+  function controleNumeros(prep, compteurs, fige) {
+    var sim = simuler(prep, compteurs, fige), parMesure = {}, vus = {};
     M.listeMesures(sim).forEach(function (m) {
       if (!m.numeroOrigine) return;
       var an = new Date(m.debut).getFullYear(), cle = m.service + '|' + an;
@@ -370,5 +398,5 @@
     return ecarts;
   }
 
-  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, norm: norm };
+  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, figeSelon: figeSelon, fusionFige: fusionFige, norm: norm };
 });

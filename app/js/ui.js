@@ -686,6 +686,7 @@
       h('div', { class: 'seulement-impression' }, h('h2', { text: (etablissement() ? etablissement() + ' — ' : '') + 'Registre des mesures d’isolement et de contention — ' + libService(svCode) + ' — ' + anneeRegistre }), h('p', { text: 'Article L. 3222-5-1 du code de la santé publique. Édité le ' + date(Date.now()) + '.' })),
       svCode ? h('p', { class: 'muted', text: libService(svCode) + ' — registre prévu par l’article L. 3222-5-1 du CSP, à présenter à la commission départementale des soins psychiatriques, au Contrôleur général des lieux de privation de liberté et aux parlementaires. Le patient y est désigné par son IPP. Pour toute autre demande (CADA), utilisez la version pour communication.' + (App.service === '*' ? ' Choisissez un service en haut de page pour changer de service.' : '') }) : null,
       notePauses ? h('p', { class: 'note-registre', text: notePauses }) : null,
+      entrees.some(function (e) { return e.fige; }) ? h('p', { class: 'note-registre', text: 'Les entrées marquées « n° du classeur » sont des mesures importées qui gardent la catégorie et le numéro du classeur Excel ; la numérotation de l’outil reprend à leur suite.' }) : null,
       h('div', { class: 'indicateurs' }, Object.keys(synthese).map(function (k) {
         return h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: synthese[k] }), h('div', { class: 'libelle', text: k + ' — ' + LIB_CAT[k] }));
       })),
@@ -693,7 +694,7 @@
         h('thead', {}, h('tr', {}, ['N°', 'IPP', 'Âge', 'Début', 'Fin', libDuree].concat(colPauses ? ['Levées temporaires'] : [], ["Mode d'hosp.", 'Lieu', 'Psychiatre', 'Professionnels chargés de la surveillance']).map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, entrees.map(function (e) {
           return h('tr', { class: e.fin ? '' : 'en-cours' },
-            h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' })),
+            h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' }), e.fige ? h('div', {}, h('small', { class: 'badge', title: 'Mesure importée : catégorie et numéro du classeur conservés', text: 'n° du classeur' })) : null),
             h('td', { text: e.ipp || '—' }),
             h('td', { class: 'nowrap', text: e.age == null ? '—' : e.age + ' ans' }),
             h('td', { class: 'nowrap', text: date(e.debut) }),
@@ -714,7 +715,7 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', colonnesPatients: 'Statistiques annuelles de l’onglet Patients'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du registre du classeur importé', registreFige: 'Années gardant la numérotation du classeur'
   };
   var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', type: 'type de mesure' };
 
@@ -776,6 +777,7 @@
       case 'services': return (v || []).map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ');
       case 'lieuxCSI': return Object.keys(v || {}).map(function (k) { return k + ' : ' + (v[k] || []).join(', '); }).join(' ; ');
       case 'pauses': return resumePauses(v);
+      case 'registreFige': return Object.keys(v || {}).map(function (k) { return libService(k) + ' : ' + Object.keys(v[k]).join(', '); }).join(' ; ') || 'aucune année (tout est recalculé)';
       case 'colonnesPatients': return (v || []).map(function (c) { return c.libelle + ' (' + (c.categories || []).join(', ') + ')'; }).join(', ');
       case 'decompte': return Object.keys(v || {}).map(function (k) { return k === '*' ? 'établissement' : libService(k); }).join(', ') || 'aucun masque';
       case 'imagesDecompte': return Object.keys(v || {}).map(function (k) { return v[k].nom; }).join(', ') || 'aucune image';
@@ -1752,7 +1754,51 @@
         var comp = {};
         lignesDe(tComp).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length !== 3 || !/^\d{4}$/.test(x[1]) || !/^\d+$/.test(x[2])) throw new Error('Ligne mal formée : ' + l); comp[x[0]] = comp[x[0]] || {}; comp[x[0]][x[1]] = +x[2]; });
         await enregistrerConfig([['compteursRegistre', comp]]);
-      }));
+      }),
+      blocNumerotationImportee());
+
+    /** Années contenant des mesures importées déjà numérotées dans le classeur : numérotation conservée ou recalculée. */
+    function blocNumerotationImportee() {
+      var groupes = {};
+      M.listeMesures(st()).forEach(function (m) {
+        if (!m.numeroOrigine) return;
+        var an = new Date(m.debut).getFullYear(), k = m.service + '|' + an;
+        groupes[k] = groupes[k] || { service: m.service, annee: an, n: 0 }; groupes[k].n++;
+      });
+      var liste = Object.keys(groupes).sort().map(function (k) { return groupes[k]; });
+      if (!liste.length) return null;
+      var fige = cfg.registreFige || {}, anneeCourante = new Date().getFullYear();
+      async function basculer(g, figer) {
+        var passee = g.annee < anneeCourante;
+        var msg = figer ? 'Revenir à la numérotation du classeur pour ' + libService(g.service) + ' ' + g.annee + ' ? Les numéros attribués par l’outil à ces mesures seront remplacés par ceux du classeur.'
+          : 'Recalculer selon les règles de l’outil les entrées de ' + libService(g.service) + ' ' + g.annee + ' ?' + (passee ? '\n\nATTENTION : année passée. Les numéros, les catégories et le nombre d’entrées du registre peuvent changer, et avec eux les statistiques et rapports déjà produits pour cette année.' : '');
+        var cpt = M.compteurPour(st(), g.service, g.annee, figer, Date.now());
+        if (cpt != null) msg += '\n\nLe compteur du registre de cette année passera à ' + cpt + (figer ? ' (dernier numéro du classeur).' : ' (dernier numéro du classeur moins les entrées que l’outil numérotera lui-même).');
+        if (!confirm(msg)) return;
+        var v = JSON.parse(JSON.stringify(fige));
+        if (figer) { v[g.service] = v[g.service] || {}; v[g.service][g.annee] = true; }
+        else if (v[g.service]) { delete v[g.service][g.annee]; if (!Object.keys(v[g.service]).length) delete v[g.service]; }
+        await App.session.enregistrer('CONFIG', { cle: 'registreFige', valeur: v });
+        if (cpt != null) {
+          var comp = JSON.parse(JSON.stringify(cfg.compteursRegistre || {}));
+          comp[g.service] = comp[g.service] || {}; comp[g.service][g.annee] = cpt;
+          await App.session.enregistrer('CONFIG', { cle: 'compteursRegistre', valeur: comp });
+        }
+        toast(figer ? 'Numérotation du classeur rétablie.' : 'Entrées recalculées selon les règles de l’outil.');
+      }
+      return h('div', { class: 'pile' },
+        h('h3', { text: 'Mesures importées déjà numérotées dans le classeur' }),
+        h('p', { class: 'muted' }, h('small', { text: '« Classeur » : chaque mesure importée garde la catégorie et le numéro du classeur (une entrée par mesure), et l’outil numérote les mesures suivantes à la suite. « Outil » : les entrées sont recalculées selon les règles de l’outil (catégories A à E, une contention en CSI et son isolement formant une entrée C). Recalculer une année passée peut modifier les statistiques déjà produites.' })),
+        h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Service', 'Année', 'Mesures importées numérotées', 'Numérotation', ''].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', {}, liste.map(function (g) {
+            var estFige = !!(fige[g.service] && fige[g.service][g.annee]);
+            return h('tr', {},
+              h('td', { text: libService(g.service) }), h('td', { text: String(g.annee) }), h('td', { text: String(g.n) }),
+              h('td', {}, h('span', { class: 'badge ' + (estFige ? '' : 'ok'), text: estFige ? 'Classeur (conservée)' : 'Outil (recalculée)' })),
+              h('td', { class: 'actions-ligne' }, h('button', { class: 'btn petit' + (!estFige && false ? '' : ''), onclick: function () { basculer(g, !estFige); } }, estFige ? 'Recalculer selon les règles de l’outil' : 'Revenir à la numérotation du classeur')));
+          })))));
+    }
 
     var pImport = SIC.ui.actions.importer ? h('section', { class: 'panneau' }, h('h2', { text: 'Reprise des données du classeur Excel (V1.3)' }),
       h('p', { class: 'muted', text: 'Lit le classeur directement dans ce navigateur (rien n’est envoyé), affiche un rapport, puis enregistre les mesures, patients, cycles JLD, tiers et professionnels. Un import relancé ne crée pas de doublon.' }),

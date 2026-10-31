@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.18.0 — 31 octobre 2026
+
+- Import du classeur V1.3 — **traitement des mesures déjà numérotées** : *laisser tel quel* (par défaut : chaque mesure importée garde la catégorie et le numéro du classeur, une entrée par mesure ; l'outil numérote les mesures suivantes à la suite du plus grand numéro), *recalculer l'année en cours*, ou *recalculer toutes les années*, avec un avertissement clair sur le risque de modifier les statistiques antérieures. Le compteur proposé et le contrôle de la numérotation suivent le choix.
+- *Administration → Registre* : liste des années contenant des mesures importées numérotées, avec leur numérotation (classeur ou outil) et un bouton pour basculer année par année ; le compteur du registre est recalculé en conséquence (dernier numéro du classeur mémorisé à l'import). Avertissement renforcé pour une année passée.
+- Registre : les entrées gardant la numérotation du classeur portent la mention « n° du classeur », expliquée sous le tableau.
+
 ## 1.17.0 — 31 octobre 2026
 
 - Import du classeur V1.3 — **services absents de l'outil** : détectés dans tout le classeur (paramétrage, patients, chambres, postes, masques, compteurs, professionnels), avec pour chacun le choix de le **créer** (libellé modifiable), de le **rattacher** à un service existant (toutes ses données y sont reprises) ou de l'ignorer s'il ne porte aucune donnée.

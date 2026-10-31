@@ -10,7 +10,10 @@
   U.actions.importer = function () {
     var fichier = h('input', { type: 'file', accept: '.xlsx,.xlsm' });
     var zone = h('div', { class: 'pile' });
-    var prep = null, cases = [], classeur = null, choixServices = {}, champsCompteurs = [], dernierControle = null;
+    var prep = null, cases = [], classeur = null, choixServices = {}, champsCompteurs = [], dernierControle = null, modeNum = 'conserver';
+    var anneeCourante = new Date().getFullYear();
+    function figeChoisi() { return prep ? I().figeSelon(prep, modeNum, anneeCourante) : {}; }
+    function estFigeLigne(c) { var f = figeChoisi(); return !!(f[c.service] && f[c.service][c.annee]); }
     var svDefaut = h('select', {}, h('option', { value: '', text: 'Service actif du classeur (recommandé)' }), U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle }); }));
 
     async function lire() {
@@ -73,25 +76,45 @@
 
       // -- Compteurs du registre et contrôle de la numérotation
       var controle = h('div', { class: 'pile' });
+      if (prep.anneesNumerotees.length) {
+        var annees = prep.anneesNumerotees.map(function (x) { return U.libService(x.service) + ' ' + x.annee + ' (' + x.mesures + ' mesure(s) numérotée(s))'; }).join(', ');
+        var radio = function (v, titre, texte) {
+          var r = h('input', { type: 'radio', name: 'mode-numerotation', value: v, checked: modeNum === v, onchange: function () { modeNum = v; majCompteurs(); majControle(); avertTout.hidden = v !== 'tout'; } });
+          return h('label', { class: 'case' }, r, h('span', {}, h('b', { text: titre }), ' — ', texte));
+        };
+        var avertTout = h('div', { class: 'alerte', hidden: modeNum !== 'tout', text: 'Attention : toutes les années importées seront renumérotées selon les règles de l’outil. Les numéros, les catégories et le nombre d’entrées du registre des années passées peuvent changer, et avec eux les statistiques et rapports déjà produits (rapports annuels, réponses aux instances). Ne choisissez cette option qu’après accord de la direction.' });
+        zone.appendChild(h('h3', { text: 'Numérotation du registre : mesures déjà numérotées dans le classeur' }));
+        zone.appendChild(h('p', { class: 'muted' }, h('small', { text: 'Années concernées : ' + annees + '. En cas d’écart entre les mesures et les entrées du registre du classeur, choisissez :' })));
+        zone.appendChild(h('div', { class: 'choix-portee' },
+          radio('conserver', 'Laisser tel quel', 'les mesures importées gardent la catégorie et le numéro du classeur (une entrée par mesure) ; les règles de l’outil s’appliquent aux mesures suivantes, numérotées à la suite.'),
+          radio('annee', 'Recalculer l’année en cours (' + anneeCourante + ')', 'les années antérieures gardent la numérotation du classeur ; les entrées de ' + anneeCourante + ' sont recalculées selon les règles de l’outil.'),
+          radio('tout', 'Recalculer toutes les années', 'toutes les entrées importées sont recalculées selon les règles de l’outil.'),
+          avertTout,
+          h('small', { class: 'muted', text: 'Ce choix reste modifiable ensuite, année par année, dans Administration → Registre.' })));
+      }
+      function majCompteurs() {
+        champsCompteurs.forEach(function (x) { x.champ.value = estFigeLigne(x.c) ? x.c.dernier : x.c.propose; x.note.textContent = estFigeLigne(x.c) ? 'numérotation du classeur conservée : l’outil reprendra après ' + x.c.dernier : ''; });
+      }
       if (prep.compteurs.length) {
         zone.appendChild(h('h3', { text: 'Numérotation du registre' }));
         zone.appendChild(h('p', { class: 'muted' }, h('small', { text: 'Compteur : dernier numéro utilisé avant l’outil. L’outil numérote ensuite lui-même les entrées des mesures importées, dans l’ordre de leur fin. Proposition : dernier numéro du classeur moins les entrées numérotées que l’outil attribuera aux mesures importées (une mesure peut former plusieurs entrées : A, C, A). Modifiez-la si besoin : le contrôle ci-dessous se met à jour.' })));
         zone.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ['Service', 'Année', 'Dernier n° du classeur', 'Mesures numérotées importées', 'Entrées numérotées par l’outil', 'Compteur'].map(function (t) { return h('th', { text: t }); }))),
           h('tbody', {}, prep.compteurs.map(function (c) {
-            var champ = h('input', { type: 'number', min: 0, step: 1, value: c.propose, class: 'champ-court', 'aria-label': 'Compteur ' + c.service + ' ' + c.annee });
+            var champ = h('input', { type: 'number', min: 0, step: 1, value: estFigeLigne(c) ? c.dernier : c.propose, class: 'champ-court', 'aria-label': 'Compteur ' + c.service + ' ' + c.annee });
+            var note = h('small', { class: 'muted', text: estFigeLigne(c) ? 'numérotation du classeur conservée : l’outil reprendra après ' + c.dernier : '' });
             champ.addEventListener('input', majControle);
-            champsCompteurs.push({ c: c, champ: champ });
+            champsCompteurs.push({ c: c, champ: champ, note: note });
             return h('tr', {},
               h('td', { text: U.libService(c.service) }), h('td', { text: String(c.annee) }), h('td', { text: String(c.dernier) }),
               h('td', { text: String(c.mesuresNumerotees) }), h('td', { text: String(c.entreesNumerotees) }),
-              h('td', {}, champ, c.existantes ? h('div', {}, h('small', { class: 'alerte-champ', text: 'L’outil contient déjà des mesures de cette année pour ce service : la numérotation importée s’intercalera avec elles.' })) : null));
+              h('td', {}, champ, h('div', {}, note), c.existantes ? h('div', {}, h('small', { class: 'alerte-champ', text: 'L’outil contient déjà des mesures de cette année pour ce service : la numérotation importée s’intercalera avec elles.' })) : null));
           })))));
         zone.appendChild(controle);
       }
       function majControle() {
         U.vider(controle);
-        dernierControle = I().controleNumeros(prep, compteursChoisis());
+        dernierControle = I().controleNumeros(prep, compteursChoisis(), figeChoisi());
         var c = dernierControle;
         if (!c.verifiees && !c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Aucune mesure numérotée dans le classeur : pas de contrôle possible.' })); return; }
         if (!c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Contrôle de la numérotation : les ' + c.verifiees + ' numéro(s) du classeur sont retrouvés à l’identique.' })); return; }
@@ -125,6 +148,16 @@
         var choisis = cases.filter(function (x) { return x.cb.checked; }).map(function (x) { return x.c; });
         for (var i = 0; i < choisis.length; i++) await s.enregistrer('CONFIG', { cle: choisis[i].cle, valeur: choisis[i].valeur });
         if (champsCompteurs.length) await s.enregistrer('CONFIG', { cle: 'compteursRegistre', valeur: I().fusionCompteurs(U.st(), compteursChoisis()) });
+        if (prep.anneesNumerotees.length) {
+          if (modeNum === 'tout' && !confirm('Recalculer toutes les années : les numéros et les statistiques des années passées peuvent changer. Confirmer ?')) return false;
+          var fige = I().fusionFige(U.st(), prep, figeChoisi());
+          if (JSON.stringify(fige) !== JSON.stringify(U.config().registreFige || {})) await s.enregistrer('CONFIG', { cle: 'registreFige', valeur: fige });
+        }
+        if (prep.compteurs.length) {
+          var derniers = JSON.parse(JSON.stringify(U.config().derniersClasseur || {}));
+          prep.compteurs.forEach(function (c) { derniers[c.service] = derniers[c.service] || {}; derniers[c.service][c.annee] = c.dernier; });
+          await s.enregistrer('CONFIG', { cle: 'derniersClasseur', valeur: derniers });
+        }
         if (prep.evenements.length) await s.enregistrerLot(prep.evenements, { libelle: 'Import du classeur ' + fichier.files[0].name });
         var ecarts = I().comparer(s.etat, prep.attendus), controle = dernierControle, crees = prep.servicesACreer.slice();
         setTimeout(function () { compteRendu(prep.rapport, ecarts, controle, crees); }, 0);

@@ -74,6 +74,8 @@
     parametres: {},            // surcharges des PARAMETRES_DEFAUT par type
     delaiModeHospiHeures: 12,  // registre : bascule SL -> contrainte retenue si < 12 h
     compteursRegistre: {},     // { U1: { 2026: 37 } } : dernier numéro déjà utilisé (registre papier antérieur)
+    registreFige: {},          // { U1: { 2025: true } } : années dont les mesures importées gardent la numérotation du classeur
+    derniersClasseur: {},      // { U1: { 2025: 37 } } : dernier numéro du registre du classeur importé (pour recalculer le compteur)
     decompte: {},              // masques du décompte JLD : { '*': masque de l'établissement, U1: masque du service } (voir masqueDecompte)
     inactiviteMinutes: 10,
     // Levées temporaires : retrancher les pauses des décomptes, reprise automatique à l'heure prévue, seuils (h).
@@ -538,11 +540,41 @@
   }
 
   /** Entrées brutes (catégorisées) d'un service, toutes années. */
+  /** Vrai si la mesure (importée, numérotée dans le classeur) garde la numérotation du classeur pour son année. */
+  function estFigee(st, m) {
+    if (!m.numeroOrigine) return false;
+    var f = (st.config.registreFige || {})[m.service] || {};
+    return !!f[new Date(m.debut).getFullYear()];
+  }
+
+  /**
+   * Compteur cohérent avec la numérotation choisie pour une année importée : le dernier numéro du classeur si la
+   * numérotation du classeur est conservée, sinon ce numéro diminué des entrées que l'outil numérotera lui-même
+   * à partir des mesures importées. null si le dernier numéro du classeur n'est pas connu.
+   */
+  function compteurPour(st, service, annee, figer, maintenant) {
+    var dernier = ((st.config.derniersClasseur || {})[service] || {})[annee];
+    if (dernier == null) return null;
+    if (figer) return +dernier;
+    var fige = JSON.parse(JSON.stringify(st.config.registreFige || {}));
+    if (fige[service]) delete fige[service][annee];
+    var tmp = Object.assign({}, st, { config: Object.assign({}, st.config, { registreFige: fige }) });
+    var n = registre(tmp, service, annee, maintenant).filter(function (e) { return e.fin !== null && (st.mesures[e.mesureId] || {}).numeroOrigine; }).length;
+    return Math.max(0, +dernier - n);
+  }
+
   function entreesRegistre(st, service, maintenant) {
     var ms = listeMesures(st).filter(function (m) { return m.service === service && typeof m.debut === 'number'; });
     var entrees = [];
     ms.forEach(function (m) {
       var fin = typeof m.fin === 'number' ? m.fin : null;
+      if (estFigee(st, m)) {
+        // Numérotation du classeur conservée : une entrée par mesure, catégorie et numéro du classeur.
+        var no = String(m.numeroOrigine).trim().toUpperCase(), mo = /^([A-E])\s*-?\s*(\d+)$/.exec(no);
+        var calc = m.type === 'Contention' ? (m.csi ? 'C' : (m.exception ? 'E' : 'D')) : (m.csi ? 'A' : 'B');
+        entrees.push({ cat: mo ? mo[1] : calc, mesure: m, debut: m.debut, fin: fin, fige: true, numero: mo ? mo[1] + mo[2] : no, rang: mo ? +mo[2] : 0 });
+        return;
+      }
       if (m.type === 'Contention') {
         entrees.push({ cat: m.csi ? 'C' : (m.exception ? 'E' : 'D'), mesure: m, debut: m.debut, fin: fin });
       } else if (!m.csi) {
@@ -605,11 +637,14 @@
       .sort(function (a, b) { return a.fin - b.fin || a.debut - b.debut || (a.mesure.id < b.mesure.id ? -1 : 1); });
     var enCours = entrees.filter(function (x) { return x.fin === null; }).sort(function (a, b) { return a.debut - b.debut; });
     var depart = +(((st.config.compteursRegistre || {})[service] || {})[annee] || 0);
-    return terminees.concat(enCours).map(function (x, i) {
+    // Numéros conservés du classeur : la numérotation de l'outil reprend après le plus élevé.
+    entrees.forEach(function (x) { if (x.fige && x.rang > depart) depart = x.rang; });
+    var rang = 0;
+    return terminees.concat(enCours).map(function (x) {
       var mode = modeRetenu(st, x.mesure);
       var finRef = x.fin === null ? maintenant : x.fin;
       return {
-        numero: x.fin === null ? '' : x.cat + (depart + i + 1),
+        numero: x.fige ? x.numero : x.fin === null ? '' : x.cat + (depart + (++rang)), fige: !!x.fige,
         categorie: x.cat, debut: x.debut, fin: x.fin,
         dureeHeures: rules.heuresEffectives({ exclusions: exclusionsRegistre(st, x, maintenant) }, x.debut, finRef),
         dureeReelleHeures: (finRef - x.debut) / H,
@@ -989,7 +1024,7 @@
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
-    registre: registre, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
+    registre: registre, estFigee: estFigee, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

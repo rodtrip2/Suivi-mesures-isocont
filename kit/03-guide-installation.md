@@ -82,7 +82,8 @@ Le mode formation ne demande aucune installation : le jeu de données fictives e
 Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur…*. Avant validation, l'écran d'import :
 - liste les **services du classeur absents de l'outil** : chacun peut être créé (libellé modifiable), rattaché à un service existant (toutes ses données y sont reprises) ou ignoré s'il ne porte aucune donnée ;
 - propose pour chaque service et chaque année le **compteur du registre** (dernier numéro utilisé avant l'outil), calculé sur les entrées que l'outil numérotera lui-même, et modifiable ;
-- **contrôle la numérotation** : il compare les numéros du classeur (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées).
+- **contrôle la numérotation** : il compare les numéros du classeur (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées) ;
+- demande comment traiter les mesures **déjà numérotées dans le classeur** : *laisser tel quel* (catégorie et numéro du classeur conservés, une entrée par mesure, l'outil numérote les mesures suivantes à la suite — choix par défaut), *recalculer l'année en cours*, ou *recalculer toutes les années* (avertissement : les statistiques des années passées peuvent changer). Ce choix reste modifiable année par année dans *Administration → Registre*, le compteur étant alors recalculé.
 
 Le rapport d'import liste aussi les lignes ignorées, les points à vérifier et les éventuels écarts d'échéances JLD. Pensez ensuite à affecter les services créés aux comptes concernés.
 

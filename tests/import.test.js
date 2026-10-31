@@ -101,3 +101,42 @@ test('Import : service absent rattaché à un service existant, ou créé sous u
   assert.deepEqual(prep.servicesACreer.map(s => s.code).sort(), ['UHP', 'UR']);
   assert.equal(prep.servicesACreer.find(s => s.code === 'UR').libelle, 'Urgences psychiatriques');
 });
+
+test('Import : numérotation du classeur conservée, recalculée pour l’année en cours, ou partout', async () => {
+  const c = await X.lire(fichier);
+  const maintenant = local(2026, 10, 6, 12);
+  const prep = I.preparer(c, M.reduire([]), { maintenant });
+  assert.deepEqual(prep.anneesNumerotees, [{ service: 'UHP', annee: 2026, mesures: 2 }]);
+  // Conserver : D12 reste D12 (une entrée par mesure, numéros du classeur) ; la suite reprend après 12
+  const fige = I.figeSelon(prep, 'conserver', 2026);
+  assert.deepEqual(fige, { UHP: { 2026: true } });
+  assert.deepEqual(I.controleNumeros(prep, { UHP: { 2026: 12 } }, fige), { verifiees: 2, ecarts: [] });
+  // Année en cours recalculée : 2026 n'est pas figée ; tout recalculer : rien n'est figé
+  assert.deepEqual(I.figeSelon(prep, 'annee', 2026), {});
+  assert.deepEqual(I.figeSelon(prep, 'annee', 2027), { UHP: { 2026: true } });
+  assert.deepEqual(I.figeSelon(prep, 'tout', 2027), {});
+  // Registre réel avec l'année figée : numéros du classeur, puis l'outil continue à 13
+  const ev = (id, cle, valeur) => ({ id, at: '2026-10-30T08:00:0' + id.slice(-1) + '.000Z', by: 'admin', type: 'CONFIG', data: { cle, valeur } });
+  const st = M.reduire([ev('K1', 'services', prep.servicesACreer), ev('K2', 'registreFige', fige), ev('K3', 'compteursRegistre', { UHP: { 2026: 12 } }),
+    { id: 'L1', at: '2026-10-30T10:00:00.000Z', by: 'admin', type: 'LOT', data: { evenements: prep.evenements } },
+    { id: 'L2', at: '2026-10-30T11:00:00.000Z', by: 'admin', type: 'LOT', data: { evenements: [
+      { type: 'MESURE_DEBUT', data: { mesureId: 'N1', patientId: prep.evenements.find(e => e.type === 'PATIENT').data.patientId, service: 'UHP', typeMesure: 'Isolement', debut: local(2026, 10, 3, 8), csi: true } },
+      { type: 'MESURE_FIN', data: { mesureId: 'N1', fin: local(2026, 10, 3, 12) } }] } }]);
+  const reg = M.registre(st, 'UHP', 2026, maintenant);
+  assert.deepEqual(reg.map(e => [e.numero, e.fige]), [['A11', true], ['D12', true], ['A13', false], ['', false]]);
+  // Sans figer : l'outil recalcule (E12 au lieu de D12)
+  const recalc = M.registre(M.reduire(st.journal.filter(e => e.id !== 'K2')), 'UHP', 2026, maintenant).map(e => e.numero);
+  assert.ok(!recalc.includes('D12') && recalc.some(n => /^E/.test(n)));
+});
+
+test('Import : compteur recalculé quand on change de numérotation après l’import', async () => {
+  const c = await X.lire(fichier);
+  const maintenant = local(2026, 10, 6, 12);
+  const prep = I.preparer(c, M.reduire([]), { maintenant });
+  const ev = (id, cle, valeur) => ({ id, at: '2026-10-30T08:00:0' + id.slice(-1) + '.000Z', by: 'admin', type: 'CONFIG', data: { cle, valeur } });
+  const st = M.reduire([ev('K1', 'services', prep.servicesACreer), ev('K2', 'registreFige', { UHP: { 2026: true } }), ev('K3', 'compteursRegistre', { UHP: { 2026: 12 } }),
+    ev('K4', 'derniersClasseur', { UHP: { 2026: 12 } }), { id: 'L1', at: '2026-10-30T10:00:00.000Z', by: 'admin', type: 'LOT', data: { evenements: prep.evenements } }]);
+  assert.equal(M.compteurPour(st, 'UHP', 2026, false, maintenant), 10);   // recalcul : 12 − 2 entrées numérotées par l'outil
+  assert.equal(M.compteurPour(st, 'UHP', 2026, true, maintenant), 12);
+  assert.equal(M.compteurPour(st, 'UHP', 2025, true, maintenant), null);
+});
