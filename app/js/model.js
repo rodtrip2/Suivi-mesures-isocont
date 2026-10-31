@@ -74,7 +74,7 @@
     parametres: {},            // surcharges des PARAMETRES_DEFAUT par type
     delaiModeHospiHeures: 12,  // registre : bascule SL -> contrainte retenue si < 12 h
     compteursRegistre: {},     // { U1: { 2026: 37 } } : dernier numéro déjà utilisé (registre papier antérieur)
-    decompte: {},              // { U1: { titreIsolement, titreContention, sousTitre, masquer: ['N','Cumul'] } }
+    decompte: {},              // masques du décompte JLD : { '*': masque de l'établissement, U1: masque du service } (voir masqueDecompte)
     inactiviteMinutes: 10,
     // Levées temporaires : retrancher les pauses des décomptes, reprise automatique à l'heure prévue, seuils (h).
     pauses: { retrancher: false, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
@@ -630,6 +630,41 @@
    * même type comptant dans les 15 jours glissants, puis la mesure découpée en
    * segments de 24 h (isolement) ou 12 h (contention), avec cumul progressif.
    */
+  // ------------------------------------------------ Masques du décompte JLD
+  var COLONNES_DECOMPTE = ['N', 'Debut', 'Fin', 'Duree', 'Cumul', 'Statut', 'Commentaire'];
+  var IDENTITE_DECOMPTE = ['patient', 'naissance', 'ipp', 'service', 'modeHospi', 'protection', 'mesure', 'lieu', 'psychiatre'];
+  var SECTIONS_DECOMPTE = ['periode', 'situation', 'total', 'cycle', 'jld', 'tiers', 'pauses', 'mentionLegale', 'editeur'];
+  var MASQUE_DEFAUT = {
+    titreIsolement: 'Cumul des mesures d’isolement', titreContention: 'Cumul des mesures de contention', sousTitre: '',
+    entete: '', destinataire: '', confidentiel: false,
+    identite: ['patient', 'naissance', 'ipp', 'mesure', 'lieu', 'psychiatre'],
+    colonnes: COLONNES_DECOMPTE.slice(),
+    sections: { periode: true, situation: true, total: true, cycle: true, jld: false, tiers: false, pauses: true, mentionLegale: true, editeur: true },
+    piedPage: '', signature: ''
+  };
+
+  /**
+   * Masque du décompte d'un service : masque par défaut, puis masque de l'établissement (`'*'`), puis
+   * masque du service. Les anciens réglages (`masquer` : colonnes masquées) restent compris.
+   */
+  function masqueDecompte(config, service) {
+    var r = cloner(MASQUE_DEFAUT), dec = (config && config.decompte) || {};
+    [dec['*'], service && service !== '*' ? dec[service] : null].forEach(function (x) {
+      if (!x) return;
+      Object.keys(x).forEach(function (k) {
+        if (k === 'masquer' || x[k] == null) return;
+        if (k === 'sections') Object.assign(r.sections, x.sections);
+        else if (k === 'titreIsolement' || k === 'titreContention') { if (x[k]) r[k] = x[k]; }
+        else r[k] = cloner(x[k]);
+      });
+      if (x.masquer && !x.colonnes) r.colonnes = COLONNES_DECOMPTE.filter(function (c) { return x.masquer.indexOf(c) < 0; });
+    });
+    r.colonnes = r.colonnes.filter(function (c) { return COLONNES_DECOMPTE.indexOf(c) >= 0; });
+    r.identite = r.identite.filter(function (c) { return IDENTITE_DECOMPTE.indexOf(c) >= 0; });
+    r.propre = !!(service && service !== '*' && dec[service]);
+    return r;
+  }
+
   function decompte(st, m, reference) {
     var toutes = mesuresCalcul(st, reference);
     m = toutes.filter(function (x) { return x.id === m.id; })[0] || m;
@@ -678,6 +713,7 @@
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
     registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
-    exclusions: exclusions, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures
+    exclusions: exclusions, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
+    COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, masqueDecompte: masqueDecompte
   };
 });

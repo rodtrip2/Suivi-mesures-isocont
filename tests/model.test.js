@@ -218,3 +218,28 @@ test('Option : pause non reprise retranchée jusqu’à la reprise prévue seule
   assert.equal(M.optionsPauses({ pauses: { refusHeures: 72 } }).refusHeures, 48);
   assert.equal(M.optionsPauses({ pauses: { alerteHeures: 30, refusHeures: 24 } }).alerteHeures, 24);
 });
+
+test('Masque du décompte JLD : défaut, établissement, service, anciens réglages', () => {
+  const d = M.masqueDecompte({}, 'U1');
+  assert.deepEqual(d.colonnes, M.COLONNES_DECOMPTE);
+  assert.equal(d.propre, false);
+  assert.equal(d.sections.total, true);
+  const config = { decompte: {
+    '*': { entete: 'CH (fictif)', identite: ['patient', 'ipp'], sections: { jld: true } },
+    U1: { titreIsolement: 'Isolement — U1', colonnes: ['Cumul', 'Debut', 'Inconnue'], sections: { cycle: false } },
+    U2: { titreIsolement: '', masquer: ['N', 'Commentaire'] }        // ancien format (import V1.3)
+  } };
+  const u1 = M.masqueDecompte(config, 'U1');
+  assert.equal(u1.propre, true);
+  assert.equal(u1.titreIsolement, 'Isolement — U1');
+  assert.equal(u1.entete, 'CH (fictif)');                              // hérité de l'établissement
+  assert.deepEqual(u1.identite, ['patient', 'ipp']);
+  assert.deepEqual(u1.colonnes, ['Cumul', 'Debut']);                   // ordre conservé, colonne inconnue écartée
+  assert.equal(u1.sections.jld, true);
+  assert.equal(u1.sections.cycle, false);
+  assert.equal(u1.sections.total, true);
+  const u2 = M.masqueDecompte(config, 'U2');
+  assert.equal(u2.titreIsolement, M.MASQUE_DEFAUT.titreIsolement);     // titre vide : titre par défaut
+  assert.deepEqual(u2.colonnes, ['Debut', 'Fin', 'Duree', 'Cumul', 'Statut']);
+  assert.equal(M.masqueDecompte(config, 'U3').propre, false);
+});

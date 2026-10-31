@@ -53,7 +53,7 @@ IDE et AS disposent des mêmes droits.
 Onglet *JLD* : les mesures en cours, triées par urgence.
 - *Saisir un envoi* : information du JLD, saisine, ou décision reçue (maintien ou mainlevée), avec la date et l'heure réelles.
 - Une décision de **maintien** ouvre automatiquement le cycle suivant ; pensez au tiers, qui doit être informé de ce renouvellement.
-- *Décompte* (onglet *Mesures*) : document à joindre à la communication. Choisissez « Enregistrer au format PDF » comme imprimante pour obtenir un PDF.
+- *Décompte* (onglet *Mesures*) : document à joindre à la communication, mis en forme selon le masque du service. *Imprimer / PDF* : choisissez « Enregistrer au format PDF » comme imprimante. *Exporter (CSV)* : mêmes données, pour un tableur ; le fichier est nominatif, enregistrez-le uniquement sur le réseau de l'établissement.
 
 ## Cadre de santé
 
@@ -76,6 +76,8 @@ Le mode formation ouvre un jeu de données **entièrement fictif**, rangé à pa
 L'accès au mode formation est ouvert à tous les comptes ; l'administrateur peut le retirer à un agent. Votre mot de passe est le même dans les deux modes : un changement fait en formation vaut aussi pour les données réelles.
 
 ## Administrateur
+
+**Masques du décompte JLD** (*Administration → Masques du décompte JLD*) : choisissez *Masque de l'établissement* ou un service, puis réglez l'en-tête, le destinataire, le bandeau confidentiel, les données d'identité, les colonnes (cochées et ordonnées avec ↑ ↓), les sections, le pied de page et le bloc signature. L'aperçu se met à jour sur un patient fictif. Un service sans masque propre utilise celui de l'établissement ; *Revenir au masque de l'établissement* supprime le masque propre.
 
 Réglage des **pauses** (*Administration → Pauses*) : retrancher ou non les pauses des décomptes, reprise automatique à l'heure prévue, seuils d'alerte et de refus. Retrancher les pauses reporte les échéances JLD de toutes les mesures concernées, y compris passées : décision à prendre avec la direction.
 

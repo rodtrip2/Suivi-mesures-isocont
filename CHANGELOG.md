@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.6.0 — 31 octobre 2026
+
+- **Masques du décompte JLD** (*Administration*) : un masque pour l'établissement, et un masque propre à chaque service si besoin (hérite du masque de l'établissement).
+- Réglages : titres, sous-titre, en-tête, destinataire, bandeau « document confidentiel », données d'identité exportées (patient, naissance, IPP, service, mode d'hospitalisation, protection juridique, mesure, lieu, psychiatre), colonnes du tableau (choix et ordre), sections (période, situation, totaux, cycle et échéances, envois JLD effectués, information du tiers, pauses, mention légale, auteur), pied de page, bloc signature.
+- Aperçu en direct sur un patient fictif ; alerte si ni le nom ni l'IPP ne sont exportés.
+- **Export CSV** du décompte selon le masque, en plus de l'impression et du PDF.
+- Les anciens réglages (titres, colonnes masquées, import V1.3) restent repris.
+
 ## 1.5.0 — 31 octobre 2026
 
 - **Option « Retrancher les pauses des décomptes »** (*Administration → Pauses*) : durées, cumuls sur 15 jours, échéances JLD (reportées de la durée des pauses), décompte JLD (pause retranchée indiquée par ligne), registre et statistiques. Une pause sans reprise saisie n'est retranchée que jusqu'à son heure de reprise prévue. Désactivée par défaut.

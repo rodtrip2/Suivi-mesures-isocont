@@ -249,3 +249,21 @@ tr.en-pause td:first-child { box-shadow: inset 3px 0 0 var(--ink-2); }
 .en-ligne { display: flex; align-items: center; gap: 6px; }
 .en-ligne input[type=number] { width: 5em; }
 .raccourcis { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+/* ---------- Masques du décompte JLD */
+.editeur-masque { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.editeur-masque .apercu-document { max-height: 80vh; position: sticky; top: 8px; }
+@media (max-width: 1000px) { .editeur-masque { grid-template-columns: 1fr; } }
+.editeur-masque fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; }
+.editeur-masque legend { font-weight: 600; padding: 0 4px; }
+.liste-colonnes { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+.liste-colonnes li { display: flex; align-items: center; gap: 6px; }
+.liste-colonnes li .case { flex: 1; }
+.document-jld .doc-haut { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 12px; }
+.document-jld .doc-entete { font-size: 11.5px; color: #333; }
+.document-jld .doc-destinataire { margin-left: auto; text-align: left; min-width: 40%; }
+.document-jld .doc-confidentiel { border: 1px solid #111; text-align: center; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: 11px; padding: 3px; margin-bottom: 10px; }
+.document-jld .doc-section ul { margin: 2px 0 8px; padding-left: 20px; }
+.document-jld .doc-section p { margin: 6px 0 2px; }
+.document-jld .doc-pied { margin-top: 10px; }
+.document-jld .doc-signature { margin: 18px 0 0 auto; width: 45%; min-height: 70px; }

@@ -1445,21 +1445,18 @@
         await enregistrerConfig([['pauses', { retrancher: cbRetr.checked, repriseAuto: cbAuto.checked, alerteHeures: a, refusHeures: r }]]);
       }));
 
-    // -- Registre et décompte
+    var pMasques = SIC.ui.actions.panneauMasquesDecompte ? SIC.ui.actions.panneauMasquesDecompte() : null;
+
+    // -- Registre
     var lignesC = [];
     Object.keys(cfg.compteursRegistre || {}).forEach(function (sv) { Object.keys(cfg.compteursRegistre[sv]).forEach(function (an) { lignesC.push(sv + ' ; ' + an + ' ; ' + cfg.compteursRegistre[sv][an]); }); });
     var tComp = zoneTexte(lignesC.join('\n'), 3);
-    var lignesD = Object.keys(cfg.decompte || {}).map(function (sv) { var d = cfg.decompte[sv]; return [sv, d.titreIsolement || '', d.titreContention || '', d.sousTitre || '', (d.masquer || []).join(',')].join(' ; '); });
-    var tDec = zoneTexte(lignesD.join('\n'), 3);
-    var pDocs = h('section', { class: 'panneau' }, h('h2', { text: 'Registre et décompte JLD' }),
+    var pDocs = h('section', { class: 'panneau' }, h('h2', { text: 'Registre anonymisé' }),
       h('label', {}, 'Dernier numéro utilisé dans le registre antérieur à l’outil (service ; année ; numéro)', tComp),
-      h('label', {}, 'Décompte JLD par service (service ; titre isolement ; titre contention ; sous-titre ; colonnes masquées parmi N,Debut,Fin,Duree,Cumul)', tDec),
       boutonEnregistrer(async function () {
         var comp = {};
         lignesDe(tComp).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length !== 3 || !/^\d{4}$/.test(x[1]) || !/^\d+$/.test(x[2])) throw new Error('Ligne mal formée : ' + l); comp[x[0]] = comp[x[0]] || {}; comp[x[0]][x[1]] = +x[2]; });
-        var dec = {};
-        lignesDe(tDec).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length < 2) throw new Error('Ligne mal formée : ' + l); dec[x[0]] = { titreIsolement: x[1] || '', titreContention: x[2] || '', sousTitre: x[3] || '', masquer: (x[4] || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean) }; });
-        await enregistrerConfig([['compteursRegistre', comp], ['decompte', dec]]);
+        await enregistrerConfig([['compteursRegistre', comp]]);
       }));
 
     var pImport = SIC.ui.actions.importer ? h('section', { class: 'panneau' }, h('h2', { text: 'Reprise des données du classeur Excel (V1.3)' }),
@@ -1486,9 +1483,9 @@
       // Les comptes et les clés sont ceux des données réelles : ils ne se gèrent pas depuis le jeu de formation.
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
-      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pPauses, pDocs, infos);
+      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pPauses, pMasques, pDocs, infos);
     }
-    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pPauses, pDocs, pImport, demo, infos);
+    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pPauses, pMasques, pDocs, pImport, demo, infos);
   }
 
   function casesRoles(actuels) {
