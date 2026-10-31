@@ -133,3 +133,73 @@ test('Mot de passe provisoire : création en lot, changement obligatoire, réini
   await assert.rejects(admin.creerComptes([{ nom: 'X', login: 'a.un', roles: ['IDE'], services: ['U1'], motDePasse: 'abcdefghijkl' }]), /existe déjà/);
   assert.equal((await connecter(racine, 'admin', 'mot de passe solide')).comptes.length, 4);
 });
+
+test('Mode formation : jeu fictif séparé, mêmes comptes, droits du formateur, traces dans le journal réel', async () => {
+  require('../app/js/demo.js');
+  const { racine, admin } = await nouveauDossier();
+  await admin.enregistrer('CONFIG', { cle: 'services', valeur: [{ code: 'A', libelle: 'Unité A' }, { code: 'B', libelle: 'Unité B' }] });
+  await admin.enregistrer('CONFIG', { cle: 'lieuxCSI', valeur: { A: ['410', '412'] } });
+  await admin.enregistrer('MESURE_DEBUT', { mesureId: 'REEL', patientId: 'P', service: 'A', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
+  await admin.creerComptes([
+    { nom: 'Formateur', login: 'form', roles: ['FORMATEUR'], services: [], motDePasse: 'formateur 2026 ok' },
+    { nom: 'IDE', login: 'ide', roles: ['IDE'], services: ['B'], motDePasse: 'ide 2026 ok ok' }
+  ]);
+
+  // Hors formation, le formateur seul n'a aucun droit sur les données réelles
+  const f = await connecter(racine, 'form', 'formateur 2026 ok');
+  assert.ok(!f.peut('MESURE_DEBUT'));
+  assert.deepEqual(f.mesServices(), []);
+  await assert.rejects(admin.creerFormation([], 'x'), /formateur/);
+
+  // Création : reprend services et CSI réels, contenu fictif
+  await f.creerFormation(SIC.donneesFictives({ config: f.etat.config }), 'Jeu de formation');
+  assert.ok(f.jeuFormation());
+  await f.ouvrirFormation();
+  assert.equal(f.formation, true);
+  assert.ok(!f.etat.mesures.REEL);
+  assert.ok(Object.keys(f.etat.mesures).length >= 5);
+  assert.deepEqual(f.etat.config.services.map(x => x.code), ['A', 'B']);
+  assert.ok(f.etat.config.lieuxCSI.A.includes('410'));
+  assert.ok(M_tous_csi(f.etat));
+  assert.ok(f.peut('MESURE_DEBUT') && f.peut('JLD') && f.peut('CORRECTION') && !f.peut('CONFIG'));
+  assert.deepEqual(f.mesServices(), ['A', 'B']);
+
+  // Une saisie en formation ne touche pas aux données réelles ; les traces de comptes vont au journal réel
+  await f.enregistrer('MESURE_DEBUT', { mesureId: 'FICTIF', patientId: 'P01', service: 'A', typeMesure: 'Isolement', debut: Date.now() - 60e3, csi: true });
+  await f.changerMonMotDePasse('nouveau mot de passe formateur');
+  assert.ok(!f.etat.journal.some(e => e.type === 'COMPTE'));
+  await admin.synchroniser();
+  assert.ok(!admin.etat.mesures.FICTIF);
+  assert.ok(admin.etat.journal.some(e => e.type === 'COMPTE' && e.data.action === 'MDP_CHANGE'));
+
+  // Un agent ouvre le jeu de formation avec son vrai compte, ses vrais rôles et services
+  const ide = await connecter(racine, 'ide', 'ide 2026 ok ok');
+  await ide.ouvrirFormation();
+  assert.ok(ide.etat.mesures.FICTIF);
+  assert.deepEqual(ide.mesServices(), ['B']);
+  assert.ok(!ide.peut('CORRECTION'));
+
+  // Retour aux données réelles
+  await f.fermerFormation();
+  assert.ok(f.etat.mesures.REEL && !f.etat.mesures.FICTIF);
+
+  // Régénération : nouvelle clé, ancien contenu effacé
+  const avant = f.jeuFormation().cle;
+  await f.creerFormation(SIC.donneesFictives({ config: f.etat.config }), 'Jeu de formation');
+  assert.notEqual(f.jeuFormation().cle, avant);
+  const g = await connecter(racine, 'form', 'nouveau mot de passe formateur');
+  await g.ouvrirFormation();
+  assert.ok(!g.etat.mesures.FICTIF);
+  assert.equal(g.rejetes.length, 0);
+
+  // Le sous-dossier de formation n'est jamais pris pour un dossier principal
+  const sous = new Dossier(await racine.getDirectoryHandle('formation'), 'reseau');
+  assert.equal(await sous.lireCoffre(), null);
+  assert.equal(await sous.anomalie(), 'formation');
+  assert.equal(await new Dossier(racine, 'reseau').anomalie(), 'sans-coffre');
+});
+
+function M_tous_csi(etat) {
+  // Les mesures fictives en CSI utilisent les CSI paramétrées
+  return Object.values(etat.mesures).filter(m => m.csi).every(m => (etat.config.lieuxCSI[m.service] || []).includes(m.lieu));
+}

@@ -19,8 +19,14 @@
     AS: 'Aide-soignant(e)',
     SECRETAIRE: 'Secrétaire',
     CADRE: 'Cadre de santé',
+    FORMATEUR: 'Formateur',
     ADMIN: 'Administrateur'
   };
+
+  // Dans le jeu de formation, le formateur dispose en plus de ces rôles (et voit tous les services).
+  var ROLES_FORMATEUR_EN_FORMATION = ['IDE', 'SECRETAIRE', 'CADRE'];
+  // Rôles qui exigent au moins un service affecté.
+  var ROLES_DE_SERVICE = ['IDE', 'AS', 'SECRETAIRE', 'CADRE'];
 
   // Types d'événements autorisés par rôle. L'IDE dispose en permanence des
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
@@ -29,6 +35,7 @@
     AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD'],
     CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'TIERS', 'PROFESSIONNEL', 'JLD', 'CORRECTION', 'ANNULATION', 'STATS'],
+    FORMATEUR: [],   // dans les données réelles : activer le mode formation seulement
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -576,7 +583,7 @@
   }
 
   return {
-    ROLES: ROLES, DROITS: DROITS, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
+    ROLES: ROLES, DROITS: DROITS, ROLES_FORMATEUR_EN_FORMATION: ROLES_FORMATEUR_EN_FORMATION, ROLES_DE_SERVICE: ROLES_DE_SERVICE, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
     reduire: reduire, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,

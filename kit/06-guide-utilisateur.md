@@ -57,6 +57,19 @@ Onglet *JLD* : les mesures en cours, triées par urgence.
 - **Registre anonymisé** : par service et par année, imprimable et exportable.
 - **Statistiques** : rapport annuel comparé à l'année précédente. Saisissez le nombre de patients en hospitalisation complète et sous contrainte (chiffres du DIM) pour obtenir les pourcentages.
 
+## Formateur — mode formation
+
+Le mode formation bascule **provisoirement un poste de travail** sur un jeu de données entièrement fictif, rangé à part sur le réseau. Il sert à former les équipes et à tester l'outil sans toucher aux données réelles.
+
+1. Connectez-vous avec votre compte (rôle *Formateur*), puis cliquez *Mode formation* en haut de l'écran.
+2. La première fois, *Créer le jeu de formation* : il reprend les services, chambres de soins intensifs et postes de surveillance réels, avec des patients et des mesures fictifs (échéances JLD en cours, registre, statistiques). *Régénérer les données fictives* efface le jeu et en recrée un neuf, par exemple avant chaque session.
+3. Choisissez la durée (1 à 8 heures ou jusqu'à la fin de la journée), puis *Basculer ce poste en formation*.
+4. Un **bandeau violet** s'affiche sur tous les écrans. Chaque agent qui se connecte sur ce poste ouvre le jeu de formation avec **son compte habituel**, ses rôles et ses services. Une première connexion avec un mot de passe provisoire peut donc se faire pendant la formation : le mot de passe choisi est le vrai.
+5. Dans le jeu de formation, le formateur dispose aussi des droits IDE, secrétaire et cadre, sur tous les services, pour faire les démonstrations.
+6. Le poste revient aux données réelles à l'heure prévue, avec *Quitter le mode formation*, ou depuis l'écran de connexion (*Revenir aux données réelles*, accessible à tous en cas de besoin urgent du poste).
+
+La bascule est mémorisée par le navigateur de la session Windows en cours. Si chaque agent ouvre sa propre session Windows sur le poste, activez le mode formation dans chacune, ou utilisez une session commune pour la formation.
+
 ## Administrateur
 
 Comptes (rôles et services affectés), clés de sécurité, code de secours, paramétrage, import du classeur Excel : voir le guide d'installation et les procédures de secours.

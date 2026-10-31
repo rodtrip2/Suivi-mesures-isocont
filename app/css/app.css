@@ -224,3 +224,15 @@ td.fort, .fort { font-weight: 700; letter-spacing: .03em; }
 .fiche-remise th, .fiche-remise td { border: 1px solid #bbb; padding: 4px 8px; text-align: left; background: none; color: #111; position: static; }
 .fiche-remise th { width: 190px; background: #f1f1f1; }
 .fiche-remise td.fort { font-size: 15px; }
+
+/* ---------- Mode formation */
+:root { --formation: #6b2fa3; --formation-soft: #efe4fa; }
+@media (prefers-color-scheme: dark) { :root { --formation: #c9a2f2; --formation-soft: #2f2240; } }
+.bandeau-formation { background: var(--formation); color: #fff; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 6px 16px; font-weight: 600; font-size: .9rem; }
+@media (prefers-color-scheme: dark) { .bandeau-formation { color: #1a1124; } }
+.bandeau-formation .btn { background: transparent; color: inherit; border-color: currentColor; }
+body.en-formation .entete { border-bottom: 3px solid var(--formation); }
+body.en-formation main { background-image: repeating-linear-gradient(135deg, transparent 0 22px, color-mix(in srgb, var(--formation-soft) 55%, transparent) 22px 24px); }
+.btn.formation { border-color: var(--formation); color: var(--formation); }
+.ecran-pile { min-height: 100vh; display: flex; flex-direction: column; }
+.ecran-pile > .ecran { flex: 1; min-height: 0; }

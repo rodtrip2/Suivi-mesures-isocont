@@ -21,7 +21,15 @@
     this.etat = null;
     this.derniereSynchro = null;
     this.auditeurs = [];
+    // Jeu de données actif : les données réelles (dossier principal) ou le jeu de formation.
+    this.donnees = null;       // Dossier du jeu de formation quand il est ouvert
+    this.cleDonnees = null;    // sa clé
+    this.formation = false;
   }
+
+  var DOSSIER_FORMATION = 'formation';
+  function dossierActif(s) { return s.formation ? s.donnees : s.dossier; }
+  function cleActive(s) { return s.formation ? s.cleDonnees : s.cle; }
 
   Session.prototype.sur = function (fn) { this.auditeurs.push(fn); };
   Session.prototype.notifier = function () { var s = this; this.auditeurs.forEach(function (f) { f(s); }); };
@@ -95,6 +103,7 @@
 
   Session.prototype.verrouiller = function () {
     this.cle = null; this.utilisateur = null; this.evts = []; this.connus = new Set(); this.etat = null; this.comptes = [];
+    this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = [];
   };
 
   /** Relit le coffre, applique `modif`, réécrit (contrôle de révision). */
@@ -112,7 +121,7 @@
 
   /** Trace dans le journal une opération sur les comptes ou les clés (sans aucun secret). */
   Session.prototype.tracer = function (action, detail) {
-    return this.enregistrer('COMPTE', Object.assign({ action: action }, detail || {}), undefined, { sansControle: true });
+    return this.enregistrer('COMPTE', Object.assign({ action: action }, detail || {}), undefined, { sansControle: true, journalReel: true });
   };
 
   var MOTIF_LOGIN = /^[a-z0-9._-]{2,40}$/;
@@ -216,9 +225,21 @@
   };
 
   // ---------------------------------------------------------- Journal
-  Session.prototype.roles = function () { return this.utilisateur ? this.utilisateur.roles : []; };
-  /** Codes des services que l'utilisateur connecté peut voir (tous pour un administrateur). */
-  Session.prototype.mesServices = function () { return this.etat ? M.servicesDe(this.utilisateur, this.etat.config) : []; };
+  function estFormateur(s) { return !!s.utilisateur && (s.utilisateur.roles || []).indexOf('FORMATEUR') >= 0; }
+  Session.prototype.estFormateur = function () { return estFormateur(this); };
+
+  /** Rôles effectifs : dans le jeu de formation, le formateur dispose aussi des rôles IDE, secrétaire et cadre. */
+  Session.prototype.roles = function () {
+    var r = this.utilisateur ? this.utilisateur.roles : [];
+    if (this.formation && estFormateur(this)) r = r.concat(M.ROLES_FORMATEUR_EN_FORMATION.filter(function (x) { return r.indexOf(x) < 0; }));
+    return r;
+  };
+  /** Codes des services visibles (tous pour un administrateur, et pour le formateur dans le jeu de formation). */
+  Session.prototype.mesServices = function () {
+    if (!this.etat) return [];
+    if (this.formation && estFormateur(this)) return (this.etat.config.services || []).map(function (x) { return x.code; });
+    return M.servicesDe(this.utilisateur, this.etat.config);
+  };
   Session.prototype.peut = function (type) { return M.peut(this.roles(), type); };
 
   Session.prototype.nomAuteur = function (userId) {
@@ -226,8 +247,18 @@
     return c ? c.nom : (userId === 'secours' ? 'Compte de secours' : userId === 'demo' ? 'Données fictives' : userId);
   };
 
-  /** Enregistre une saisie. `base` = version de la mesure au moment de la saisie. */
+  /**
+   * Enregistre une saisie dans le jeu de données actif. `base` = version de la mesure au moment de la saisie.
+   * `options.journalReel` : la saisie va toujours dans le journal des données réelles (traces des comptes),
+   * même pendant le mode formation ; elle n'apparaît alors pas dans le jeu de formation.
+   */
   Session.prototype.enregistrer = async function (type, data, base, options) {
+    if (options && options.journalReel && this.formation) {
+      var at0 = new Date().toISOString(), by0 = this.utilisateur.id;
+      var trace = { v: 1, id: SIC.horodatageCompact(at0) + '_' + by0 + '_' + id8(), at: at0, by: by0, type: type, data: data, prec: null };
+      await this.dossier.ecrireEvenement(this.cle, trace);
+      return trace;
+    }
     if (!(options && options.sansControle) && !this.peut(type)) throw new Error("Votre rôle ne permet pas cette action.");
     var at = (options && options.at) || new Date().toISOString();
     var by = (options && options.by) || this.utilisateur.id;
@@ -239,7 +270,7 @@
       prec: mesUns.length ? mesUns[mesUns.length - 1].id : null
     };
     if (typeof base === 'number') evt.base = base;
-    await this.dossier.ecrireEvenement(this.cle, evt);
+    await dossierActif(this).ecrireEvenement(cleActive(this), evt);
     this.connus.add(evt.id + '.enc');
     this.evts.push(evt);
     this.recalculer();
@@ -263,13 +294,18 @@
       try {
         var coffre = await this.dossier.lireCoffre();
         if (coffre && this.coffre && coffre.rev !== this.coffre.rev) {
+          var jeuChange = this.formation && JSON.stringify(coffre.formation || null) !== JSON.stringify(this.coffre.formation || null);
           this.coffre = coffre; await lireComptes(this);
           var moi = this.utilisateur && this.comptes.filter(function (c) { return c.id === this.utilisateur.id; }, this)[0];
           if (moi) this.utilisateur = moi;
+          if (jeuChange) {   // jeu de formation régénéré ou supprimé depuis un autre poste
+            if (coffre.formation) { await this.ouvrirFormation(); return 0; }
+            await this.fermerFormation(); return 0;
+          }
         }
       } catch (e) { /* coffre momentanément illisible : nouvelle tentative plus tard */ }
     }
-    var r = await this.dossier.lireNouveaux(this.cle, this.connus);
+    var r = await dossierActif(this).lireNouveaux(cleActive(this), this.connus);
     this.rejetes = this.rejetes.concat(r.rejetes);
     this.derniereSynchro = Date.now();
     if (r.evenements.length || !this.etat) {
@@ -277,6 +313,59 @@
       this.recalculer();
     } else this.notifier();
     return r.evenements.length;
+  };
+
+  // ---------------------------------------------------------- Mode formation
+  /*
+   * Le jeu de formation est un second jeu de données, entièrement fictif, rangé dans le
+   * sous-dossier « formation » du dossier principal, chiffré avec sa propre clé. Cette clé est
+   * conservée dans le coffre, chiffrée par la clé des données réelles : seul un agent connecté
+   * avec son vrai compte peut l'ouvrir, avec ses vrais rôles et services. Les comptes, mots de
+   * passe et clés restent ceux du coffre réel.
+   */
+  Session.prototype.jeuFormation = function () { return (this.coffre && this.coffre.formation) || null; };
+
+  /** Crée (ou recrée en effaçant l'ancien) le jeu de formation avec les saisies fournies. Réservé au formateur. */
+  Session.prototype.creerFormation = async function (saisies, libelle) {
+    if (!estFormateur(this)) throw new Error('Seul un formateur peut créer le jeu de formation.');
+    if (this.formation) throw new Error('Quittez d’abord le mode formation.');
+    var s = this;
+    var handle = await this.dossier.sousDossier([DOSSIER_FORMATION], true);
+    var df = new SIC.Dossier(handle, 'formation');
+    await df.vider();
+    await df.ecrireFichier(handle, 'FORMATION-LISEZMOI.txt', new TextEncoder().encode(
+      'Jeu de données FICTIVES de Suivi-mesures-isocont, utilisé pour la formation et les tests.\r\n' +
+      'Ne pas ouvrir ce dossier comme dossier principal. Il peut être supprimé sans perte de données réelles :\r\n' +
+      'le formateur le recrée depuis l’application (bouton « Mode formation »).\r\n'));
+    var cle = await C.nouvelleCleDonnees();
+    var at = new Date().toISOString();
+    var lot = { v: 1, id: SIC.horodatageCompact(at) + '_' + this.utilisateur.id + '_' + id8(), at: at, by: this.utilisateur.id, type: 'LOT', data: { evenements: saisies, libelle: libelle || 'Jeu de formation' }, prec: null };
+    await df.ecrireEvenement(cle, lot);
+    var protege = C.b64(await C.chiffrerJSON(this.cle, { k: await C.exporterCle(cle) }, 'formation'));
+    await this.modifierCoffre(async function (coffre) {
+      coffre.formation = { cle: protege, creeLe: at, par: s.utilisateur.nom };
+    });
+    await this.tracer('FORMATION_CREEE', { saisies: saisies.length });
+  };
+
+  /** Bascule la session sur le jeu de formation. */
+  Session.prototype.ouvrirFormation = async function () {
+    if (!this.jeuFormation()) this.coffre = await this.dossier.lireCoffre();
+    var jeu = this.jeuFormation();
+    if (!jeu) throw new Error('Aucun jeu de formation n’a encore été créé : un formateur doit le créer (bouton « Mode formation »).');
+    var o = await C.dechiffrerJSON(this.cle, C.deb64(jeu.cle), 'formation');
+    this.cleDonnees = await C.importerCle(o.k);
+    this.donnees = new SIC.Dossier(await this.dossier.sousDossier([DOSSIER_FORMATION], false), 'formation');
+    this.formation = true;
+    this.evts = []; this.connus = new Set(); this.rejetes = []; this.etat = null;
+    await this.synchroniser();
+  };
+
+  /** Revient aux données réelles. */
+  Session.prototype.fermerFormation = async function () {
+    this.donnees = null; this.cleDonnees = null; this.formation = false;
+    this.evts = []; this.connus = new Set(); this.rejetes = []; this.etat = null;
+    await this.synchroniser();
   };
 
   SIC.Session = Session;

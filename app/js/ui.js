@@ -70,7 +70,7 @@
     MESURE_FIN: 'Fin de mesure', TIERS: 'Information du tiers', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés'
   };
-  var LIB_COMPTE = { CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var LIB_COMPTE = { FORMATION_CREEE: 'jeu de formation créé ou régénéré', FORMATION_ACTIVE: 'poste basculé en mode formation', FORMATION_FIN: 'poste revenu aux données réelles', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -107,7 +107,7 @@
     vider(racine);
     if (App.dossier && App.dossier.mode === 'demo') racine.appendChild(h('div', { class: 'bandeau-demo', text: 'Mode démonstration — données fictives uniquement, stockées dans ce navigateur. Ne saisissez aucune donnée réelle.' }));
     if (!App.dossier) return racine.appendChild(ecranAccueil());
-    if (!App.session.coffre) return racine.appendChild(ecranInitialisation());
+    if (!App.session.coffre) return racine.appendChild(App.anomalie ? ecranAnomalie() : ecranInitialisation());
     if (!App.session.cle) return racine.appendChild(ecranConnexion());
     if (App.session.utilisateur && App.session.utilisateur.mdpProvisoire) return racine.appendChild(ecranMotDePasseObligatoire());
     racine.appendChild(ecranApplication());
@@ -147,7 +147,20 @@
     App.session = new SIC.Session(App.dossier);
     App.session.sur(function () { if (App.session.cle) rendreContenu(); });
     await App.session.chargerCoffre();
+    App.anomalie = App.session.coffre ? null : await App.dossier.anomalie();
+    App.posteFormation = await SIC.ui.formation.etatPoste();
     rendre();
+  }
+
+  /** Dossier sans coffre mais contenant des saisies : jamais proposé à l'initialisation. */
+  function ecranAnomalie() {
+    var formation = App.anomalie === 'formation';
+    return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom),
+      h('h1', { text: formation ? 'Ce dossier est un jeu de formation' : 'Coffre introuvable' }),
+      h('div', { class: 'erreur', text: formation
+        ? 'Vous avez ouvert le sous-dossier « formation », qui contient le jeu de données fictives. Ouvrez le dossier principal (le dossier parent) ; le mode formation s’active ensuite depuis l’application.'
+        : 'Ce dossier contient des saisies mais pas de fichier coffre.json : sans lui, les données ne peuvent pas être lues. Ne réinitialisez pas ce dossier : faites restaurer coffre.json depuis la sauvegarde par la DSI (voir les procédures de secours).' }),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: changerDossier }, 'Choisir un autre dossier'))));
   }
 
   // ---------------------------------------------------------------- Initialisation
@@ -201,7 +214,10 @@
     var login = h('input', { type: 'text', required: true, autocomplete: 'username' });
     var mdp = h('input', { type: 'password', required: true, autocomplete: 'current-password' });
     var bouton = h('button', { class: 'btn primaire', type: 'submit' }, 'Se connecter');
-    async function apres() { demarrerMinuteurs(); rendre(); }
+    async function apres(formation) {
+      if (formation !== false) await SIC.ui.formation.appliquerApresConnexion();   // poste basculé en mode formation
+      demarrerMinuteurs(); rendre();
+    }
     var form = h('form', { class: 'pile', onsubmit: async function (ev) {
       ev.preventDefault(); erreurDans(zoneErr, null); bouton.disabled = true; bouton.textContent = 'Déverrouillage…';
       try { await App.session.connexionMotDePasse(login.value, mdp.value); App.mdpProvisoireSaisi = mdp.value; await apres(); }
@@ -222,14 +238,14 @@
     var blocCode = h('div', { class: 'pile', hidden: true }, h('label', {}, 'Code de secours', code),
       h('button', { class: 'btn', onclick: async function () {
         erreurDans(zoneErr, null);
-        try { await App.session.connexionCodeSecours(code.value); App.onglet = 'admin'; await apres(); } catch (e) { erreurDans(zoneErr, e); }
+        try { await App.session.connexionCodeSecours(code.value); App.onglet = 'admin'; await apres(false); } catch (e) { erreurDans(zoneErr, e); }
       } }, 'Déverrouiller avec le code de secours'));
     autres.appendChild(h('button', { class: 'btn lien', onclick: function () { blocCode.hidden = !blocCode.hidden; } }, 'Mot de passe perdu ? Utiliser le code de secours'));
     autres.appendChild(blocCode);
 
-    return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), zoneErr, form,
+    return h('div', { class: 'ecran-pile' }, SIC.ui.formation.bandeau(true), h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), zoneErr, form,
       h('div', { class: 'separateur', text: 'secours' }), autres,
-      h('div', { class: 'actions' }, h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier'))));
+      h('div', { class: 'actions' }, h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier')))));
   }
 
   /** Première connexion ou mot de passe réinitialisé : changement obligatoire avant tout accès. */
@@ -258,7 +274,7 @@
       h('small', { class: 'muted', text: 'Conseil : une courte phrase facile à retenir, par exemple quatre mots séparés par des espaces. Ne la notez pas près du poste.' }),
       h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: function () { App.mdpProvisoireSaisi = null; verrouiller(); } }, 'Se déconnecter'), bouton));
     setTimeout(function () { a.focus(); }, 30);
-    return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(etablissement() || App.dossier.nom), form));
+    return h('div', { class: 'ecran-pile' }, SIC.ui.formation.bandeau(false), h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(etablissement() || App.dossier.nom), form)));
   }
 
   function verifierNouveauMotDePasse(a, b) {
@@ -280,6 +296,11 @@
     App.session.verrouiller();
     App.message = message || null;
     rendre();
+    SIC.ui.formation.etatPoste().then(function (r) {   // la bascule du poste a pu expirer
+      var avant = !!App.posteFormation;
+      App.posteFormation = r;
+      if (avant !== !!r && App.session && !App.session.cle) rendre();
+    });
   }
 
   // ---------------------------------------------------------------- Minuteurs
@@ -291,7 +312,8 @@
     }, 5000));
     App.minuteurs.push(setInterval(function () {
       var limite = (config().inactiviteMinutes || 10) * 60000;
-      if (App.session && App.session.cle && Date.now() - App.derniereActivite > limite) verrouiller('Session verrouillée après ' + (config().inactiviteMinutes || 10) + ' minutes d’inactivité.');
+      if (App.session && App.session.cle && Date.now() - App.derniereActivite > limite) return verrouiller('Session verrouillée après ' + (config().inactiviteMinutes || 10) + ' minutes d’inactivité.');
+      SIC.ui.formation.verifierExpiration();
     }, 15000));
   }
   function arreterMinuteurs() { App.minuteurs.forEach(clearInterval); App.minuteurs = []; }
@@ -330,6 +352,9 @@
 
     // En-tête
     vider(zoneEntete);
+    var bandeau = SIC.ui.formation.bandeau(false);
+    if (bandeau) zoneEntete.appendChild(bandeau);
+    document.body.classList.toggle('en-formation', !!s.formation);
     var selService = h('select', { 'aria-label': 'Service', onchange: function () { App.service = selService.value; try { localStorage.setItem('sic-service', App.service); } catch (e) { /* */ } rendreContenu(); } },
       mesSv.length > 1 ? h('option', { value: '*', text: estAdmin ? 'Tous les services' : 'Tous mes services' }) : null,
       mesSv.map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: App.service === x.code }); }));
@@ -338,6 +363,7 @@
     zoneEntete.appendChild(h('div', { class: 'entete-haut' }, marque(etablissement() || App.dossier.nom), h('div', { class: 'espace' }), mesSv.length ? selService : null,
       h('div', { class: 'statut-synchro', title: s.evts.length + ' saisies dans le journal' }, h('span', { class: 'point' }), age !== null ? 'Synchronisé' : '—'),
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.ROLES[r]; }).join(' · ')),
+      s.estFormateur() && !s.formation ? h('button', { class: 'btn petit formation', onclick: SIC.ui.formation.ouvrir }, 'Mode formation') : null,
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
       h('button', { class: 'btn petit', onclick: function () { verrouiller(); } }, 'Verrouiller')));
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
@@ -351,7 +377,7 @@
     vider(zoneContenu);
     var vues = { tableau: vueTableau, mesures: vueMesures, jld: vueJLD, surveillance: vueSurveillance, registre: vueRegistre, journal: vueJournal, admin: vueAdmin };
     var vue = vues[App.onglet] || SIC.ui.vues[App.onglet] || vueTableau;
-    if (!mesSv.length && !estAdmin) { zoneContenu.appendChild(h('div', { class: 'panneau vide', text: 'Aucun service ne vous est affecté. Demandez à l’administrateur de vous en attribuer un.' })); return; }
+    if (!mesSv.length && !estAdmin) { zoneContenu.appendChild(h('div', { class: 'panneau vide', text: s.estFormateur() ? 'Aucun service réel ne vous est affecté. Utilisez le bouton « Mode formation » pour basculer ce poste sur le jeu de formation.' : 'Aucun service ne vous est affecté. Demandez à l’administrateur de vous en attribuer un.' })); return; }
     try { zoneContenu.appendChild(vue(maintenant)); }
     catch (e) { zoneContenu.appendChild(h('div', { class: 'erreur', text: 'Erreur d’affichage : ' + e.message })); console.error(e); }
   }
@@ -1175,6 +1201,12 @@
         h('div', { text: 'Adresse : ' + location.protocol + '//' + (location.host || '(fichier local)') }),
         h('div', { text: 'Licence : EUPL-1.2 — code source : github.com/rodtrip2/Suivi-mesures-isocont' })));
 
+    if (s.formation) {
+      // Les comptes et les clés sont ceux des données réelles : ils ne se gèrent pas depuis le jeu de formation.
+      var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
+        h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
+      return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pDocs, infos);
+    }
     return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, pServices, pSurv, pRegles, pDocs, pImport, demo, infos);
   }
 
@@ -1183,7 +1215,7 @@
     var cases = {};
     Object.keys(M.ROLES).forEach(function (r) {
       cases[r] = h('input', { type: 'checkbox', checked: actuels.indexOf(r) >= 0 });
-      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
+      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', FORMATEUR: 'bascule un poste en mode formation ; dans le jeu de formation, droits IDE, secrétaire et cadre sur tous les services', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
     });
     bloc.cases = cases;
     bloc.valeur = function () { var v = Object.keys(cases).filter(function (r) { return cases[r].checked; }); if (!v.length) throw new Error('Choisissez au moins un rôle.'); return v; };
@@ -1207,7 +1239,8 @@
     roles.cases.ADMIN.addEventListener('change', maj); maj();
     bloc.valeur = function (rolesChoisis) {
       var v = Object.keys(cases).filter(function (k) { return cases[k].checked; });
-      if (rolesChoisis.indexOf('ADMIN') < 0 && !v.length) throw new Error('Affectez au moins un service.');
+      var exige = rolesChoisis.indexOf('ADMIN') < 0 && rolesChoisis.some(function (r) { return M.ROLES_DE_SERVICE.indexOf(r) >= 0; });
+      if (exige && !v.length) throw new Error('Affectez au moins un service.');
       return v;
     };
     return bloc;
@@ -1290,6 +1323,6 @@
     patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
     badgeType: badgeType, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
-    demarrer: rendre
+    demarrer: rendre, verrouiller: verrouiller
   };
 })();

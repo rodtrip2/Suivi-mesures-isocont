@@ -21,6 +21,7 @@
     'as': 'AS', 'aide soignant': 'AS', 'aide soignante': 'AS',
     'secretaire': 'SECRETAIRE', 'secretariat': 'SECRETAIRE', 'secretaire medicale': 'SECRETAIRE',
     'cadre': 'CADRE', 'cadre de sante': 'CADRE', 'ffcs': 'CADRE',
+    'formateur': 'FORMATEUR', 'formatrice': 'FORMATEUR',
     'admin': 'ADMIN', 'administrateur': 'ADMIN'
   };
   var MOTIF_IDENTIFIANT = /^[a-z0-9._-]{2,40}$/;
@@ -79,7 +80,7 @@
       var roles = liste(c[2]);
       if (!roles.length) r.roles = (contexte.rolesDefaut || []).slice();
       roles.forEach(function (x) {
-        var code = ALIAS_ROLES[norm(x)] || (/^[A-Z]+$/.test(x) && ['IDE', 'AS', 'SECRETAIRE', 'CADRE', 'ADMIN'].indexOf(x) >= 0 ? x : null);
+        var code = ALIAS_ROLES[norm(x)] || (/^[A-Z]+$/.test(x) && ['IDE', 'AS', 'SECRETAIRE', 'CADRE', 'FORMATEUR', 'ADMIN'].indexOf(x) >= 0 ? x : null);
         if (!code) r.erreurs.push('rôle inconnu « ' + x + ' »');
         else if (r.roles.indexOf(code) < 0) r.roles.push(code);
       });
@@ -94,7 +95,8 @@
         if (!s) r.erreurs.push('service inconnu « ' + x + ' »');
         else if (r.services.indexOf(s.code) < 0) r.services.push(s.code);
       });
-      if (r.roles.length && r.roles.indexOf('ADMIN') < 0 && !r.services.length && !svs.length) r.erreurs.push('aucun service affecté');
+      var exigeService = r.roles.indexOf('ADMIN') < 0 && r.roles.some(function (x) { return ['IDE', 'AS', 'SECRETAIRE', 'CADRE'].indexOf(x) >= 0; });
+      if (exigeService && !r.services.length && !svs.length) r.erreurs.push('aucun service affecté');
 
       // Identifiant
       if (!r.login && r.nom) {

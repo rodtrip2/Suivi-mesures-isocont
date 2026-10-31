@@ -50,6 +50,10 @@
     return new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: u.slice(4, 16), additionalData: enc.encode(aad || '') }, cle, u.slice(16)));
   }
 
+  /** Clé brute en base 64 (pour la ranger chiffrée dans le coffre) et inverse. */
+  async function exporterCle(cle) { return b64(new Uint8Array(await subtle.exportKey('raw', cle))); }
+  async function importerCle(texte) { return subtle.importKey('raw', deb64(texte), { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']); }
+
   async function chiffrerJSON(cle, objet, aad) { return chiffrerOctets(cle, enc.encode(JSON.stringify(objet)), aad); }
   async function dechiffrerJSON(cle, donnees, aad) { return JSON.parse(dec.decode(await dechiffrerOctets(cle, donnees, aad))); }
 
@@ -180,7 +184,7 @@
 
   return {
     aleatoire: aleatoire, hex: hex, b64: b64, deb64: deb64,
-    nouvelleCleDonnees: nouvelleCleDonnees,
+    nouvelleCleDonnees: nouvelleCleDonnees, exporterCle: exporterCle, importerCle: importerCle,
     chiffrerJSON: chiffrerJSON, dechiffrerJSON: dechiffrerJSON,
     emballerMotDePasse: emballerMotDePasse, deballerMotDePasse: deballerMotDePasse,
     nouveauCodeSecours: nouveauCodeSecours, nouveauMotDePasseProvisoire: nouveauMotDePasseProvisoire, ITERATIONS_PROVISOIRE: ITERATIONS_SECOURS, emballerCodeSecours: emballerCodeSecours, deballerCodeSecours: deballerCodeSecours,

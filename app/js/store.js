@@ -84,6 +84,16 @@
     return new Dossier(prec.handle, 'reseau');
   };
 
+  /** Réglages propres à ce poste de travail (navigateur), hors données. */
+  Dossier.lireReglage = relire;
+  Dossier.ecrireReglage = memoriser;
+
+  /** Signale un dossier sans coffre qui contient pourtant des saisies (jeu de formation, coffre perdu). */
+  Dossier.prototype.anomalie = async function () {
+    try { await this.handle.getFileHandle('FORMATION-LISEZMOI.txt'); return 'formation'; } catch (e) { /* absent */ }
+    try { await this.handle.getDirectoryHandle('evenements'); return 'sans-coffre'; } catch (e) { return null; }
+  };
+
   Dossier.oublier = async function () { await memoriser('mode', null); await memoriser('dossier', null); };
 
   Dossier.prototype.sousDossier = async function (chemin, creer) {

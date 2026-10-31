@@ -57,3 +57,10 @@ test('Mot de passe provisoire : format et entropie', () => {
   assert.notEqual(a, b);
   assert.ok(a.length >= 12);
 });
+
+test('Rôle formateur : reconnu dans les listes, sans service obligatoire, aucun droit sur les données réelles', () => {
+  const r = K.analyser('Fanny FORMA\t\tFormateur\t', { services, loginsExistants: [], rolesDefaut: [], servicesDefaut: [] });
+  assert.deepEqual(r[0].roles, ['FORMATEUR']);
+  assert.deepEqual(r[0].erreurs, []);
+  assert.ok(!M.peut(['FORMATEUR'], 'MESURE_DEBUT'));
+});
