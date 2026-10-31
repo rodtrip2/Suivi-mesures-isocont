@@ -775,6 +775,8 @@
     formatDuree: 'j', formatCumul: 'j',
     // Durée maximale d'une ligne du décompte (heures) ; 0 = la mesure sur une seule ligne.
     trancheIsolement: 24, trancheContention: 12,
+    // Mise en évidence : 'aucune', 'actuelle' (surbrillance de la mesure actuelle), 'anterieures' (mesures antérieures grisées), 'les-deux'
+    miseEnEvidence: 'aucune',
     // Papier à en-tête : image de fond (identifiant dans config.imagesDecompte), sur toutes les pages ou la première, marges (mm).
     fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 }
   };
@@ -807,6 +809,7 @@
     r.identite = r.identite.filter(function (c) { return IDENTITE_DECOMPTE.indexOf(c) >= 0; });
     Object.keys(r.marges).forEach(function (k) { var v = +r.marges[k]; r.marges[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; });
     ['formatDuree', 'formatCumul'].forEach(function (k) { if (FORMATS_DUREE.indexOf(r[k]) < 0) r[k] = 'j'; });
+    if (['aucune', 'actuelle', 'anterieures', 'les-deux'].indexOf(r.miseEnEvidence) < 0) r.miseEnEvidence = 'aucune';
     [['trancheIsolement', 24], ['trancheContention', 12]].forEach(function (x) { var v = +r[x[0]]; r[x[0]] = isFinite(v) && v >= 0 ? Math.min(168, v) : x[1]; });
     if (r.fond && !((config && config.imagesDecompte) || {})[r.fond]) r.fond = '';
     r.propre = !!(service && service !== '*' && dec[service]);
@@ -844,7 +847,7 @@
       lignes.push({ type: 'mesure', mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
     }
     function lignePause(q, d, f) {
-      lignes.push({ type: 'pause', debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'PAUSE',
+      lignes.push({ type: 'pause', mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'PAUSE',
         commentaire: 'Pause : ' + libPause(q.pause) + '. Durée déduite, non ajoutée au cumul.' + (q.nonConfirmee ? ' Reprise non saisie : la durée est de nouveau comptée à partir de l’heure de reprise prévue.' : '') });
     }
     /** Découpe [d, f] d'une mesure aux bornes `grille` et aux pauses déduites ; appelle `ligne(d, f, apresPause, premiere)`. */
@@ -886,6 +889,7 @@
     var parMesure = {}, rang = {};
     lignes.forEach(function (l) { if (l.type === 'mesure') parMesure[l.mesure] = (parMesure[l.mesure] || 0) + 1; });
     lignes.forEach(function (l) {
+      l.actuelle = l.mesure === noMesure;   // lignes de la mesure faisant l'objet du décompte (pauses comprises)
       if (l.type !== 'mesure') { l.n = ''; return; }
       rang[l.mesure] = (rang[l.mesure] || 0) + 1;
       l.n = parMesure[l.mesure] > 1 ? l.mesure + '.' + rang[l.mesure] : String(l.mesure);

@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.12.0 — 31 octobre 2026
+
+- Décompte JLD, masques : **mise en évidence** au choix — aucune (par défaut), mesure actuelle en surbrillance (fond jaune pâle, texte en gras), mesures antérieures grisées, ou les deux. Conservée à l'impression et dans le PDF.
+
 ## 1.11.0 — 31 octobre 2026
 
 - Décompte JLD : **le statut est celui de la mesure** — une mesure en cours est « EN COURS » sur toutes ses lignes (auparavant, une tranche de 24 h écoulée apparaissait « TERMINÉE »).

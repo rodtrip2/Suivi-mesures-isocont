@@ -368,3 +368,17 @@ test('Décompte : statut de la mesure sur toutes ses tranches, numérotation mes
   assert.deepEqual([M.masqueDecompte({}, 'U1').trancheIsolement, M.masqueDecompte({}, 'U1').trancheContention], [24, 12]);
   assert.equal(M.masqueDecompte({ decompte: { U1: { trancheIsolement: 0 } } }, 'U1').trancheIsolement, 0);
 });
+
+test('Décompte : lignes de la mesure actuelle repérées, réglage de mise en évidence', () => {
+  const d0 = local(2026, 9, 1, 8);
+  const st = M.reduire([
+    evt('PATIENT', { patientId: 'P1' }),
+    evt('MESURE_DEBUT', { mesureId: 'A', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0 - 100 * H, csi: true }),
+    evt('MESURE_FIN', { mesureId: 'A', fin: d0 - 90 * H }),
+    evt('MESURE_DEBUT', { mesureId: 'B', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: d0, csi: true })
+  ]);
+  assert.deepEqual(M.decompte(st, st.mesures.B, d0 + 30 * H).lignes.map(l => l.actuelle), [false, true, true]);
+  assert.equal(M.masqueDecompte({}, 'U1').miseEnEvidence, 'aucune');
+  assert.equal(M.masqueDecompte({ decompte: { U1: { miseEnEvidence: 'les-deux' } } }, 'U1').miseEnEvidence, 'les-deux');
+  assert.equal(M.masqueDecompte({ decompte: { U1: { miseEnEvidence: 'x' } } }, 'U1').miseEnEvidence, 'aucune');
+});

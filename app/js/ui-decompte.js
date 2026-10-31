@@ -93,6 +93,7 @@
       entetes: masque.colonnes.map(function (c) { return LIB_COLONNES[c]; }),
       lignes: d.lignes.map(function (l) { return masque.colonnes.map(function (c) { return cellule(l, c); }); }),
       typesLignes: d.lignes.map(function (l) { return l.type; }),
+      actuelles: d.lignes.map(function (l) { return !!l.actuelle; }),
       explicationPauses: explicationPauses,
       total: 'Cumul des mesures antérieures sur 15 jours : ' + formatDuree(d.cumulAvant, masque.formatCumul) + ' — Durée totale retenue : ' + formatDuree(d.total, masque.formatCumul) + '.',
       cycle: 'Cycle de contrôle n° ' + j.cycle + ' — information avant le ' + U.date(j.info.echeance) + ', saisine avant le ' + U.date(j.saisine.echeance) + ', décision avant le ' + U.date(j.decision.echeance) + '.',
@@ -140,7 +141,13 @@
       c.identite.length ? h('table', { class: 'doc-identite' }, h('tbody', {}, c.identite.map(function (x) { return h('tr', {}, h('th', { text: x[0] }), h('td', { text: x[1] })); }))) : null,
       c.entetes.length ? h('table', { class: 'doc-tableau' },
         h('thead', {}, h('tr', {}, c.entetes.map(function (t) { return h('th', { text: t }); }))),
-        h('tbody', {}, c.lignes.map(function (l, i) { return h('tr', { class: c.typesLignes[i] === 'pause' ? 'doc-ligne-pause' : null }, l.map(function (v) { return h('td', { text: v }); })); }))) : null,
+        h('tbody', {}, c.lignes.map(function (l, i) {
+          var cls = [c.typesLignes[i] === 'pause' ? 'doc-ligne-pause' : ''];
+          var ev = masque.miseEnEvidence;
+          if (c.actuelles[i] && (ev === 'actuelle' || ev === 'les-deux')) cls.push('doc-ligne-actuelle');
+          if (!c.actuelles[i] && (ev === 'anterieures' || ev === 'les-deux')) cls.push('doc-ligne-anterieure');
+          return h('tr', { class: cls.join(' ').trim() || null }, l.map(function (v) { return h('td', { text: v }); }));
+        }))) : null,
       c.entetes.length && masque.colonnes.indexOf('N') >= 0 ? h('p', { class: 'doc-legende', text: 'N° : numéro de la mesure dans le décompte' + (c.d.tranches ? ', suivi du numéro de tranche quand une même mesure est présentée sur plusieurs lignes (2.1, 2.2… : tranches de ' + c.d.tranche + ' h au plus)' : '') + '. Le statut est celui de la mesure.' }) : null,
       s.total ? h('p', { class: 'doc-total', text: c.total }) : null,
       s.cycle ? h('p', { text: c.cycle }) : null,
@@ -309,6 +316,7 @@
       dessinerColonnes();
       var selFmt = function (v) { return h('select', {}, M.FORMATS_DUREE.map(function (f) { return h('option', { value: f, text: LIB_FORMATS[f], selected: f === v }); })); };
       var fmtDuree = selFmt(mq.formatDuree), fmtCumul = selFmt(mq.formatCumul);
+      var selEv = h('select', {}, [['aucune', 'Aucune'], ['actuelle', 'Mesure actuelle en surbrillance'], ['anterieures', 'Mesures antérieures grisées'], ['les-deux', 'Les deux']].map(function (x) { return h('option', { value: x[0], text: x[1], selected: x[0] === mq.miseEnEvidence }); }));
       var trIso = h('input', { type: 'number', min: 0, max: 168, step: 1, value: mq.trancheIsolement });
       var trCont = h('input', { type: 'number', min: 0, max: 168, step: 1, value: mq.trancheContention });
 
@@ -350,6 +358,7 @@
           sections: M.SECTIONS_DECOMPTE.reduce(function (o, k) { o[k] = casesSections[k].checked; return o; }, {}),
           piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, ''),
           formatDuree: fmtDuree.value, formatCumul: fmtCumul.value,
+          miseEnEvidence: selEv.value,
           trancheIsolement: Math.max(0, Math.min(168, +trIso.value || 0)), trancheContention: Math.max(0, Math.min(168, +trCont.value || 0)),
           fond: selFond.value, fondPages: selPages.value,
           marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
@@ -367,7 +376,7 @@
           vue.appendChild(doc); ajusterApercu(vue, doc);
         } catch (e) { vue.appendChild(h('div', { class: 'erreur', text: e.message })); }
       }
-      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
+      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont, selEv].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
       Object.keys(casesIdentite).concat([]).forEach(function (k) { casesIdentite[k].addEventListener('change', apercu); });
       Object.keys(casesSections).forEach(function (k) { casesSections[k].addEventListener('change', apercu); });
       setTimeout(apercu, 0);
@@ -409,7 +418,8 @@
           h('fieldset', {}, h('legend', { text: 'Données d’identité exportées' }), blocIdentite),
           h('fieldset', {}, h('legend', { text: 'Colonnes du tableau (cochées = exportées, dans cet ordre)' }), listeCol,
             h('div', { class: 'grille-2' }, h('label', {}, 'Format de la colonne Durée (et des pauses)', fmtDuree), h('label', {}, 'Format du cumul et des totaux', fmtCumul)),
-            h('div', { class: 'grille-2' }, h('label', {}, 'Isolement : durée maximale d’une ligne (h, 0 = une seule ligne)', trIso), h('label', {}, 'Contention : durée maximale d’une ligne (h, 0 = une seule ligne)', trCont))),
+            h('div', { class: 'grille-2' }, h('label', {}, 'Isolement : durée maximale d’une ligne (h, 0 = une seule ligne)', trIso), h('label', {}, 'Contention : durée maximale d’une ligne (h, 0 = une seule ligne)', trCont)),
+            h('label', {}, 'Mise en évidence dans le tableau', selEv)),
           h('fieldset', {}, h('legend', { text: 'Sections exportées' }), blocSections),
           h('label', {}, 'Texte en pied de document', pied),
           h('label', {}, 'Bloc signature (ex. « Le directeur, par délégation » ; laisser vide pour aucun)', sign),
