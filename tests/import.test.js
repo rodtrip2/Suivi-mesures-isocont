@@ -140,3 +140,18 @@ test('Import : compteur recalculé quand on change de numérotation après l’i
   assert.equal(M.compteurPour(st, 'UHP', 2026, true, maintenant), 12);
   assert.equal(M.compteurPour(st, 'UHP', 2025, true, maintenant), null);
 });
+
+test('Import : impact des trois choix de numérotation sur le registre et les statistiques', async () => {
+  const c = await X.lire(fichier);
+  const prep = I.preparer(c, M.reduire([]), { maintenant: local(2026, 10, 6, 12) });
+  const cpt = mo => ({ UHP: { 2026: mo === 'conserver' ? 12 : 10 } });
+  const imp = I.impactNumerotation(prep, cpt, 2026);
+  assert.equal(imp.length, 1);
+  const m = imp[0].modes;
+  assert.deepEqual(m.conserver.numeros, ['A11', 'D12']);
+  assert.deepEqual(m.tout.numeros, ['A11', 'E12']);
+  assert.deepEqual(m.annee.numeros, ['A11', 'E12']);                     // 2026 est l'année en cours
+  assert.deepEqual([m.conserver.categories.D, m.conserver.categories.E], [1, 0]);
+  assert.deepEqual([m.tout.categories.D, m.tout.categories.E], [0, 1]);
+  assert.equal(m.conserver.entrees, 2); assert.equal(m.tout.dureeTotale, m.conserver.dureeTotale);
+});

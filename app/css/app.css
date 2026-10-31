@@ -332,3 +332,6 @@ th.col-annuelle { white-space: normal; min-width: 7em; }
 input[type=number].champ-court[aria-label="Année des statistiques"] { width: 6.5em; }
 dialog.large { width: min(1150px, calc(100vw - 32px)); }
 .choix-portee { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; display: grid; gap: 4px; } .choix-portee legend { font-weight: 600; padding: 0 4px; }
+.table-impact td.diff { background: var(--warn-soft); font-weight: 600; }
+.table-impact th.choisi, .table-impact td.choisi { box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent); }
+.impact-import summary { cursor: pointer; }

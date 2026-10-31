@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.19.0 — 31 octobre 2026
+
+- Import du classeur V1.3 : **aperçu de l'impact avant confirmation** — pour chaque service et chaque année contenant des mesures numérotées, comparaison des trois choix (laisser tel quel, recalculer l'année en cours, recalculer tout) sur le registre et les statistiques : entrées terminées et en cours, catégories A à E, durée cumulée et moyenne, heures de CSI, patients distincts, numéros attribués. Simulation complète, mesures déjà présentes comprises ; valeurs différentes surlignées, choix retenu encadré ; liste des mesures dont la numérotation changerait.
+- Ajout de `CLAUDE.md` : consignes du projet (objectifs, sécurité des données, rôles, règles légales, pauses, registre, décompte, statistiques, import, interface, conventions de code, procédure après chaque modification, points à faire valider).
+
 ## 1.18.0 — 31 octobre 2026
 
 - Import du classeur V1.3 — **traitement des mesures déjà numérotées** : *laisser tel quel* (par défaut : chaque mesure importée garde la catégorie et le numéro du classeur, une entrée par mesure ; l'outil numérote les mesures suivantes à la suite du plus grand numéro), *recalculer l'année en cours*, ou *recalculer toutes les années*, avec un avertissement clair sur le risque de modifier les statistiques antérieures. Le compteur proposé et le contrôle de la numérotation suivent le choix.

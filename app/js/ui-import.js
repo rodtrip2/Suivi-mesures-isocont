@@ -38,6 +38,7 @@
       if (!classeur) return;
       try { prep = I().preparer(classeur, U.st(), { serviceParDefaut: svDefaut.value || undefined, services: choixServices }); }
       catch (e) { zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
+      prep.evtsExistants = U.App.session.evts;   // simulations complètes : mesures déjà présentes dans l'outil comprises
       var r = prep.rapport;
       zone.appendChild(h('div', { class: 'recap' },
         h('div', {}, h('b', { text: r.mesures + ' mesure(s)' }), ' à importer' + (r.dejaPresentes ? ', ' + r.dejaPresentes + ' déjà présente(s) (ignorées)' : '') + '.'),
@@ -75,11 +76,11 @@
       }
 
       // -- Compteurs du registre et contrôle de la numérotation
-      var controle = h('div', { class: 'pile' });
+      var controle = h('div', { class: 'pile' }), impact = h('div', { class: 'pile' });
       if (prep.anneesNumerotees.length) {
         var annees = prep.anneesNumerotees.map(function (x) { return U.libService(x.service) + ' ' + x.annee + ' (' + x.mesures + ' mesure(s) numérotée(s))'; }).join(', ');
         var radio = function (v, titre, texte) {
-          var r = h('input', { type: 'radio', name: 'mode-numerotation', value: v, checked: modeNum === v, onchange: function () { modeNum = v; majCompteurs(); majControle(); avertTout.hidden = v !== 'tout'; } });
+          var r = h('input', { type: 'radio', name: 'mode-numerotation', value: v, checked: modeNum === v, onchange: function () { modeNum = v; majCompteurs(); majControle(); majImpact(); avertTout.hidden = v !== 'tout'; } });
           return h('label', { class: 'case' }, r, h('span', {}, h('b', { text: titre }), ' — ', texte));
         };
         var avertTout = h('div', { class: 'alerte', hidden: modeNum !== 'tout', text: 'Attention : toutes les années importées seront renumérotées selon les règles de l’outil. Les numéros, les catégories et le nombre d’entrées du registre des années passées peuvent changer, et avec eux les statistiques et rapports déjà produits (rapports annuels, réponses aux instances). Ne choisissez cette option qu’après accord de la direction.' });
@@ -103,7 +104,7 @@
           h('tbody', {}, prep.compteurs.map(function (c) {
             var champ = h('input', { type: 'number', min: 0, step: 1, value: estFigeLigne(c) ? c.dernier : c.propose, class: 'champ-court', 'aria-label': 'Compteur ' + c.service + ' ' + c.annee });
             var note = h('small', { class: 'muted', text: estFigeLigne(c) ? 'numérotation du classeur conservée : l’outil reprendra après ' + c.dernier : '' });
-            champ.addEventListener('input', majControle);
+            champ.addEventListener('input', function () { majControle(); majImpact(); });
             champsCompteurs.push({ c: c, champ: champ, note: note });
             return h('tr', {},
               h('td', { text: U.libService(c.service) }), h('td', { text: String(c.annee) }), h('td', { text: String(c.dernier) }),
@@ -111,6 +112,58 @@
               h('td', {}, champ, h('div', {}, note), c.existantes ? h('div', {}, h('small', { class: 'alerte-champ', text: 'L’outil contient déjà des mesures de cette année pour ce service : la numérotation importée s’intercalera avec elles.' })) : null));
           })))));
         zone.appendChild(controle);
+      }
+      if (prep.anneesNumerotees.length) zone.appendChild(impact);
+
+      /** Compteurs retenus pour un choix : ceux saisis pour le choix en cours, la proposition pour les autres. */
+      function compteursPar(mo) {
+        var saisis = compteursChoisis(), f = I().figeSelon(prep, mo, anneeCourante), r = {};
+        champsCompteurs.forEach(function (x) {
+          var c = x.c, fige = !!(f[c.service] && f[c.service][c.annee]);
+          r[c.service] = r[c.service] || {};
+          r[c.service][c.annee] = mo === modeNum ? saisis[c.service][c.annee] : (fige ? c.dernier : c.propose);
+        });
+        return r;
+      }
+      var LIB_MODES = { conserver: 'Laisser tel quel', annee: 'Recalculer ' + anneeCourante, tout: 'Recalculer tout' };
+      function majImpact() {
+        U.vider(impact);
+        if (!prep.anneesNumerotees.length) return;
+        var res;
+        try { res = I().impactNumerotation(prep, compteursPar, anneeCourante); } catch (e) { impact.appendChild(h('div', { class: 'erreur', text: 'Simulation impossible : ' + e.message })); return; }
+        var modes = ['conserver', 'annee', 'tout'];
+        var det = h('details', { open: true, class: 'impact-import' }, h('summary', {}, h('b', { text: 'Impact sur le registre et les statistiques, avant import' })),
+          h('p', { class: 'muted' }, h('small', { text: 'Simulation de l’import selon chaque choix, mesures déjà présentes dans l’outil comprises. Les valeurs qui diffèrent de « Laisser tel quel » sont surlignées ; la colonne du choix retenu est encadrée.' })));
+        res.forEach(function (r) {
+          var lignes = [
+            ['Entrées du registre terminées', function (x) { return x.entrees; }, String],
+            ['Entrées en cours', function (x) { return x.enCours; }, String]
+          ].concat(['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k], function (x) { return x.categories[k]; }, String]; }), [
+            ['Durée cumulée', function (x) { return Math.round(x.dureeTotale * 60); }, function (v) { return U.duree(v / 60); }],
+            ['Durée moyenne d’une entrée', function (x) { return x.dureeMoyenne == null ? null : Math.round(x.dureeMoyenne * 60); }, function (v) { return v == null ? '—' : U.duree(v / 60); }],
+            ['Heures d’utilisation de la CSI', function (x) { return Math.round(x.heuresCSI * 60); }, function (v) { return U.duree(v / 60); }],
+            ['Patients distincts', function (x) { return x.patients; }, String],
+            ['Numéros attribués', function (x) { return x.numeros.join(', '); }, function (v) { return v || '—'; }]
+          ]);
+          det.appendChild(h('h4', { text: U.libService(r.service) + ' — ' + r.annee }));
+          det.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 'table-impact' },
+            h('thead', {}, h('tr', {}, h('th', { text: 'Indicateur' }), modes.map(function (mo) { return h('th', { class: mo === modeNum ? 'choisi' : null, text: LIB_MODES[mo] }); }))),
+            h('tbody', {}, lignes.map(function (l) {
+              var ref = l[1](r.modes.conserver);
+              return h('tr', {}, h('td', { text: l[0] }), modes.map(function (mo) {
+                var v = l[1](r.modes[mo]);
+                return h('td', { class: [mo === modeNum ? 'choisi' : '', v !== ref ? 'diff' : ''].join(' ').trim() || null, text: l[2](v) });
+              }));
+            })))));
+        });
+        // Différences mesure par mesure si l'on recalcule
+        var ctrl = I().controleNumeros(prep, compteursPar('tout'), {});
+        det.appendChild(h('h4', { text: 'Mesures dont la numérotation changerait si l’on recalcule' }));
+        det.appendChild(ctrl.ecarts.length ? h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Mesure du classeur', 'N° du classeur', 'N° recalculé', 'Différence'].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', {}, ctrl.ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: e.classeur }), h('td', { text: e.outil }), h('td', { text: e.motif })); }))))
+          : h('p', { class: 'muted', text: 'Aucune : le recalcul redonnerait les numéros du classeur.' }));
+        impact.appendChild(det);
       }
       function majControle() {
         U.vider(controle);
@@ -124,6 +177,7 @@
           h('tbody', {}, c.ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: e.classeur }), h('td', { text: e.outil }), h('td', { text: e.motif })); })))));
       }
       majControle();
+      majImpact();
 
       if (r.ignorees.length) zone.appendChild(h('details', {}, h('summary', { text: r.ignorees.length + ' ligne(s) ignorée(s)' }), h('ul', {}, r.ignorees.map(function (x) { return h('li', { text: x }); }))));
       if (r.avertissements.length) zone.appendChild(h('details', {}, h('summary', { text: r.avertissements.length + ' point(s) à vérifier' }), h('ul', {}, r.avertissements.map(function (x) { return h('li', { text: x }); }))));

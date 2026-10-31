@@ -339,8 +339,12 @@
    */
   function simuler(prep, compteurs, fige) {
     var etat = prep.etatAvant, n = 0, evts = [];
-    function evt(type, data) { n++; evts.push({ id: 'sim' + String(n).padStart(6, '0'), at: new Date(Date.UTC(2000, 0, 1) + n * 1000).toISOString(), by: 'import', type: type, data: data }); }
-    Object.keys(etat.config).forEach(function (k) { evt('CONFIG', { cle: k, valeur: etat.config[k] }); });
+    // Avec les saisies existantes (prep.evtsExistants, fournies par l'interface), la simulation comprend aussi
+    // les mesures déjà présentes dans l'outil ; les saisies simulées sont alors datées après elles.
+    var existants = prep.evtsExistants || null, base = existants ? Date.UTC(2999, 0, 1) : Date.UTC(2000, 0, 1);
+    function evt(type, data) { n++; evts.push({ id: 'sim' + String(n).padStart(6, '0'), at: new Date(base + n * 1000).toISOString(), by: 'import', type: type, data: data }); }
+    if (existants) evts = existants.slice();
+    else Object.keys(etat.config).forEach(function (k) { evt('CONFIG', { cle: k, valeur: etat.config[k] }); });
     prep.config.forEach(function (c) { evt('CONFIG', { cle: c.cle, valeur: c.valeur }); });
     if (prep.servicesACreer.length) evt('CONFIG', { cle: 'services', valeur: (etat.config.services || []).concat(prep.servicesACreer) });
     evt('CONFIG', { cle: 'compteursRegistre', valeur: fusionCompteurs(etat, compteurs) });
@@ -382,6 +386,28 @@
     return { verifiees: verifiees, ecarts: ecarts };
   }
 
+  /**
+   * Impact des trois choix de numérotation sur le registre et les statistiques, par service et par année
+   * contenant des mesures importées numérotées. `compteursPar(mode)` : compteurs retenus pour chaque choix.
+   * Retourne [{ service, annee, modes: { conserver|annee|tout: indicateurs } }].
+   */
+  function impactNumerotation(prep, compteursPar, anneeCourante) {
+    var modes = ['conserver', 'annee', 'tout'], sims = {};
+    modes.forEach(function (mo) { sims[mo] = simuler(prep, compteursPar(mo), figeSelon(prep, mo, anneeCourante)); });
+    return prep.anneesNumerotees.map(function (x) {
+      var r = { service: x.service, annee: x.annee, modes: {} };
+      modes.forEach(function (mo) {
+        var sim = sims[mo], s = M.statistiquesAnnee(sim, [x.service], x.annee, prep.maintenant);
+        var reg = M.registre(sim, x.service, x.annee, prep.maintenant);
+        r.modes[mo] = {
+          entrees: s.mesures, enCours: s.enCours, categories: s.categories, dureeTotale: s.duree.total, dureeMoyenne: s.duree.moyenne,
+          heuresCSI: s.heuresCSI, patients: s.patients, numeros: reg.filter(function (e) { return e.numero; }).map(function (e) { return e.numero; })
+        };
+      });
+      return r;
+    });
+  }
+
 
 
   /** Compare les échéances recalculées aux valeurs du classeur pour les mesures en cours. */
@@ -398,5 +424,5 @@
     return ecarts;
   }
 
-  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, figeSelon: figeSelon, fusionFige: fusionFige, norm: norm };
+  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, figeSelon: figeSelon, fusionFige: fusionFige, impactNumerotation: impactNumerotation, norm: norm };
 });
