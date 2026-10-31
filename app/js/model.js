@@ -89,7 +89,8 @@
     // colonneRegistre : colonne des levées temporaires dans le registre.
     // contentionSeule (pauses déduites partout) : pause de la contention seule, l'isolement continuant —
     // 'isolement' : ce temps devient de l'isolement seul (entrée A) ; 'contention' : il reste dans l'entrée C, non déduit.
-    pauses: { active: true, retrancher: false, portee: 'jld', contentionSeule: 'isolement', colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
+    // verrouContention : interdit la pause de l'isolement seul pendant une contention (pause commune ou fin de la contention).
+    pauses: { active: true, retrancher: false, portee: 'jld', contentionSeule: 'isolement', verrouContention: false, colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
   };
 
   function cloner(o) { return JSON.parse(JSON.stringify(o)); }
@@ -308,6 +309,7 @@
     if (o.portee !== 'partout') o.portee = 'jld';
     o.deduireRegistre = o.retrancher && o.portee === 'partout';
     if (o.contentionSeule !== 'contention') o.contentionSeule = 'isolement';
+    o.verrouContention = o.verrouContention === true;
     o.colonneRegistre = o.active && o.colonneRegistre !== false;
     return o;
   }

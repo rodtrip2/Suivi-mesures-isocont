@@ -466,3 +466,9 @@ test('Variante du registre : une pause commune à l’isolement et à la content
   assert.deepEqual(r, [['A', 4], ['C', 5], ['A', 4]]);   // patient sorti de l'isolement : l'heure est déduite, partout
   assert.equal(M.optionsPauses({}).contentionSeule, 'isolement');
 });
+
+test('Option : pause de l’isolement seul interdite pendant une contention (désactivée par défaut)', () => {
+  assert.equal(M.optionsPauses({}).verrouContention, false);
+  assert.equal(M.optionsPauses({ pauses: { verrouContention: true } }).verrouContention, true);
+  assert.equal(M.optionsPauses({ pauses: { verrouContention: 'oui' } }).verrouContention, false);
+});

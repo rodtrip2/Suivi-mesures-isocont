@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.16.0 — 31 octobre 2026
+
+- **Option « Interdire la pause de l'isolement seul pendant une contention »** (*Administration → Pauses*, désactivée par défaut). Activée, la fenêtre de pause d'un isolement remplace la case « Mettre aussi en pause la contention » par un choix : mettre aussi la contention en pause, ou y mettre fin au début de la pause (décision du même psychiatre, motif tracé). Désactivée, le comportement reste celui d'avant : case cochée par défaut, alerte si elle est décochée.
+
 ## 1.15.0 — 31 octobre 2026
 
 - **Pause d'une contention pendant un isolement** : l'agent doit confirmer si la pause concerne la contention seulement (le patient reste à l'isolement) ou aussi l'isolement ; dans le second cas, les deux mesures sont mises en pause ensemble. À la reprise d'une contention, l'outil propose de reprendre aussi l'isolement en pause.
