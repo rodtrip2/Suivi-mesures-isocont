@@ -76,7 +76,12 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - Statistiques annuelles N / N-1 (rapport « L'isolement et la contention en chiffres »), export CSV pseudonymisé.
 - Onglet Patients : cumuls 48 h / 15 jours, vigilance, mode d'hospitalisation ; **statistiques par année** en colonnes **paramétrables** regroupant des catégories A à E (par défaut : isolement seul A–B, contention seule D–E signalée si non nulle, isolement + contention C) ; colonne **« Mesures (JLD) »** qui compte isolements et contentions séparément, comme le juge ; bouton **Mesures** ouvrant la liste détaillée des mesures du patient et ses entrées du registre.
 
-## 9. Import du classeur V1.3
+## 9. Reprise de l'historique
+
+- **Import générique à partir du registre du service** (seul document obligatoirement numérique) : CSV ou Excel de n'importe quel outil, correspondance des colonnes proposée et modifiable, ligne d'en-tête repérée, modèle CSV téléchargeable (`app/js/import-registre.js`, fiche `kit/07`). Une ligne = une entrée : A/B → isolement, C → contention en CSI + l'isolement qui l'accompagne, D/E → contention hors espace d'isolement ; portions d'isolement contiguës d'un même patient fusionnées en une mesure ; lignes d'origine conservées (`entreesOrigine`) pour reproduire le registre à l'identique ; soignants cités affichés à défaut de traces par poste. Cycles JLD et tiers non repris (absents du registre).
+- Les deux imports partagent la même mécanique (services, compteurs, choix de numérotation, contrôle, aperçu, décisions et corrections par mesure).
+
+### Import du classeur V1.3
 
 - Lecture dans le navigateur, un seul lot annulable, pas de doublon si relancé, rapport et comparaison des échéances.
 - **Services absents** : créer (libellé modifiable), rattacher à un service existant, ou ignorer s'il ne porte aucune donnée.

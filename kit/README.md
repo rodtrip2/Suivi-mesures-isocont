@@ -10,6 +10,7 @@ Tout ce qu'il faut pour présenter, valider, installer et exploiter Suivi-mesure
 | [04 — Procédures de secours](04-procedures-secours.md) | Administrateur, cadres, DSI | Mots de passe, clés, départs, panne, restauration ; fiche papier dégradée |
 | [05 — Éléments RGPD et AIPD](05-elements-rgpd-aipd.md) | DPO | Fiche du registre des traitements et préparation de l'analyse d'impact |
 | [06 — Guide utilisateur](06-guide-utilisateur.md) | IDE, secrétariat, cadres | Formation des équipes |
+| [07 — Reprise à partir du registre](07-modele-import-registre.md) | Administrateur fonctionnel, cadres | Format du registre à importer, reconstitution des mesures, contrôles avant import |
 
 ## Parcours de déploiement
 

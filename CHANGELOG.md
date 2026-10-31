@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.22.0 — 31 octobre 2026
+
+- **Import générique à partir du registre du service**, pour tout établissement quel que soit son outil : fichier CSV (UTF-8 ou Windows) ou Excel, choix de la feuille, ligne d'en-tête repérée automatiquement, **correspondance des colonnes** proposée d'après leurs intitulés et modifiable, exemple de valeur pour chaque donnée. **Modèle de registre CSV** téléchargeable.
+- Reconstitution des mesures à partir des entrées : A/B → isolement ; C → contention en CSI et l'isolement qui l'accompagne ; D/E → contention hors espace d'isolement ; portions d'isolement contiguës d'un même patient regroupées en une seule mesure (le juge compte un isolement). Chaque mesure garde ses lignes d'origine : en numérotation conservée, le registre importé est reproduit à l'identique, soignants compris.
+- Même mécanique que l'import V1.3 : services absents, compteurs, choix de numérotation, contrôle, aperçu de l'impact, décisions et corrections par mesure. Libellés adaptés (« registre importé »).
+- Registre : soignants cités par le registre importé affichés à défaut de traces de surveillance par poste ; mention « n° d'origine » (classeur ou registre).
+- Kit : nouvelle fiche **07 — Reprise à partir du registre** (format, reconstitution, contrôles). Fiche projet, guide d'installation et `CLAUDE.md` mis à jour.
+
 ## 1.21.0 — 31 octobre 2026
 
 - Aperçu d'import : **pourquoi de chaque catégorie** sous chaque entrée — règle appliquée, lieu, case « exception », portion d'isolement hors contention, et, en cas d'écart avec le classeur, la lettre du classeur et une piste de vérification (« vérifier la case « exception » de la mesure »…).

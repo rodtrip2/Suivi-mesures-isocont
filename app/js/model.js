@@ -201,6 +201,8 @@
           psychiatreDebut: d.psychiatre || '', psychiatreFin: '', modeHospi: d.modeHospi || '',
           cycle: 1, jld: {}, leveeJLD: false, tiers: [], pauses: [], creePar: e.by, creeLe: e.at,
           origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', correctionImport: d.correctionImport || '', suite: d.suiteDe || '',
+          // Import d'un registre : entrées d'origine (numéro, catégorie, période, soignants) et soignants cités
+          entreesOrigine: d.entreesOrigine || null, professionnelsOrigine: d.professionnelsOrigine || '',
           version: 1, champs: {}, evts: [e.id]
         };
         break;
@@ -600,6 +602,14 @@
     var entrees = [];
     ms.forEach(function (m) {
       var fin = typeof m.fin === 'number' ? m.fin : null;
+      if (estFigee(st, m) && m.entreesOrigine && m.entreesOrigine.length) {
+        // Registre importé, numérotation conservée : ses lignes sont reprises à l'identique.
+        m.entreesOrigine.forEach(function (o) {
+          var no = String(o.numero || '').trim().toUpperCase(), mo = /^([A-E])\s*-?\s*(\d+)$/.exec(no);
+          entrees.push({ cat: o.categorie || (mo ? mo[1] : 'A'), mesure: m, debut: o.debut, fin: o.fin == null ? null : o.fin, fige: true, numero: mo ? mo[1] + mo[2] : no, rang: mo ? +mo[2] : 0, professionnelsOrigine: o.professionnels || '' });
+        });
+        return;
+      }
       if (estFigee(st, m)) {
         // Numérotation du classeur conservée : une entrée par mesure, catégorie et numéro du classeur.
         var no = String(m.numeroOrigine).trim().toUpperCase(), mo = /^([A-E])\s*-?\s*(\d+)$/.exec(no);
@@ -632,6 +642,17 @@
 
   function professionnelsSur(st, service, debut, fin) {
     return professionnelsDetailSur(st, service, debut, fin).map(function (p) { return p.nom + (p.fonction ? ' (' + p.fonction + ')' : ''); });
+  }
+
+  /**
+   * Professionnels d'une entrée du registre : traces de surveillance en CSI (catégories A et C) ; à défaut,
+   * soignants cités par le registre importé (« Nom (fonction) ; … »).
+   */
+  function professionnelsEntree(st, service, x, finRef) {
+    var pros = (x.cat === 'A' || x.cat === 'C') ? professionnelsDetailSur(st, service, x.debut, finRef) : [];
+    if (pros.length) return pros;
+    var cites = x.professionnelsOrigine || (x.fige ? '' : x.mesure.professionnelsOrigine) || '';
+    return String(cites).split(/[;\n]+/).map(function (t) { t = t.trim(); var mo = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(t); return t ? { nom: mo ? mo[1] : t, fonction: mo ? mo[2] : '' } : null; }).filter(Boolean);
   }
 
   /** Professionnels (nom, fonction) ayant surveillé une CSI d'un service entre `debut` et `fin`, sans doublon. */
@@ -685,8 +706,8 @@
         pauses: pausesSur(x.mesure, x.debut, finRef, maintenant, st.config).map(function (q) { return [q.debut, q.fin]; }),
         type: x.mesure.type, lieu: x.mesure.lieu,
         psychiatre: x.mesure.psychiatreDebut, modeHospi: mode.mode, basculeMode: mode.bascule,
-        professionnels: (x.cat === 'A' || x.cat === 'C') ? professionnelsSur(st, service, x.debut, finRef) : [],
-        professionnelsDetail: (x.cat === 'A' || x.cat === 'C') ? professionnelsDetailSur(st, service, x.debut, finRef) : [],
+        professionnelsDetail: (x._pd = professionnelsEntree(st, service, x, finRef)),
+        professionnels: x._pd.map(function (p) { return p.nom + (p.fonction ? ' (' + p.fonction + ')' : ''); }),
         ipp: (st.patients[x.mesure.patientId] || {}).ipp || '', age: ageAu(st, x.mesure.patientId, x.debut),
         mesureId: x.mesure.id, patientId: x.mesure.patientId, service: service
       };

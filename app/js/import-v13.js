@@ -392,9 +392,12 @@
     var verifiees = 0, ecarts = [];
     M.listeMesures(sim).forEach(function (m) {
       if (!m.numeroOrigine) return;
-      var origine = String(m.numeroOrigine).trim().toUpperCase(), entrees = parMesure[m.id] || [];
+      var entrees = parMesure[m.id] || [];
       var numeros = entrees.map(function (e) { return e.numero || 'en cours'; });
-      var ref = (m.origine || '').replace(/^Classeur V1\.3 — /, '') || m.id;
+      var ref = (m.origine || '').replace(/^(Classeur V1\.3|Registre importé) — /, '') || m.id;
+      var origines = m.entreesOrigine && m.entreesOrigine.length ? m.entreesOrigine.map(function (o) { return o.numero; }).filter(Boolean) : [m.numeroOrigine];
+      origines.forEach(function (o) { verifierUn(String(o).trim().toUpperCase()); });
+      function verifierUn(origine) {
       if (numeros.indexOf(origine) >= 0) { verifiees++; return; }
       var mo = /^([A-E])\s*-?\s*(\d+)$/.exec(origine), motif;
       if (!mo) motif = 'numéro du classeur non reconnu';
@@ -406,6 +409,7 @@
           : entrees.length > 1 ? 'la mesure forme ' + entrees.length + ' entrées dans l’outil' : 'catégorie et numéro différents';
       }
       ecarts.push({ ref: ref, classeur: origine, outil: numeros.join(', ') || '—', motif: motif });
+      }
     });
     return { verifiees: verifiees, ecarts: ecarts };
   }
@@ -429,7 +433,7 @@
         reg.forEach(function (e) {
           if (e.fin !== null) dureeCat[e.categorie] += e.dureeHeures;
           var m = sim.mesures[e.mesureId], p = sim.patients[m.patientId] || {};
-          var d = parMesure[e.mesureId] = parMesure[e.mesureId] || { mesureId: e.mesureId, ref: parId[e.mesureId] || '', patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim(), ipp: p.ipp || '', type: m.type, debut: m.debut, fin: m.fin, origine: (m.origine || '').replace(/^Classeur V1\.3 — /, ''), numeroOrigine: m.numeroOrigine || '', importee: !!m.origine, csi: m.csi, exception: m.exception, lieu: m.lieu, correction: m.correctionImport || '', modes: {}, pourquoi: {} };
+          var d = parMesure[e.mesureId] = parMesure[e.mesureId] || { mesureId: e.mesureId, ref: parId[e.mesureId] || '', patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim(), ipp: p.ipp || '', type: m.type, debut: m.debut, fin: m.fin, origine: (m.origine || '').replace(/^(Classeur V1\.3|Registre importé) — /, ''), numeroOrigine: m.numeroOrigine || '', importee: !!m.origine, csi: m.csi, exception: m.exception, lieu: m.lieu, correction: m.correctionImport || '', modes: {}, pourquoi: {} };
           (d.modes[mo] = d.modes[mo] || []).push({ numero: e.numero, categorie: e.categorie, debut: e.debut, fin: e.fin, duree: e.dureeHeures });
           (d.pourquoi[mo] = d.pourquoi[mo] || []).push(M.explicationEntree(sim, e));
         });

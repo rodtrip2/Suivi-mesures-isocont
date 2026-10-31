@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: EUPL-1.2
-/* Reprise des données du classeur Excel V1.3 (administrateur). Le fichier est lu dans le navigateur. */
+/*
+ * Reprise de données (administrateur). Deux sources : le registre du service, quel que soit l'outil
+ * d'origine (modèle générique, colonnes à faire correspondre), ou le classeur Excel V1.3.
+ * Le fichier est lu dans le navigateur.
+ */
 (function () {
   'use strict';
   var SIC = self.SIC, U = SIC.ui, M = SIC.model, h = U.h;
@@ -7,24 +11,71 @@
 
   var LIB_ACTION = { creer: 'Créer ce service', rattacher: 'Rattacher à un service existant', ignorer: 'Ignorer' };
 
-  U.actions.importer = function () {
-    var fichier = h('input', { type: 'file', accept: '.xlsx,.xlsm' });
+  U.actions.importerRegistre = function () { U.actions.importer('registre'); };
+
+  U.actions.importer = function (source) {
+    var registre = source === 'registre', IR = function () { return SIC.importRegistre; };
+    var fichier = h('input', { type: 'file', accept: registre ? '.csv,.txt,.xlsx,.xlsm' : '.xlsx,.xlsm' });
     var zone = h('div', { class: 'pile' });
+    // Registre : feuille, ligne d'en-tête et correspondance des colonnes
+    var table = null, classeurReg = null, zoneColonnes = h('div', { class: 'pile' });
     var prep = null, cases = [], classeur = null, choixServices = {}, champsCompteurs = [], dernierControle = null, modeNum = 'conserver';
     var decisions = {}, corrections = {};   // par référence du classeur (M0003…) : décision de numérotation, correction des données
     var anneeCourante = new Date().getFullYear();
     function figeChoisi() { return prep ? I().figeSelon(prep, modeNum, anneeCourante) : {}; }
     function estFigeLigne(c) { var f = figeChoisi(); return !!(f[c.service] && f[c.service][c.annee]); }
-    var svDefaut = h('select', {}, h('option', { value: '', text: 'Service actif du classeur (recommandé)' }), U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle }); }));
+    var svDefaut = h('select', {}, h('option', { value: '', text: registre ? 'Premier service de l’outil' : 'Service actif du classeur (recommandé)' }), U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle }); }));
 
     async function lire() {
-      classeur = null; choixServices = {}; decisions = {}; corrections = {};
-      U.vider(zone);
+      classeur = null; table = null; classeurReg = null; choixServices = {}; decisions = {}; corrections = {};
+      U.vider(zone); U.vider(zoneColonnes);
       if (!fichier.files[0]) return;
-      zone.appendChild(h('div', { class: 'info', text: 'Lecture du classeur…' }));
-      try { classeur = await SIC.xlsx.lire(await fichier.files[0].arrayBuffer()); }
-      catch (e) { U.vider(zone); zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
+      zone.appendChild(h('div', { class: 'info', text: 'Lecture du fichier…' }));
+      try {
+        var f = fichier.files[0];
+        if (!registre) classeur = await SIC.xlsx.lire(await f.arrayBuffer());
+        else if (/\.(csv|txt)$/i.test(f.name)) {
+          var octets = new Uint8Array(await f.arrayBuffer()), texte;
+          try { texte = new TextDecoder('utf-8', { fatal: true }).decode(octets); } catch (e) { texte = new TextDecoder('windows-1252').decode(octets); }
+          choisirTable(IR().lireCSV(texte));
+        } else {
+          classeurReg = await SIC.xlsx.lire(await f.arrayBuffer());
+          choisirTable(classeurReg.feuilles[Object.keys(classeurReg.feuilles)[0]] || [], Object.keys(classeurReg.feuilles)[0]);
+        }
+      } catch (e) { U.vider(zone); zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
       analyser();
+    }
+
+    /** Registre : table lue, correspondances proposées, et écran de correspondance des colonnes. */
+    function choisirTable(lignes, feuille) {
+      var g = IR().deviner(lignes);
+      table = { lignes: lignes, ligneEntete: g.ligneEntete, correspondance: g.correspondance, feuille: feuille };
+      dessinerColonnes();
+    }
+    function dessinerColonnes() {
+      U.vider(zoneColonnes);
+      if (!table) return;
+      var entetes = (table.lignes[table.ligneEntete] || []).map(function (x) { return x == null ? '' : String(x).trim(); });
+      var exemple = table.lignes[table.ligneEntete + 1] || [];
+      if (classeurReg && Object.keys(classeurReg.feuilles).length > 1) {
+        var selF = h('select', {}, Object.keys(classeurReg.feuilles).map(function (n) { return h('option', { value: n, text: n, selected: n === table.feuille }); }));
+        selF.addEventListener('change', function () { choisirTable(classeurReg.feuilles[selF.value] || [], selF.value); analyser(); });
+        zoneColonnes.appendChild(h('label', {}, 'Feuille du classeur contenant le registre', selF));
+      }
+      var ligneEnt = h('input', { type: 'number', min: 1, max: Math.max(1, table.lignes.length), value: table.ligneEntete + 1, class: 'champ-court' });
+      ligneEnt.addEventListener('change', function () { var g = IR().deviner(table.lignes.slice(Math.max(0, +ligneEnt.value - 1))); table.ligneEntete = Math.max(0, +ligneEnt.value - 1); table.correspondance = g.correspondance; dessinerColonnes(); analyser(); });
+      zoneColonnes.appendChild(h('h3', { text: 'Colonnes du registre' }));
+      zoneColonnes.appendChild(h('p', { class: 'muted' }, h('small', { text: 'Indiquez quelle colonne de votre fichier correspond à chaque donnée du registre (les correspondances évidentes sont proposées). Les champs marqués * sont indispensables ; le type de mesure peut être déduit de la catégorie ou du numéro (A12…). Les colonnes inutiles sont ignorées.' })));
+      zoneColonnes.appendChild(h('label', { class: 'en-ligne' }, 'Ligne des en-têtes', ligneEnt));
+      zoneColonnes.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
+        h('thead', {}, h('tr', {}, ['Donnée', 'Colonne de votre fichier', 'Exemple (1re ligne)'].map(function (t) { return h('th', { text: t }); }))),
+        h('tbody', {}, IR().CHAMPS.map(function (c) {
+          var sel = h('select', { 'aria-label': 'Colonne pour ' + c.libelle }, h('option', { value: '', text: '— non utilisée —' }),
+            entetes.map(function (e, j) { return h('option', { value: String(j), text: (e || 'colonne ' + (j + 1)), selected: table.correspondance[c.cle] === j }); }));
+          var ex = h('small', { class: 'muted', text: table.correspondance[c.cle] != null ? String(exemple[table.correspondance[c.cle]] == null ? '' : exemple[table.correspondance[c.cle]]) : '' });
+          sel.addEventListener('change', function () { if (sel.value === '') delete table.correspondance[c.cle]; else table.correspondance[c.cle] = +sel.value; ex.textContent = sel.value === '' ? '' : String(exemple[+sel.value] == null ? '' : exemple[+sel.value]); analyser(); });
+          return h('tr', {}, h('td', {}, h('b', { text: c.libelle + (c.obligatoire ? ' *' : '') }), c.aide ? h('div', {}, h('small', { class: 'muted', text: c.aide })) : null), h('td', {}, sel), h('td', {}, ex));
+        })))));
     }
 
     function compteursChoisis() {
@@ -36,12 +87,14 @@
     function analyser() {
       prep = null; cases = []; champsCompteurs = [];
       U.vider(zone);
-      if (!classeur) return;
-      try { prep = I().preparer(classeur, U.st(), { serviceParDefaut: svDefaut.value || undefined, services: choixServices, corrections: corrections }); }
+      if (!classeur && !table) return;
+      var opts = { serviceParDefaut: svDefaut.value || undefined, services: choixServices, corrections: corrections };
+      try { prep = registre ? IR().preparer(table, U.st(), opts) : I().preparer(classeur, U.st(), opts); }
       catch (e) { zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
       prep.evtsExistants = U.App.session.evts;   // simulations complètes : mesures déjà présentes dans l'outil comprises
       var r = prep.rapport;
       zone.appendChild(h('div', { class: 'recap' },
+        registre ? h('div', { text: r.entrees + ' ligne(s) du registre lue(s) ; les mesures sont reconstituées à partir des entrées (une contention en CSI implique l’isolement qui l’accompagne, les portions d’isolement contiguës forment une seule mesure).' }) : null,
         h('div', {}, h('b', { text: r.mesures + ' mesure(s)' }), ' à importer' + (r.dejaPresentes ? ', ' + r.dejaPresentes + ' déjà présente(s) (ignorées)' : '') + '.'),
         h('div', { text: r.patients + ' nouveau(x) patient(s), ' + r.modes + " mode(s) d'hospitalisation, " + r.tiers + ' information(s) de tiers, ' + r.cycles + ' décision(s) de maintien du JLD, ' + r.professionnels + ' professionnel(s) en CSI.' })));
 
@@ -128,6 +181,7 @@
       }
       var LIB_MODES = { conserver: 'Laisser tel quel', annee: 'Recalculer ' + anneeCourante, tout: 'Recalculer tout' };
       function majImpact() {
+        setTimeout(adapterLibelles, 0);
         U.vider(impact);
         if (!prep.anneesNumerotees.length) return;
         var res;
@@ -213,6 +267,7 @@
         impact.appendChild(det);
       }
       function majControle() {
+        setTimeout(adapterLibelles, 0);
         U.vider(controle);
         dernierControle = I().controleNumeros(prep, compteursChoisis(), figeChoisi(), decisions);
         var c = dernierControle;
@@ -229,13 +284,22 @@
       if (r.ignorees.length) zone.appendChild(h('details', {}, h('summary', { text: r.ignorees.length + ' ligne(s) ignorée(s)' }), h('ul', {}, r.ignorees.map(function (x) { return h('li', { text: x }); }))));
       if (r.avertissements.length) zone.appendChild(h('details', {}, h('summary', { text: r.avertissements.length + ' point(s) à vérifier' }), h('ul', {}, r.avertissements.map(function (x) { return h('li', { text: x }); }))));
       if (!r.mesures && !prep.config.length && !r.professionnels && !prep.servicesACreer.length && !prep.compteurs.length) zone.appendChild(h('div', { class: 'info', text: 'Rien de nouveau à importer.' }));
+      adapterLibelles();
+    }
+
+    /** Registre : « classeur » devient « registre importé » dans les libellés de l'analyse. */
+    function adapterLibelles() {
+      if (!registre) return;
+      var w = document.createTreeWalker(zone, NodeFilter.SHOW_TEXT), n;
+      while ((n = w.nextNode())) if (/classeur/i.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(/du classeur/g, 'du registre importé').replace(/le classeur/g, 'le registre importé').replace(/Le classeur/g, 'Le registre importé').replace(/au classeur/g, 'au registre importé').replace(/classeur/g, 'registre importé');
     }
     fichier.addEventListener('change', lire);
     svDefaut.addEventListener('change', analyser);
 
-    U.modale('Importer le classeur V1.3', h('div', { class: 'pile' },
-      h('p', { class: 'muted', text: 'Le classeur est lu dans ce navigateur : rien n’est envoyé sur Internet. Les saisies importées sont enregistrées en un seul lot, annulable depuis le journal.' }),
-      h('div', { class: 'grille-2' }, h('label', {}, 'Classeur (.xlsx ou .xlsm)', fichier), h('label', {}, 'Service par défaut (patients sans service)', svDefaut)),
+    U.modale(registre ? 'Importer un registre' : 'Importer le classeur V1.3', h('div', { class: 'pile' },
+      h('p', { class: 'muted', text: (registre ? 'Le registre du service (fichier CSV ou classeur Excel exporté de votre outil actuel) ' : 'Le classeur ') + 'est lu dans ce navigateur : rien n’est envoyé sur Internet. Les saisies importées sont enregistrées en un seul lot, annulable depuis le journal.' }),
+      h('div', { class: 'grille-2' }, h('label', {}, registre ? 'Registre (.csv, .xlsx ou .xlsm)' : 'Classeur (.xlsx ou .xlsm)', fichier), h('label', {}, registre ? 'Service par défaut (lignes sans service)' : 'Service par défaut (patients sans service)', svDefaut)),
+      registre ? zoneColonnes : null,
       zone), [
       { texte: 'Annuler' },
       { texte: 'Importer', classe: 'primaire', action: async function () {
@@ -260,18 +324,19 @@
           prep.compteurs.forEach(function (c) { derniers[c.service] = derniers[c.service] || {}; derniers[c.service][c.annee] = c.dernier; });
           await s.enregistrer('CONFIG', { cle: 'derniersClasseur', valeur: derniers });
         }
-        if (prep.evenements.length) await s.enregistrerLot(prep.evenements, { libelle: 'Import du classeur ' + fichier.files[0].name });
+        if (prep.evenements.length) await s.enregistrerLot(prep.evenements, { libelle: (registre ? 'Import du registre ' : 'Import du classeur ') + fichier.files[0].name });
         var ecarts = I().comparer(s.etat, prep.attendus), controle = dernierControle, crees = prep.servicesACreer.slice();
-        setTimeout(function () { compteRendu(prep.rapport, ecarts, controle, crees); }, 0);
+        setTimeout(function () { compteRendu(prep.rapport, ecarts, controle, crees, registre); }, 0);
         return true;
       } }], { large: true });
   };
 
-  function compteRendu(r, ecarts, controle, crees) {
+  function compteRendu(r, ecarts, controle, crees, registre) {
     var noms = { info: 'information', saisine: 'saisine', decision: 'décision' };
     U.modale('Import terminé', h('div', { class: 'pile' },
-      h('div', { class: 'info', text: r.mesures + ' mesure(s) et ' + r.patients + ' patient(s) importés' + (crees.length ? ', ' + crees.length + ' service(s) créé(s) : ' + crees.map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ') : '') + '. Complétez les fiches marquées « IMPORT » dans l’onglet Patients' + (crees.length ? ', et affectez les services créés aux comptes concernés (Administration → Comptes)' : '') + '.' }),
-      ecarts.length ? h('div', { class: 'alerte', text: ecarts.length + ' échéance(s) JLD recalculée(s) diffèrent du classeur pour des mesures en cours : vérifiez-les avant de vous y fier.' }) : h('div', { class: 'info', text: 'Les échéances JLD recalculées des mesures en cours sont identiques à celles du classeur.' }),
+      h('div', { class: 'info', text: r.mesures + ' mesure(s) et ' + r.patients + ' patient(s) importés' + (crees.length ? ', ' + crees.length + ' service(s) créé(s) : ' + crees.map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ') : '') + '. Complétez dans l’onglet Patients les fiches des nouveaux patients (nom, date de naissance)' + (crees.length ? ', et affectez les services créés aux comptes concernés (Administration → Comptes)' : '') + '.' }),
+      registre ? h('div', { class: 'info', text: 'Les cycles JLD et l’information des tiers ne figurent pas au registre : vérifiez les mesures en cours dans l’onglet JLD.' })
+        : ecarts.length ? h('div', { class: 'alerte', text: ecarts.length + ' échéance(s) JLD recalculée(s) diffèrent du classeur pour des mesures en cours : vérifiez-les avant de vous y fier.' }) : h('div', { class: 'info', text: 'Les échéances JLD recalculées des mesures en cours sont identiques à celles du classeur.' }),
       ecarts.length ? h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Mesure', 'Échéance', 'Classeur', 'Recalculée'].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: noms[e.nature] }), h('td', { text: U.date(e.classeur) }), h('td', { text: U.date(e.calcule) })); })))) : null,

@@ -686,7 +686,7 @@
       h('div', { class: 'seulement-impression' }, h('h2', { text: (etablissement() ? etablissement() + ' — ' : '') + 'Registre des mesures d’isolement et de contention — ' + libService(svCode) + ' — ' + anneeRegistre }), h('p', { text: 'Article L. 3222-5-1 du code de la santé publique. Édité le ' + date(Date.now()) + '.' })),
       svCode ? h('p', { class: 'muted', text: libService(svCode) + ' — registre prévu par l’article L. 3222-5-1 du CSP, à présenter à la commission départementale des soins psychiatriques, au Contrôleur général des lieux de privation de liberté et aux parlementaires. Le patient y est désigné par son IPP. Pour toute autre demande (CADA), utilisez la version pour communication.' + (App.service === '*' ? ' Choisissez un service en haut de page pour changer de service.' : '') }) : null,
       notePauses ? h('p', { class: 'note-registre', text: notePauses }) : null,
-      entrees.some(function (e) { return e.fige; }) ? h('p', { class: 'note-registre', text: 'Les entrées marquées « n° du classeur » sont des mesures importées qui gardent la catégorie et le numéro du classeur Excel ; la numérotation de l’outil reprend à leur suite.' }) : null,
+      entrees.some(function (e) { return e.fige; }) ? h('p', { class: 'note-registre', text: 'Les entrées marquées « n° d’origine » sont des mesures importées qui gardent la catégorie et le numéro de leur document d’origine (classeur Excel ou registre importé) ; la numérotation de l’outil saute ces numéros.' }) : null,
       h('div', { class: 'indicateurs' }, Object.keys(synthese).map(function (k) {
         return h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: synthese[k] }), h('div', { class: 'libelle', text: k + ' — ' + LIB_CAT[k] }));
       })),
@@ -694,7 +694,7 @@
         h('thead', {}, h('tr', {}, ['N°', 'IPP', 'Âge', 'Début', 'Fin', libDuree].concat(colPauses ? ['Levées temporaires'] : [], ["Mode d'hosp.", 'Lieu', 'Psychiatre', 'Professionnels chargés de la surveillance']).map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, entrees.map(function (e) {
           return h('tr', { class: e.fin ? '' : 'en-cours' },
-            h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' }), e.fige ? h('div', {}, h('small', { class: 'badge', title: 'Mesure importée : catégorie et numéro du classeur conservés', text: 'n° du classeur' })) : null),
+            h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' }), e.fige ? h('div', {}, h('small', { class: 'badge', title: 'Mesure importée : catégorie et numéro d’origine conservés (classeur ou registre importé)', text: 'n° d’origine' })) : null),
             h('td', { text: e.ipp || '—' }),
             h('td', { class: 'nowrap', text: e.age == null ? '—' : e.age + ' ans' }),
             h('td', { class: 'nowrap', text: date(e.debut) }),
@@ -1772,7 +1772,7 @@
       var fige = cfg.registreFige || {}, anneeCourante = new Date().getFullYear();
       async function basculer(g, figer) {
         var passee = g.annee < anneeCourante;
-        var msg = figer ? 'Revenir à la numérotation du classeur pour ' + libService(g.service) + ' ' + g.annee + ' ? Les numéros attribués par l’outil à ces mesures seront remplacés par ceux du classeur.'
+        var msg = figer ? 'Revenir à la numérotation d’origine pour ' + libService(g.service) + ' ' + g.annee + ' ? Les numéros attribués par l’outil à ces mesures seront remplacés par ceux de leur document d’origine.'
           : 'Recalculer selon les règles de l’outil les entrées de ' + libService(g.service) + ' ' + g.annee + ' ?' + (passee ? '\n\nATTENTION : année passée. Les numéros, les catégories et le nombre d’entrées du registre peuvent changer, et avec eux les statistiques et rapports déjà produits pour cette année.' : '');
         var cpt = M.compteurPour(st(), g.service, g.annee, figer, Date.now());
         if (cpt != null) msg += '\n\nLe compteur du registre de cette année passera à ' + cpt + (figer ? ' (dernier numéro du classeur).' : ' (dernier numéro du classeur moins les entrées que l’outil numérotera lui-même).');
@@ -1786,25 +1786,34 @@
           comp[g.service] = comp[g.service] || {}; comp[g.service][g.annee] = cpt;
           await App.session.enregistrer('CONFIG', { cle: 'compteursRegistre', valeur: comp });
         }
-        toast(figer ? 'Numérotation du classeur rétablie.' : 'Entrées recalculées selon les règles de l’outil.');
+        toast(figer ? 'Numérotation d’origine rétablie.' : 'Entrées recalculées selon les règles de l’outil.');
       }
       return h('div', { class: 'pile' },
-        h('h3', { text: 'Mesures importées déjà numérotées dans le classeur' }),
-        h('p', { class: 'muted' }, h('small', { text: '« Classeur » : chaque mesure importée garde la catégorie et le numéro du classeur (une entrée par mesure), et l’outil numérote les mesures suivantes à la suite. « Outil » : les entrées sont recalculées selon les règles de l’outil (catégories A à E, une contention en CSI et son isolement formant une entrée C). Recalculer une année passée peut modifier les statistiques déjà produites.' })),
+        h('h3', { text: 'Mesures importées déjà numérotées (classeur ou registre d’origine)' }),
+        h('p', { class: 'muted' }, h('small', { text: '« D’origine » : chaque mesure importée garde la catégorie et le numéro de son document d’origine (classeur : une entrée par mesure ; registre : ses lignes à l’identique), et l’outil numérote les autres mesures en sautant ces numéros. « Outil » : les entrées sont recalculées selon les règles de l’outil (catégories A à E, une contention en CSI et son isolement formant une entrée C). Recalculer une année passée peut modifier les statistiques déjà produites.' })),
         h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ['Service', 'Année', 'Mesures importées numérotées', 'Numérotation', ''].map(function (t) { return h('th', { text: t }); }))),
           h('tbody', {}, liste.map(function (g) {
             var estFige = !!(fige[g.service] && fige[g.service][g.annee]);
             return h('tr', {},
               h('td', { text: libService(g.service) }), h('td', { text: String(g.annee) }), h('td', { text: String(g.n) }),
-              h('td', {}, h('span', { class: 'badge ' + (estFige ? '' : 'ok'), text: estFige ? 'Classeur (conservée)' : 'Outil (recalculée)' })),
-              h('td', { class: 'actions-ligne' }, h('button', { class: 'btn petit' + (!estFige && false ? '' : ''), onclick: function () { basculer(g, !estFige); } }, estFige ? 'Recalculer selon les règles de l’outil' : 'Revenir à la numérotation du classeur')));
+              h('td', {}, h('span', { class: 'badge ' + (estFige ? '' : 'ok'), text: estFige ? 'D’origine (conservée)' : 'Outil (recalculée)' })),
+              h('td', { class: 'actions-ligne' }, h('button', { class: 'btn petit' + (!estFige && false ? '' : ''), onclick: function () { basculer(g, !estFige); } }, estFige ? 'Recalculer selon les règles de l’outil' : 'Revenir à la numérotation d’origine')));
           })))));
     }
 
-    var pImport = SIC.ui.actions.importer ? h('section', { class: 'panneau' }, h('h2', { text: 'Reprise des données du classeur Excel (V1.3)' }),
-      h('p', { class: 'muted', text: 'Lit le classeur directement dans ce navigateur (rien n’est envoyé), affiche un rapport, puis enregistre les mesures, patients, cycles JLD, tiers et professionnels. Un import relancé ne crée pas de doublon.' }),
-      h('button', { class: 'btn', onclick: SIC.ui.actions.importer }, 'Importer un classeur…')) : null;
+    var pImport = SIC.ui.actions.importer ? h('section', { class: 'panneau' }, h('h2', { text: 'Reprise des données existantes' }),
+      h('h3', { text: 'À partir du registre du service (tout outil)' }),
+      h('p', { class: 'muted', text: 'Le registre est le seul document obligatoirement tenu sous forme numérique : exportez-le de votre outil actuel (CSV ou Excel), puis indiquez la correspondance des colonnes. Les mesures sont reconstituées à partir des entrées ; les cycles JLD et l’information des tiers ne figurant pas au registre, ils ne sont pas repris.' }),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', onclick: function () { SIC.ui.actions.importerRegistre(); } }, 'Importer un registre…'),
+        h('button', { class: 'btn', onclick: function () {
+          var a = h('a', { href: URL.createObjectURL(new Blob([SIC.importRegistre.modeleCSV()], { type: 'text/csv;charset=utf-8' })), download: 'modele-registre-import.csv' });
+          document.body.appendChild(a); a.click(); a.remove();
+        } }, 'Télécharger le modèle de registre (CSV)')),
+      h('h3', { text: 'À partir du classeur Excel V1.3 (Suivi_Isolement_Contention)' }),
+      h('p', { class: 'muted', text: 'Reprend en plus les cycles JLD, l’information des tiers, les professionnels par poste et le paramétrage du classeur. Un import relancé ne crée pas de doublon.' }),
+      h('button', { class: 'btn', onclick: function () { SIC.ui.actions.importer('v13'); } }, 'Importer un classeur V1.3…')) : null;
 
     var demo = App.dossier.mode === 'demo' ? h('section', { class: 'panneau' }, h('h2', { text: 'Démonstration' }),
       h('p', { class: 'muted', text: 'Efface toutes les données de démonstration de ce navigateur et revient à l’accueil.' }),

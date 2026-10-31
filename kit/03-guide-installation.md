@@ -79,7 +79,9 @@ Onglet *Administration* :
 
 Le mode formation ne demande aucune installation : le jeu de données fictives est créé automatiquement dans le sous-dossier `formation` du dossier de données, à la première connexion en mode formation (ou par l'administrateur, *Administration → Mode formation*). Tous les comptes y ont accès par défaut ; décochez *Accès au mode formation* dans la fiche d'un compte pour le retirer.
 
-Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur…*. Avant validation, l'écran d'import :
+Reprise de l'historique **à partir du registre du service**, quel que soit l'outil d'origine : *Administration → Reprise des données existantes → Importer un registre…* (fichier CSV ou Excel exporté de votre outil, colonnes à faire correspondre ; modèle téléchargeable). Voir la fiche 07 — Reprise à partir du registre. Les contrôles ci-dessous s'appliquent aussi.
+
+Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur V1.3…*. Avant validation, l'écran d'import :
 - liste les **services du classeur absents de l'outil** : chacun peut être créé (libellé modifiable), rattaché à un service existant (toutes ses données y sont reprises) ou ignoré s'il ne porte aucune donnée ;
 - propose pour chaque service et chaque année le **compteur du registre** (dernier numéro utilisé avant l'outil), calculé sur les entrées que l'outil numérotera lui-même, et modifiable ;
 - **contrôle la numérotation** : il compare les numéros du classeur (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées) ;
