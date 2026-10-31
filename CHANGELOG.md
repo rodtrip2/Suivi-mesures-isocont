@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.10.1 — 31 octobre 2026
+
+- **Journal plus lisible** : chaque saisie est décrite en clair, avec le patient et la mesure concernés.
+  - Annulation : nature de la saisie annulée, date et auteur, contenu, conséquence (« toute la mesure est annulée ») et motif — au lieu de « Saisie 5774d188 annulée : erreur ».
+  - Correction : champs corrigés avec ancienne et nouvelle valeur (« lieu : CSI 1 → CSI 2 ») et motif.
+  - Paramétrage : libellé du paramètre et changement (« Verrouillage après inactivité : 10 min → 15 min » ; pour les pauses, seuls les réglages modifiés).
+  - Fiche patient créée ou modifiée, mode d'hospitalisation avec son libellé, poste de surveillance avec son libellé, JLD et tiers avec cycle et date.
+
 ## 1.10.0 — 31 octobre 2026
 
 - **Registre conforme à l'article L. 3222-5-1** : ajout de l'identifiant du patient (IPP) et de son âge au début de la mesure (écran, impression, CSV). L'onglet devient « Registre ».
