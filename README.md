@@ -24,7 +24,7 @@ Le DPI couvre la prescription médicale et la surveillance infirmière. Cet outi
 | Professionnels chargés de la surveillance en CSI, par poste | IDE, AS, cadre |
 | Registre anonymisé A–E, statistiques annuelles N/N-1, exports | cadre |
 | Corrections et annulations tracées, arbitrage des saisies concurrentes | cadre |
-| **Mode formation** : bascule provisoire d'un poste sur un jeu de données fictives chiffré à part (sous-dossier du partage), avec les vrais comptes ; bandeau violet, retour automatique | formateur |
+| **Mode formation** choisi à la connexion : jeu de données fictives chiffré à part (sous-dossier du partage), avec son vrai compte, ses rôles et ses services ; bandeau violet ; accès désactivable par compte | tous (sauf accès retiré par l'administrateur) |
 | Comptes un par un ou **en lot** depuis une liste d'agents, rôles cumulables, **services affectés par compte**, mot de passe provisoire **à changer à la première connexion**, réinitialisation des mots de passe perdus, clés YubiKey, code de secours, paramétrage, import du classeur Excel V1.3 | administrateur |
 
 Chaque agent (hors administrateur) ne voit que les services qui lui sont affectés, à la connexion comme à la création d'une mesure.

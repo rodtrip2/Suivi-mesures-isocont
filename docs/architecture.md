@@ -28,8 +28,8 @@ Document de référence pour les développeurs. La présentation destinée à la
 
 - Jeu de données fictives dans `formation/` (même structure que le dossier principal, sans coffre), chiffré par une clé propre. `coffre.formation = { cle, creeLe, par }`, où `cle` est la clé du jeu chiffrée par la clé des données réelles (données associées `formation`).
 - `Session` distingue le dossier du coffre (`dossier`, clé `cle`) et le jeu actif (`dossierActif`, `cleActive`) : `ouvrirFormation()` / `fermerFormation()` basculent le jeu actif ; les traces de comptes (`tracer`, option `journalReel`) vont toujours au journal réel.
-- Rôle `FORMATEUR` : aucun droit dans les données réelles ; dans le jeu de formation, rôles effectifs + IDE, secrétaire, cadre et tous les services (`Session.roles`, `Session.mesServices`).
-- Bascule du poste : réglage local du navigateur `formation = { jusqua, par, dossier }` (IndexedDB), appliqué à chaque connexion par mot de passe ou clé (pas au code de secours) ; expiration vérifiée toutes les 15 s.
+- Accès au mode formation : propriété `formation` du compte (vraie par défaut, `model.accesFormation`), désactivable par l'administrateur. Rôles et services identiques dans les deux jeux.
+- Choix du jeu à la connexion (mot de passe ou clé de sécurité ; le code de secours ouvre toujours les données réelles). `ouvrirFormation(generer)` crée le jeu s'il n'existe pas encore ; seul un administrateur peut le régénérer ensuite.
 - `SIC.donneesFictives({ config })` génère le contenu à partir du paramétrage réel ; `creerFormation` efface le sous-dossier, écrit un lot unique puis met à jour le coffre.
 
 ## 3. Stockage

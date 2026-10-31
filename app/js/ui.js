@@ -70,7 +70,7 @@
     MESURE_FIN: 'Fin de mesure', TIERS: 'Information du tiers', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés'
   };
-  var LIB_COMPTE = { FORMATION_CREEE: 'jeu de formation créé ou régénéré', FORMATION_ACTIVE: 'poste basculé en mode formation', FORMATION_FIN: 'poste revenu aux données réelles', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var LIB_COMPTE = { FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -148,7 +148,6 @@
     App.session.sur(function () { if (App.session.cle) rendreContenu(); });
     await App.session.chargerCoffre();
     App.anomalie = App.session.coffre ? null : await App.dossier.anomalie();
-    App.posteFormation = await SIC.ui.formation.etatPoste();
     rendre();
   }
 
@@ -158,7 +157,7 @@
     return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom),
       h('h1', { text: formation ? 'Ce dossier est un jeu de formation' : 'Coffre introuvable' }),
       h('div', { class: 'erreur', text: formation
-        ? 'Vous avez ouvert le sous-dossier « formation », qui contient le jeu de données fictives. Ouvrez le dossier principal (le dossier parent) ; le mode formation s’active ensuite depuis l’application.'
+        ? 'Vous avez ouvert le sous-dossier « formation », qui contient le jeu de données fictives. Ouvrez le dossier principal (le dossier parent) ; le mode formation se choisit ensuite à la connexion.'
         : 'Ce dossier contient des saisies mais pas de fichier coffre.json : sans lui, les données ne peuvent pas être lues. Ne réinitialisez pas ce dossier : faites restaurer coffre.json depuis la sauvegarde par la DSI (voir les procédures de secours).' }),
       h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: changerDossier }, 'Choisir un autre dossier'))));
   }
@@ -214,15 +213,16 @@
     var login = h('input', { type: 'text', required: true, autocomplete: 'username' });
     var mdp = h('input', { type: 'password', required: true, autocomplete: 'current-password' });
     var bouton = h('button', { class: 'btn primaire', type: 'submit' }, 'Se connecter');
-    async function apres(formation) {
-      if (formation !== false) await SIC.ui.formation.appliquerApresConnexion();   // poste basculé en mode formation
+    var choix = SIC.ui.formation.choixConnexion();
+    async function apres(jeu) {
+      await SIC.ui.formation.appliquerChoix(jeu);   // données réelles ou mode formation
       demarrerMinuteurs(); rendre();
     }
     var form = h('form', { class: 'pile', onsubmit: async function (ev) {
       ev.preventDefault(); erreurDans(zoneErr, null); bouton.disabled = true; bouton.textContent = 'Déverrouillage…';
-      try { await App.session.connexionMotDePasse(login.value, mdp.value); App.mdpProvisoireSaisi = mdp.value; await apres(); }
+      try { await App.session.connexionMotDePasse(login.value, mdp.value); App.mdpProvisoireSaisi = mdp.value; await apres(choix.valeur()); }
       catch (e) { bouton.disabled = false; bouton.textContent = 'Se connecter'; erreurDans(zoneErr, e); }
-    } }, h('label', {}, 'Identifiant', login), h('label', {}, 'Mot de passe', mdp), bouton);
+    } }, h('label', {}, 'Identifiant', login), h('label', {}, 'Mot de passe', mdp), choix, bouton);
 
     var cles = App.session.coffre.emballages.filter(function (e) { return e.methode === 'cle'; });
     var autres = h('div', { class: 'pile' });
@@ -230,7 +230,7 @@
       var dispo = C.webauthnDisponible();
       autres.appendChild(h('button', { class: 'btn', disabled: !dispo, onclick: async function () {
         erreurDans(zoneErr, null);
-        try { await App.session.connexionCleSecurite(); await apres(); } catch (e) { erreurDans(zoneErr, e); }
+        try { await App.session.connexionCleSecurite(); await apres(choix.valeur()); } catch (e) { erreurDans(zoneErr, e); }
       } }, 'Déverrouiller avec une clé de sécurité'));
       if (!dispo) autres.appendChild(h('small', { text: 'Clé de sécurité indisponible : la page doit être servie en HTTPS.' }));
     }
@@ -238,12 +238,12 @@
     var blocCode = h('div', { class: 'pile', hidden: true }, h('label', {}, 'Code de secours', code),
       h('button', { class: 'btn', onclick: async function () {
         erreurDans(zoneErr, null);
-        try { await App.session.connexionCodeSecours(code.value); App.onglet = 'admin'; await apres(false); } catch (e) { erreurDans(zoneErr, e); }
+        try { await App.session.connexionCodeSecours(code.value); App.onglet = 'admin'; await apres('reel'); } catch (e) { erreurDans(zoneErr, e); }
       } }, 'Déverrouiller avec le code de secours'));
     autres.appendChild(h('button', { class: 'btn lien', onclick: function () { blocCode.hidden = !blocCode.hidden; } }, 'Mot de passe perdu ? Utiliser le code de secours'));
     autres.appendChild(blocCode);
 
-    return h('div', { class: 'ecran-pile' }, SIC.ui.formation.bandeau(true), h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), zoneErr, form,
+    return h('div', { class: 'ecran-pile' }, h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), zoneErr, form,
       h('div', { class: 'separateur', text: 'secours' }), autres,
       h('div', { class: 'actions' }, h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier')))));
   }
@@ -274,7 +274,7 @@
       h('small', { class: 'muted', text: 'Conseil : une courte phrase facile à retenir, par exemple quatre mots séparés par des espaces. Ne la notez pas près du poste.' }),
       h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: function () { App.mdpProvisoireSaisi = null; verrouiller(); } }, 'Se déconnecter'), bouton));
     setTimeout(function () { a.focus(); }, 30);
-    return h('div', { class: 'ecran-pile' }, SIC.ui.formation.bandeau(false), h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(etablissement() || App.dossier.nom), form)));
+    return h('div', { class: 'ecran-pile' }, SIC.ui.formation.bandeau(), h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(etablissement() || App.dossier.nom), form)));
   }
 
   function verifierNouveauMotDePasse(a, b) {
@@ -296,11 +296,6 @@
     App.session.verrouiller();
     App.message = message || null;
     rendre();
-    SIC.ui.formation.etatPoste().then(function (r) {   // la bascule du poste a pu expirer
-      var avant = !!App.posteFormation;
-      App.posteFormation = r;
-      if (avant !== !!r && App.session && !App.session.cle) rendre();
-    });
   }
 
   // ---------------------------------------------------------------- Minuteurs
@@ -312,8 +307,7 @@
     }, 5000));
     App.minuteurs.push(setInterval(function () {
       var limite = (config().inactiviteMinutes || 10) * 60000;
-      if (App.session && App.session.cle && Date.now() - App.derniereActivite > limite) return verrouiller('Session verrouillée après ' + (config().inactiviteMinutes || 10) + ' minutes d’inactivité.');
-      SIC.ui.formation.verifierExpiration();
+      if (App.session && App.session.cle && Date.now() - App.derniereActivite > limite) verrouiller('Session verrouillée après ' + (config().inactiviteMinutes || 10) + ' minutes d’inactivité.');
     }, 15000));
   }
   function arreterMinuteurs() { App.minuteurs.forEach(clearInterval); App.minuteurs = []; }
@@ -352,7 +346,7 @@
 
     // En-tête
     vider(zoneEntete);
-    var bandeau = SIC.ui.formation.bandeau(false);
+    var bandeau = SIC.ui.formation.bandeau();
     if (bandeau) zoneEntete.appendChild(bandeau);
     document.body.classList.toggle('en-formation', !!s.formation);
     var selService = h('select', { 'aria-label': 'Service', onchange: function () { App.service = selService.value; try { localStorage.setItem('sic-service', App.service); } catch (e) { /* */ } rendreContenu(); } },
@@ -363,7 +357,6 @@
     zoneEntete.appendChild(h('div', { class: 'entete-haut' }, marque(etablissement() || App.dossier.nom), h('div', { class: 'espace' }), mesSv.length ? selService : null,
       h('div', { class: 'statut-synchro', title: s.evts.length + ' saisies dans le journal' }, h('span', { class: 'point' }), age !== null ? 'Synchronisé' : '—'),
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.ROLES[r]; }).join(' · ')),
-      s.estFormateur() && !s.formation ? h('button', { class: 'btn petit formation', onclick: SIC.ui.formation.ouvrir }, 'Mode formation') : null,
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
       h('button', { class: 'btn petit', onclick: function () { verrouiller(); } }, 'Verrouiller')));
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
@@ -377,7 +370,7 @@
     vider(zoneContenu);
     var vues = { tableau: vueTableau, mesures: vueMesures, jld: vueJLD, surveillance: vueSurveillance, registre: vueRegistre, journal: vueJournal, admin: vueAdmin };
     var vue = vues[App.onglet] || SIC.ui.vues[App.onglet] || vueTableau;
-    if (!mesSv.length && !estAdmin) { zoneContenu.appendChild(h('div', { class: 'panneau vide', text: s.estFormateur() ? 'Aucun service réel ne vous est affecté. Utilisez le bouton « Mode formation » pour basculer ce poste sur le jeu de formation.' : 'Aucun service ne vous est affecté. Demandez à l’administrateur de vous en attribuer un.' })); return; }
+    if (!mesSv.length && !estAdmin) { zoneContenu.appendChild(h('div', { class: 'panneau vide', text: 'Aucun service ne vous est affecté. Demandez à l’administrateur de vous en attribuer un.' })); return; }
     try { zoneContenu.appendChild(vue(maintenant)); }
     catch (e) { zoneContenu.appendChild(h('div', { class: 'erreur', text: 'Erreur d’affichage : ' + e.message })); console.error(e); }
   }
@@ -1061,7 +1054,8 @@
             h('td', { text: c.nom }), h('td', { class: 'mono', text: c.login }),
             h('td', { text: c.roles.map(function (r) { return M.ROLES[r]; }).join(', ') }),
             h('td', {}, admin ? h('small', { text: 'Tous (administrateur)' }) : ((c.services || []).length ? (c.services || []).map(libService).join(', ') : h('span', { class: 'badge warn', text: 'aucun' }))),
-            h('td', {}, h('span', { class: 'badge ' + (c.actif ? 'ok' : ''), text: c.actif ? 'actif' : 'désactivé' }), c.actif && c.mdpProvisoire ? h('div', {}, h('span', { class: 'badge warn', title: 'Le mot de passe sera changé à la prochaine connexion', text: 'mot de passe provisoire' })) : null),
+            h('td', {}, h('span', { class: 'badge ' + (c.actif ? 'ok' : ''), text: c.actif ? 'actif' : 'désactivé' }), c.actif && c.mdpProvisoire ? h('div', {}, h('span', { class: 'badge warn', title: 'Le mot de passe sera changé à la prochaine connexion', text: 'mot de passe provisoire' })) : null,
+              c.formation === false ? h('div', {}, h('span', { class: 'badge', text: 'sans mode formation' })) : null),
             h('td', { class: 'actions-ligne' },
               h('button', { class: 'btn petit', onclick: function () { modaleCompte(c); } }, 'Modifier'), ' ',
               h('button', { class: 'btn petit', onclick: function () { modaleReinit(c); } }, c.actif ? 'Réinitialiser le mot de passe' : 'Réactiver avec un mot de passe')));
@@ -1207,7 +1201,7 @@
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
       return h('div', {}, h('h1', { text: 'Administration' }), note, pServices, pSurv, pRegles, pDocs, infos);
     }
-    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, pServices, pSurv, pRegles, pDocs, pImport, demo, infos);
+    return h('div', {}, h('h1', { text: 'Administration' }), comptes, deblocage, SIC.ui.formation.sectionAdmin(), pServices, pSurv, pRegles, pDocs, pImport, demo, infos);
   }
 
   function casesRoles(actuels) {
@@ -1215,7 +1209,7 @@
     var cases = {};
     Object.keys(M.ROLES).forEach(function (r) {
       cases[r] = h('input', { type: 'checkbox', checked: actuels.indexOf(r) >= 0 });
-      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', FORMATEUR: 'bascule un poste en mode formation ; dans le jeu de formation, droits IDE, secrétaire et cadre sur tous les services', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
+      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
     });
     bloc.cases = cases;
     bloc.valeur = function () { var v = Object.keys(cases).filter(function (r) { return cases[r].checked; }); if (!v.length) throw new Error('Choisissez au moins un rôle.'); return v; };
@@ -1252,20 +1246,23 @@
     var svs = casesServices(c ? (c.services || []) : (App.service !== '*' ? [App.service] : []), roles);
     if (c) {
       var actif = h('input', { type: 'checkbox', checked: c.actif });
+      var formation = h('input', { type: 'checkbox', checked: c.formation !== false });
       return modale('Compte — ' + c.nom, h('div', { class: 'pile' },
         h('div', {}, h('b', { text: 'Rôles' }), roles), h('div', {}, h('b', { text: 'Services affectés' }), svs),
+        h('label', { class: 'case' }, formation, h('span', { text: 'Accès au mode formation (choix proposé à la connexion)' })),
         h('label', { class: 'case' }, actif, h('span', { text: 'Compte actif (désactiver retire son mot de passe du coffre)' }))), [
         { texte: 'Annuler' },
         { texte: 'Enregistrer', classe: 'primaire', action: async function () {
           var r = roles.valeur(), sv = svs.valeur(r);
           if (c.id === s.utilisateur.id && r.indexOf('ADMIN') < 0 && !confirm('Vous retirez votre propre rôle d’administrateur. Continuer ?')) return false;
           if (r.indexOf('ADMIN') >= 0 && !actif.checked && s.comptes.filter(function (x) { return x.actif && x.roles.indexOf('ADMIN') >= 0 && x.id !== c.id; }).length === 0) throw new Error('Il doit rester au moins un administrateur actif.');
-          await s.modifierRoles(c.id, r, actif.checked, sv); toast('Compte mis à jour.');
+          await s.modifierRoles(c.id, r, actif.checked, sv, formation.checked); toast('Compte mis à jour.');
         } }]);
     }
     var nom = h('input', { type: 'text' }), login = h('input', { type: 'text', placeholder: 'prenom.nom' });
     var genere = C.nouveauMotDePasseProvisoire();
     var mdp = h('input', { type: 'text', class: 'mono', value: genere, autocomplete: 'off', spellcheck: 'false' });
+    var accesForm = h('input', { type: 'checkbox', checked: true });
     nom.addEventListener('input', function () { if (!login.dataset.modifie) login.value = SIC.comptes.identifiantDepuisNom(nom.value); });
     login.addEventListener('input', function () { login.dataset.modifie = '1'; });
     modale('Nouveau compte', h('div', { class: 'pile' },
@@ -1273,13 +1270,14 @@
       h('label', {}, 'Mot de passe provisoire', mdp),
       h('div', {}, h('b', { text: 'Rôles' }), roles),
       h('div', {}, h('b', { text: 'Services affectés' }), svs),
+      h('label', { class: 'case' }, accesForm, h('span', { text: 'Accès au mode formation (choix proposé à la connexion)' })),
       h('small', { class: 'muted', text: 'Notez le mot de passe provisoire et remettez-le en main propre : l’agent devra obligatoirement le remplacer à sa première connexion.' })), [
       { texte: 'Annuler' },
       { texte: 'Créer le compte', classe: 'primaire', action: async function () {
         if (!nom.value.trim()) throw new Error('Indiquez le nom.');
         if (mdp.value.length < 12) throw new Error('Mot de passe provisoire : 12 caractères minimum.');
         var r = roles.valeur();
-        var c2 = { nom: nom.value, login: login.value || SIC.comptes.identifiantDepuisNom(nom.value), motDePasse: mdp.value, roles: r, services: svs.valeur(r), aleatoire: mdp.value === genere };
+        var c2 = { nom: nom.value, login: login.value || SIC.comptes.identifiantDepuisNom(nom.value), motDePasse: mdp.value, roles: r, services: svs.valeur(r), aleatoire: mdp.value === genere, formation: accesForm.checked };
         await s.creerCompte(c2);
         setTimeout(function () { if (SIC.ui.actions.fichesRemise) SIC.ui.actions.fichesRemise([c2], 'Compte créé'); }, 0);
       } }], { focus: nom });

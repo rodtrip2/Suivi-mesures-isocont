@@ -233,6 +233,7 @@ td.fort, .fort { font-weight: 700; letter-spacing: .03em; }
 .bandeau-formation .btn { background: transparent; color: inherit; border-color: currentColor; }
 body.en-formation .entete { border-bottom: 3px solid var(--formation); }
 body.en-formation main { background-image: repeating-linear-gradient(135deg, transparent 0 22px, color-mix(in srgb, var(--formation-soft) 55%, transparent) 22px 24px); }
-.btn.formation { border-color: var(--formation); color: var(--formation); }
+.choix-jeu { gap: 4px; }
+.choix-jeu .case.formation { color: var(--formation); }
 .ecran-pile { min-height: 100vh; display: flex; flex-direction: column; }
 .ecran-pile > .ecran { flex: 1; min-height: 0; }

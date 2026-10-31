@@ -107,7 +107,7 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 ### Mode formation
 
 - Le jeu de formation est un second jeu de données, entièrement fictif, dans le sous-dossier `formation` du dossier principal (mêmes droits NTFS, même sauvegarde). Il est chiffré avec **sa propre clé** AES-256, elle-même rangée dans `coffre.json`, chiffrée par la clé des données réelles : seul un agent connecté avec son vrai compte peut l'ouvrir.
-- Le rôle *Formateur* bascule un poste pour une durée limitée. La bascule est un réglage local du navigateur (session Windows), sans effet sur les autres postes. Une connexion sur un poste basculé ouvre le jeu de formation ; les comptes, mots de passe et clés restent ceux du coffre réel.
+- À la connexion, l'agent choisit *Données réelles* ou *Mode formation*. L'accès au mode formation est accordé à chaque compte par défaut et désactivable par l'administrateur. En formation, l'agent garde son compte, ses rôles et ses services ; les comptes, mots de passe et clés restent ceux du coffre réel. Le code de secours ouvre toujours les données réelles.
 - Les données réelles et fictives ne se mélangent jamais : une saisie en formation est écrite dans `formation\` avec la clé du jeu de formation. Les opérations sur les comptes (changement de mot de passe, activation du mode formation) sont tracées dans le journal réel.
 - Le sous-dossier `formation` peut être supprimé sans perte de données réelles ; il ne peut pas être ouvert comme dossier principal (l'application le détecte et le refuse).
 
@@ -172,4 +172,4 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 - [ ] Clé de sécurité enregistrée puis utilisée pour déverrouiller (si retenue).
 - [ ] Sauvegarde puis restauration du dossier testées.
 - [ ] Vérification qu'aucune requête sortante n'est émise (outils de développement, onglet Réseau).
-- [ ] Mode formation : un poste basculé n'affiche que les données fictives ; un autre poste reste sur les données réelles ; retour automatique à l'heure prévue.
+- [ ] Mode formation : une connexion en mode formation n'affiche que les données fictives ; un compte dont l'accès est désactivé est refusé ; une connexion en données réelles n'affiche aucune donnée fictive.

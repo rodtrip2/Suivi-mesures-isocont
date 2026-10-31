@@ -21,7 +21,6 @@
     'as': 'AS', 'aide soignant': 'AS', 'aide soignante': 'AS',
     'secretaire': 'SECRETAIRE', 'secretariat': 'SECRETAIRE', 'secretaire medicale': 'SECRETAIRE',
     'cadre': 'CADRE', 'cadre de sante': 'CADRE', 'ffcs': 'CADRE',
-    'formateur': 'FORMATEUR', 'formatrice': 'FORMATEUR',
     'admin': 'ADMIN', 'administrateur': 'ADMIN'
   };
   var MOTIF_IDENTIFIANT = /^[a-z0-9._-]{2,40}$/;
@@ -80,7 +79,7 @@
       var roles = liste(c[2]);
       if (!roles.length) r.roles = (contexte.rolesDefaut || []).slice();
       roles.forEach(function (x) {
-        var code = ALIAS_ROLES[norm(x)] || (/^[A-Z]+$/.test(x) && ['IDE', 'AS', 'SECRETAIRE', 'CADRE', 'FORMATEUR', 'ADMIN'].indexOf(x) >= 0 ? x : null);
+        var code = ALIAS_ROLES[norm(x)] || (/^[A-Z]+$/.test(x) && ['IDE', 'AS', 'SECRETAIRE', 'CADRE', 'ADMIN'].indexOf(x) >= 0 ? x : null);
         if (!code) r.erreurs.push('rôle inconnu « ' + x + ' »');
         else if (r.roles.indexOf(code) < 0) r.roles.push(code);
       });

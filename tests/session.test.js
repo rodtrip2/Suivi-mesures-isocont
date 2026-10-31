@@ -134,63 +134,64 @@ test('Mot de passe provisoire : création en lot, changement obligatoire, réini
   assert.equal((await connecter(racine, 'admin', 'mot de passe solide')).comptes.length, 4);
 });
 
-test('Mode formation : jeu fictif séparé, mêmes comptes, droits du formateur, traces dans le journal réel', async () => {
+test('Mode formation : accès par compte, choix à la connexion, jeu fictif séparé, traces dans le journal réel', async () => {
   require('../app/js/demo.js');
   const { racine, admin } = await nouveauDossier();
   await admin.enregistrer('CONFIG', { cle: 'services', valeur: [{ code: 'A', libelle: 'Unité A' }, { code: 'B', libelle: 'Unité B' }] });
   await admin.enregistrer('CONFIG', { cle: 'lieuxCSI', valeur: { A: ['410', '412'] } });
   await admin.enregistrer('MESURE_DEBUT', { mesureId: 'REEL', patientId: 'P', service: 'A', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
   await admin.creerComptes([
-    { nom: 'Formateur', login: 'form', roles: ['FORMATEUR'], services: [], motDePasse: 'formateur 2026 ok' },
-    { nom: 'IDE', login: 'ide', roles: ['IDE'], services: ['B'], motDePasse: 'ide 2026 ok ok' }
+    { nom: 'IDE', login: 'ide', roles: ['IDE'], services: ['B'], motDePasse: 'ide 2026 ok ok' },
+    { nom: 'Sans', login: 'sans', roles: ['IDE'], services: ['A'], motDePasse: 'sans 2026 ok ok', formation: false }
   ]);
+  const generer = (config) => SIC.donneesFictives({ config });
 
-  // Hors formation, le formateur seul n'a aucun droit sur les données réelles
-  const f = await connecter(racine, 'form', 'formateur 2026 ok');
-  assert.ok(!f.peut('MESURE_DEBUT'));
-  assert.deepEqual(f.mesServices(), []);
-  await assert.rejects(admin.creerFormation([], 'x'), /formateur/);
+  // Accès accordé par défaut ; désactivé pour « sans »
+  const ide = await connecter(racine, 'ide', 'ide 2026 ok ok');
+  assert.equal(ide.accesFormation(), true);
+  const sans = await connecter(racine, 'sans', 'sans 2026 ok ok');
+  assert.equal(sans.accesFormation(), false);
+  await assert.rejects(sans.ouvrirFormation(generer), /désactivé/);
 
-  // Création : reprend services et CSI réels, contenu fictif
-  await f.creerFormation(SIC.donneesFictives({ config: f.etat.config }), 'Jeu de formation');
-  assert.ok(f.jeuFormation());
-  await f.ouvrirFormation();
-  assert.equal(f.formation, true);
-  assert.ok(!f.etat.mesures.REEL);
-  assert.ok(Object.keys(f.etat.mesures).length >= 5);
-  assert.deepEqual(f.etat.config.services.map(x => x.code), ['A', 'B']);
-  assert.ok(f.etat.config.lieuxCSI.A.includes('410'));
-  assert.ok(M_tous_csi(f.etat));
-  assert.ok(f.peut('MESURE_DEBUT') && f.peut('JLD') && f.peut('CORRECTION') && !f.peut('CONFIG'));
-  assert.deepEqual(f.mesServices(), ['A', 'B']);
+  // Première ouverture : le jeu est créé à partir du paramétrage réel, avec les rôles et services réels
+  assert.equal(ide.jeuFormation(), null);
+  await ide.ouvrirFormation(generer);
+  assert.ok(ide.formation && ide.jeuFormation());
+  assert.ok(!ide.etat.mesures.REEL);
+  assert.ok(Object.keys(ide.etat.mesures).length >= 5);
+  assert.deepEqual(ide.etat.config.services.map(x => x.code), ['A', 'B']);
+  assert.ok(Object.values(ide.etat.mesures).filter(m => m.csi && m.service === 'A').every(m => ide.etat.config.lieuxCSI.A.includes(m.lieu)));
+  assert.deepEqual(ide.mesServices(), ['B']);
+  assert.ok(ide.peut('MESURE_DEBUT') && !ide.peut('CORRECTION'));
 
   // Une saisie en formation ne touche pas aux données réelles ; les traces de comptes vont au journal réel
-  await f.enregistrer('MESURE_DEBUT', { mesureId: 'FICTIF', patientId: 'P01', service: 'A', typeMesure: 'Isolement', debut: Date.now() - 60e3, csi: true });
-  await f.changerMonMotDePasse('nouveau mot de passe formateur');
-  assert.ok(!f.etat.journal.some(e => e.type === 'COMPTE'));
+  await ide.enregistrer('MESURE_DEBUT', { mesureId: 'FICTIF', patientId: 'P01', service: 'B', typeMesure: 'Isolement', debut: Date.now() - 60e3, csi: true });
+  await ide.changerMonMotDePasse('nouveau mot de passe ide');
+  assert.ok(!ide.etat.journal.some(e => e.type === 'COMPTE'));
   await admin.synchroniser();
   assert.ok(!admin.etat.mesures.FICTIF);
   assert.ok(admin.etat.journal.some(e => e.type === 'COMPTE' && e.data.action === 'MDP_CHANGE'));
 
-  // Un agent ouvre le jeu de formation avec son vrai compte, ses vrais rôles et services
-  const ide = await connecter(racine, 'ide', 'ide 2026 ok ok');
-  await ide.ouvrirFormation();
-  assert.ok(ide.etat.mesures.FICTIF);
-  assert.deepEqual(ide.mesServices(), ['B']);
-  assert.ok(!ide.peut('CORRECTION'));
+  // Un agent ne peut pas régénérer un jeu existant ; l'administrateur peut
+  await assert.rejects(sans.creerFormation(generer(sans.etat.config)), /administrateur/);
+  const autre = await connecter(racine, 'ide', 'nouveau mot de passe ide');
+  await autre.ouvrirFormation(generer);
+  assert.ok(autre.etat.mesures.FICTIF);
+  await autre.fermerFormation();
+  assert.ok(autre.etat.mesures.REEL && !autre.etat.mesures.FICTIF);
+  await assert.rejects(autre.creerFormation(generer(autre.etat.config)), /administrateur/);
+  const avant = admin.jeuFormation() || (await admin.chargerCoffre()).formation;
+  await admin.creerFormation(generer(admin.etat.config), 'Jeu de formation');
+  assert.notEqual(admin.jeuFormation().cle, avant.cle);
+  const apres = await connecter(racine, 'ide', 'nouveau mot de passe ide');
+  await apres.ouvrirFormation(generer);
+  assert.ok(!apres.etat.mesures.FICTIF);
+  assert.equal(apres.rejetes.length, 0);
 
-  // Retour aux données réelles
-  await f.fermerFormation();
-  assert.ok(f.etat.mesures.REEL && !f.etat.mesures.FICTIF);
-
-  // Régénération : nouvelle clé, ancien contenu effacé
-  const avant = f.jeuFormation().cle;
-  await f.creerFormation(SIC.donneesFictives({ config: f.etat.config }), 'Jeu de formation');
-  assert.notEqual(f.jeuFormation().cle, avant);
-  const g = await connecter(racine, 'form', 'nouveau mot de passe formateur');
-  await g.ouvrirFormation();
-  assert.ok(!g.etat.mesures.FICTIF);
-  assert.equal(g.rejetes.length, 0);
+  // Accès retiré par l'administrateur
+  await admin.modifierRoles(apres.utilisateur.id, ['IDE'], true, ['B'], false);
+  const retire = await connecter(racine, 'ide', 'nouveau mot de passe ide');
+  await assert.rejects(retire.ouvrirFormation(generer), /désactivé/);
 
   // Le sous-dossier de formation n'est jamais pris pour un dossier principal
   const sous = new Dossier(await racine.getDirectoryHandle('formation'), 'reseau');
@@ -198,8 +199,3 @@ test('Mode formation : jeu fictif séparé, mêmes comptes, droits du formateur,
   assert.equal(await sous.anomalie(), 'formation');
   assert.equal(await new Dossier(racine, 'reseau').anomalie(), 'sans-coffre');
 });
-
-function M_tous_csi(etat) {
-  // Les mesures fictives en CSI utilisent les CSI paramétrées
-  return Object.values(etat.mesures).filter(m => m.csi).every(m => (etat.config.lieuxCSI[m.service] || []).includes(m.lieu));
-}

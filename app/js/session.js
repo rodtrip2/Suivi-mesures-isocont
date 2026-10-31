@@ -148,7 +148,7 @@
       var c = liste[i], id = 'u' + id8();
       var emb = await C.emballerMotDePasse(s.cle, c.motDePasse, c.aleatoire ? C.ITERATIONS_PROVISOIRE : undefined);
       emb.id = 'k' + id8(); emb.userId = id; emb.login = c.login;
-      prepares.push({ compte: { id: id, login: c.login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true, mdpProvisoire: true }, emb: emb });
+      prepares.push({ compte: { id: id, login: c.login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true, mdpProvisoire: true, formation: c.formation !== false }, emb: emb });
       if (progres) progres(i + 1, liste.length);
     }
     await this.modifierCoffre(async function (coffre, comptes) {
@@ -161,15 +161,17 @@
     else await this.tracer('CREATION_LOT', { comptes: prepares.map(function (p) { return { login: p.compte.login, roles: p.compte.roles, services: p.compte.services }; }) });
   };
 
-  Session.prototype.modifierRoles = async function (userId, roles, actif, services) {
+  /** Modifie un compte. `formation` (facultatif) : accès au mode formation. */
+  Session.prototype.modifierRoles = async function (userId, roles, actif, services, formation) {
     await this.modifierCoffre(async function (coffre, comptes) {
       var c = comptes.filter(function (x) { return x.id === userId; })[0];
       if (!c) throw new Error('Compte introuvable.');
       c.roles = roles; c.actif = actif; c.services = services || [];
+      if (typeof formation === 'boolean') c.formation = formation;
       if (!actif) coffre.emballages = coffre.emballages.filter(function (e) { return e.userId !== userId; });
     });
     var c2 = this.comptes.filter(function (x) { return x.id === userId; })[0];
-    await this.tracer('ROLES', { login: c2 ? c2.login : userId, roles: roles, actif: actif, services: services || [] });
+    await this.tracer('ROLES', { login: c2 ? c2.login : userId, roles: roles, actif: actif, services: services || [], formation: c2 ? c2.formation !== false : undefined });
     if (userId === this.utilisateur.id && c2) this.utilisateur = c2;
   };
 
@@ -225,21 +227,11 @@
   };
 
   // ---------------------------------------------------------- Journal
-  function estFormateur(s) { return !!s.utilisateur && (s.utilisateur.roles || []).indexOf('FORMATEUR') >= 0; }
-  Session.prototype.estFormateur = function () { return estFormateur(this); };
-
-  /** Rôles effectifs : dans le jeu de formation, le formateur dispose aussi des rôles IDE, secrétaire et cadre. */
-  Session.prototype.roles = function () {
-    var r = this.utilisateur ? this.utilisateur.roles : [];
-    if (this.formation && estFormateur(this)) r = r.concat(M.ROLES_FORMATEUR_EN_FORMATION.filter(function (x) { return r.indexOf(x) < 0; }));
-    return r;
-  };
-  /** Codes des services visibles (tous pour un administrateur, et pour le formateur dans le jeu de formation). */
-  Session.prototype.mesServices = function () {
-    if (!this.etat) return [];
-    if (this.formation && estFormateur(this)) return (this.etat.config.services || []).map(function (x) { return x.code; });
-    return M.servicesDe(this.utilisateur, this.etat.config);
-  };
+  /** Rôles de l'utilisateur : les mêmes dans les données réelles et dans le jeu de formation. */
+  Session.prototype.roles = function () { return this.utilisateur ? this.utilisateur.roles : []; };
+  /** Codes des services visibles (tous pour un administrateur). */
+  Session.prototype.mesServices = function () { return this.etat ? M.servicesDe(this.utilisateur, this.etat.config) : []; };
+  Session.prototype.accesFormation = function () { return M.accesFormation(this.utilisateur); };
   Session.prototype.peut = function (type) { return M.peut(this.roles(), type); };
 
   Session.prototype.nomAuteur = function (userId) {
@@ -298,8 +290,9 @@
           this.coffre = coffre; await lireComptes(this);
           var moi = this.utilisateur && this.comptes.filter(function (c) { return c.id === this.utilisateur.id; }, this)[0];
           if (moi) this.utilisateur = moi;
+          if (this.formation && !this.accesFormation()) { await this.fermerFormation(); return 0; }
           if (jeuChange) {   // jeu de formation régénéré ou supprimé depuis un autre poste
-            if (coffre.formation) { await this.ouvrirFormation(); return 0; }
+            if (coffre.formation && this.accesFormation()) { await this.ouvrirFormation(); return 0; }
             await this.fermerFormation(); return 0;
           }
         }
@@ -320,15 +313,20 @@
    * Le jeu de formation est un second jeu de données, entièrement fictif, rangé dans le
    * sous-dossier « formation » du dossier principal, chiffré avec sa propre clé. Cette clé est
    * conservée dans le coffre, chiffrée par la clé des données réelles : seul un agent connecté
-   * avec son vrai compte peut l'ouvrir, avec ses vrais rôles et services. Les comptes, mots de
-   * passe et clés restent ceux du coffre réel.
+   * avec son vrai compte peut l'ouvrir, avec ses vrais rôles et services. À la connexion, chaque
+   * agent dont l'accès au mode formation n'a pas été désactivé choisit entre les données réelles
+   * et le jeu de formation. Les comptes, mots de passe et clés restent ceux du coffre réel.
    */
   Session.prototype.jeuFormation = function () { return (this.coffre && this.coffre.formation) || null; };
 
-  /** Crée (ou recrée en effaçant l'ancien) le jeu de formation avec les saisies fournies. Réservé au formateur. */
+  /**
+   * Crée le jeu de formation (première ouverture par un agent) ou le recrée en effaçant
+   * l'ancien (administrateur), à partir des saisies fictives fournies.
+   */
   Session.prototype.creerFormation = async function (saisies, libelle) {
-    if (!estFormateur(this)) throw new Error('Seul un formateur peut créer le jeu de formation.');
-    if (this.formation) throw new Error('Quittez d’abord le mode formation.');
+    var admin = this.roles().indexOf('ADMIN') >= 0;
+    if (!(admin || (this.accesFormation() && !this.jeuFormation()))) throw new Error('Seul un administrateur peut régénérer le jeu de formation.');
+    if (this.formation) throw new Error('Revenez d’abord aux données réelles.');
     var s = this;
     var handle = await this.dossier.sousDossier([DOSSIER_FORMATION], true);
     var df = new SIC.Dossier(handle, 'formation');
@@ -348,11 +346,18 @@
     await this.tracer('FORMATION_CREEE', { saisies: saisies.length });
   };
 
-  /** Bascule la session sur le jeu de formation. */
-  Session.prototype.ouvrirFormation = async function () {
+  /**
+   * Bascule la session sur le jeu de formation. `generer(config)` fournit les saisies fictives
+   * si le jeu n'existe pas encore (il est alors créé à partir du paramétrage réel).
+   */
+  Session.prototype.ouvrirFormation = async function (generer) {
+    if (!this.accesFormation()) throw new Error('L’accès au mode formation est désactivé pour ce compte.');
     if (!this.jeuFormation()) this.coffre = await this.dossier.lireCoffre();
+    if (!this.jeuFormation()) {
+      if (!generer) throw new Error('Le jeu de formation n’existe pas encore.');
+      await this.creerFormation(generer(this.etat.config), 'Jeu de formation (données fictives)');
+    }
     var jeu = this.jeuFormation();
-    if (!jeu) throw new Error('Aucun jeu de formation n’a encore été créé : un formateur doit le créer (bouton « Mode formation »).');
     var o = await C.dechiffrerJSON(this.cle, C.deb64(jeu.cle), 'formation');
     this.cleDonnees = await C.importerCle(o.k);
     this.donnees = new SIC.Dossier(await this.dossier.sousDossier([DOSSIER_FORMATION], false), 'formation');

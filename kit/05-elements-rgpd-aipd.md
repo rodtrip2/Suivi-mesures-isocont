@@ -41,7 +41,7 @@ La liste de la CNIL des traitements pour lesquels une analyse d'impact est requi
 
 ## 3. Mode formation
 
-Le jeu de formation ne contient que des données fictives générées par l'application (noms marqués « fictif »). Il est chiffré séparément et rangé dans le même dossier que les données réelles. La consigne de ne jamais y saisir de donnée réelle figure dans le bandeau affiché en permanence et dans les procédures ; le formateur peut régénérer le jeu à tout moment, ce qui efface son contenu.
+Le jeu de formation ne contient que des données fictives générées par l'application (noms marqués « fictif »). Il est chiffré séparément et rangé dans le même dossier que les données réelles. La consigne de ne jamais y saisir de donnée réelle figure dans le bandeau affiché en permanence et dans les procédures ; l'administrateur peut régénérer le jeu à tout moment, ce qui efface son contenu, et retirer l'accès au mode formation compte par compte.
 
 ## 4. Information des personnes
 

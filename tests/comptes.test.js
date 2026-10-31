@@ -58,9 +58,9 @@ test('Mot de passe provisoire : format et entropie', () => {
   assert.ok(a.length >= 12);
 });
 
-test('Rôle formateur : reconnu dans les listes, sans service obligatoire, aucun droit sur les données réelles', () => {
-  const r = K.analyser('Fanny FORMA\t\tFormateur\t', { services, loginsExistants: [], rolesDefaut: [], servicesDefaut: [] });
-  assert.deepEqual(r[0].roles, ['FORMATEUR']);
-  assert.deepEqual(r[0].erreurs, []);
-  assert.ok(!M.peut(['FORMATEUR'], 'MESURE_DEBUT'));
+test('Accès au mode formation : accordé par défaut, désactivable, jamais pour le compte de secours', () => {
+  assert.equal(M.accesFormation({ id: 'u1', roles: ['IDE'] }), true);
+  assert.equal(M.accesFormation({ id: 'u1', roles: ['IDE'], formation: false }), false);
+  assert.equal(M.accesFormation({ id: 'secours', roles: ['ADMIN'] }), false);
+  assert.ok(!M.ROLES.FORMATEUR);
 });

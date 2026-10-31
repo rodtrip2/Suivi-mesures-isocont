@@ -18,6 +18,7 @@
       casesSv[x.code] = h('input', { type: 'checkbox', checked: U.App.service === x.code });
       return h('label', { class: 'case' }, casesSv[x.code], h('span', { text: x.libelle }));
     }));
+    var accesForm = h('input', { type: 'checkbox', checked: true });
     var apercu = h('div', { class: 'pile' });
     var analyse = [];
 
@@ -58,6 +59,7 @@
       h('label', {}, 'Liste des agents', texte),
       h('label', {}, 'ou fichier CSV', fichier),
       h('div', { class: 'grille-2' }, h('label', {}, 'Rôle par défaut', roleDefaut), h('div', {}, h('b', { text: 'Services par défaut' }), blocSv)),
+      h('label', { class: 'case' }, accesForm, h('span', { text: 'Donner à ces comptes l’accès au mode formation' })),
       h('small', { class: 'muted', text: 'Rôles reconnus : IDE, AS (aide-soignant), Secrétaire, Cadre, Administrateur ; plusieurs rôles ou services séparés par des virgules. « tous » affecte tous les services. Chaque compte reçoit un mot de passe provisoire tiré au hasard, à changer obligatoirement à la première connexion.' }),
       apercu), [
       { texte: 'Annuler' },
@@ -66,7 +68,7 @@
         var valides = analyse.filter(function (r) { return !r.erreurs.length; });
         if (!valides.length) throw new Error('Aucun compte valide à créer.');
         if (valides.length < analyse.length && !confirm((analyse.length - valides.length) + ' ligne(s) en erreur seront ignorées. Créer les ' + valides.length + ' autres comptes ?')) return false;
-        var liste = valides.map(function (r) { return { nom: r.nom, login: r.login, roles: r.roles, services: r.roles.indexOf('ADMIN') >= 0 ? [] : r.services, motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true }; });
+        var liste = valides.map(function (r) { return { nom: r.nom, login: r.login, roles: r.roles, services: r.roles.indexOf('ADMIN') >= 0 ? [] : r.services, motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true, formation: accesForm.checked }; });
         U.vider(apercu).appendChild(h('div', { class: 'info', text: 'Chiffrement des mots de passe…' }));
         await session.creerComptes(liste, function (n, total) { apercu.firstChild.textContent = 'Chiffrement des mots de passe… ' + n + ' / ' + total; });
         setTimeout(function () { U.actions.fichesRemise(liste, liste.length + ' compte(s) créé(s)'); }, 0);

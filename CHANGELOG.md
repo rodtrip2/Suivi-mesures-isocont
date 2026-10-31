@@ -1,5 +1,15 @@
 # Journal des versions
 
+## 1.3.0 — 31 octobre 2026
+
+Le mode formation est revu : il remplace le rôle Formateur et la bascule de poste de la version 1.2.0.
+
+- **Accès au mode formation** accordé à tous les comptes, **désactivable par l'administrateur** compte par compte (fiche du compte, création en lot).
+- **Choix à la connexion** entre *Données réelles* et *Mode formation* ; l'agent garde son compte, ses rôles et ses services dans les deux.
+- Jeu de formation créé automatiquement à la première connexion en mode formation, à partir du paramétrage réel ; régénération réservée à l'administrateur.
+- Bouton *Passer aux données réelles* dans le bandeau violet.
+- Suppression du rôle Formateur et de la bascule de poste.
+
 ## 1.2.0 — 31 octobre 2026
 
 - **Rôle Formateur**, sans droit sur les données réelles par ce seul rôle.

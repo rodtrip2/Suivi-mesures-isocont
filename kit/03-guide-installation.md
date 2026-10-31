@@ -74,7 +74,7 @@ Onglet *Administration* :
 
 ### Préparer la formation
 
-Créer au moins un compte avec le rôle *Formateur* (il peut être cumulé avec un autre rôle). Le formateur crée le jeu de formation depuis le bouton *Mode formation* : il est rangé dans le sous-dossier `formation` du dossier de données, sans action de la DSI.
+Le mode formation ne demande aucune installation : le jeu de données fictives est créé automatiquement dans le sous-dossier `formation` du dossier de données, à la première connexion en mode formation (ou par l'administrateur, *Administration → Mode formation*). Tous les comptes y ont accès par défaut ; décochez *Accès au mode formation* dans la fiche d'un compte pour le retirer.
 
 Reprise d'un classeur Excel V1.3 : *Administration → Importer un classeur…*. Le rapport d'import liste les lignes ignorées, les points à vérifier et les éventuels écarts d'échéances JLD.
 

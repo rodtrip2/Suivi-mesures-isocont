@@ -1,119 +1,67 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
- * Mode formation : le formateur bascule provisoirement un poste de travail sur le jeu de
- * données fictives (sous-dossier « formation » du dossier réseau). Tant que la bascule est
- * active, chaque connexion sur ce poste ouvre le jeu de formation, avec les vrais comptes.
- * La bascule s'arrête à l'heure choisie, par le formateur, ou depuis l'écran de connexion.
+ * Mode formation : à la connexion, chaque agent dont l'accès n'a pas été désactivé par
+ * l'administrateur choisit entre les données réelles et le jeu de formation (données
+ * fictives, sous-dossier « formation » du dossier réseau, chiffré à part). Il y retrouve
+ * son compte, ses rôles et ses services. L'administrateur peut régénérer le jeu.
  */
 (function () {
   'use strict';
   var SIC = self.SIC, U = SIC.ui, h = U.h;
-  var CLE_REGLAGE = 'formation';
 
-  /** État de la bascule de ce poste pour le dossier ouvert, ou null (expirée ou absente). */
-  async function etatPoste() {
-    var r = await SIC.Dossier.lireReglage(CLE_REGLAGE);
-    if (!r || !U.App.dossier || r.dossier !== U.App.dossier.nom) return null;
-    if (Date.now() > r.jusqua) { await SIC.Dossier.ecrireReglage(CLE_REGLAGE, null); return null; }
-    return r;
-  }
-
-  function finDeJournee() { var d = new Date(); d.setHours(23, 59, 0, 0); return d.getTime(); }
-  var heure = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  function generer(config) { return SIC.donneesFictives({ config: config }); }
 
   U.formation = {
-    etatPoste: etatPoste,
-
-    /** À appeler après une connexion : ouvre le jeu de formation si le poste est basculé. */
-    appliquerApresConnexion: async function () {
-      var r = await etatPoste();
-      U.App.posteFormation = r;
-      if (!r) return;
-      try { await U.App.session.ouvrirFormation(); }
-      catch (e) {
-        await SIC.Dossier.ecrireReglage(CLE_REGLAGE, null); U.App.posteFormation = null;
-        U.toast('Mode formation impossible : ' + e.message + ' Données réelles ouvertes.');
-      }
+    /** Champ de choix affiché sur l'écran de connexion. */
+    choixConnexion: function () {
+      var reel = h('input', { type: 'radio', name: 'jeu', value: 'reel', checked: true });
+      var form = h('input', { type: 'radio', name: 'jeu', value: 'formation' });
+      var bloc = h('fieldset', { class: 'choix-jeu' }, h('legend', { text: 'Ouvrir' }),
+        h('label', { class: 'case' }, reel, h('span', {}, h('b', { text: 'Données réelles' }))),
+        h('label', { class: 'case formation' }, form, h('span', {}, h('b', { text: 'Mode formation' }), ' — données fictives, pour s’entraîner ou tester'))) ;
+      bloc.valeur = function () { return form.checked ? 'formation' : 'reel'; };
+      return bloc;
     },
 
-    /** Bandeau affiché en haut de l'application et de l'écran de connexion. */
-    bandeau: function (surConnexion) {
-      var r = U.App.posteFormation;
-      if (!(surConnexion ? r : U.App.session && U.App.session.formation)) return null;
-      var texte = surConnexion
-        ? 'Poste en MODE FORMATION' + (r ? ' jusqu’à ' + heure.format(r.jusqua) + ' (activé par ' + r.par + ')' : '') + ' : les connexions ouvrent le jeu de données fictives.'
-        : 'MODE FORMATION — données fictives' + (r ? ', jusqu’à ' + heure.format(r.jusqua) : '') + '. Ne saisissez aucune donnée réelle.';
-      var bouton = surConnexion
-        ? h('button', { class: 'btn petit', onclick: async function () { await SIC.Dossier.ecrireReglage(CLE_REGLAGE, null); U.App.posteFormation = null; U.demarrer(); } }, 'Revenir aux données réelles')
-        : (U.App.session.estFormateur() ? h('button', { class: 'btn petit', onclick: U.formation.quitter }, 'Quitter le mode formation') : null);
-      return h('div', { class: 'bandeau-formation', role: 'status' }, h('span', { text: texte }), bouton);
-    },
-
-    /** Vérification périodique : fin de la bascule à l'heure prévue. */
-    verifierExpiration: async function () {
+    /** Après authentification : ouvre le jeu choisi. */
+    appliquerChoix: async function (choix) {
+      if (choix !== 'formation') return;
       var s = U.App.session;
-      if (!s || !s.formation) return;
-      if (!(await etatPoste())) {
-        U.App.posteFormation = null;
-        U.verrouiller('Fin du mode formation : le poste est revenu aux données réelles.');
-      }
+      if (!s.accesFormation()) { s.verrouiller(); throw new Error('L’accès au mode formation est désactivé pour votre compte. Choisissez « Données réelles » ou contactez l’administrateur.'); }
+      try { await s.ouvrirFormation(generer); }
+      catch (e) { s.verrouiller(); throw new Error('Mode formation indisponible : ' + e.message); }
+    },
+
+    /** Bandeau affiché en haut de chaque écran pendant le mode formation. */
+    bandeau: function () {
+      var s = U.App.session;
+      if (!s || !s.formation) return null;
+      return h('div', { class: 'bandeau-formation', role: 'status' },
+        h('span', { text: 'MODE FORMATION — données fictives. Ne saisissez aucune donnée réelle.' }),
+        h('button', { class: 'btn petit', onclick: U.formation.quitter }, 'Passer aux données réelles'));
     },
 
     quitter: async function () {
-      var s = U.App.session;
-      await SIC.Dossier.ecrireReglage(CLE_REGLAGE, null);
-      U.App.posteFormation = null;
-      await s.fermerFormation();
-      await s.tracer('FORMATION_FIN', {});
-      U.toast('Poste revenu aux données réelles.');
+      await U.App.session.fermerFormation();
+      U.toast('Données réelles ouvertes.');
       U.demarrer();
     },
 
-    /** Fenêtre du formateur : créer ou régénérer le jeu, basculer le poste. */
-    ouvrir: function () {
+    /** Section de l'onglet Administration (données réelles uniquement). */
+    sectionAdmin: function () {
       var s = U.App.session, jeu = s.jeuFormation();
-      var duree = h('select', {},
-        h('option', { value: '1', text: '1 heure' }), h('option', { value: '2', text: '2 heures' }),
-        h('option', { value: '4', text: '4 heures', selected: true }), h('option', { value: '8', text: '8 heures' }),
-        h('option', { value: 'jour', text: 'Jusqu’à la fin de la journée' }));
-      var etat = h('div', { class: 'recap' },
-        jeu ? h('div', { text: 'Jeu de formation créé le ' + U.date(Date.parse(jeu.creeLe)) + ' par ' + jeu.par + '.' })
-            : h('div', { text: 'Aucun jeu de formation pour l’instant.' }),
-        h('div', { text: 'Il reprend les services, chambres de soins intensifs et postes de surveillance réels, avec des patients et des mesures fictifs (échéances JLD en cours, registre, statistiques).' }));
-
-      async function creer() {
-        var saisies = SIC.donneesFictives({ config: s.etat.config });
-        await s.creerFormation(saisies, 'Jeu de formation (données fictives)');
-      }
-      var boutons = [{ texte: 'Fermer' }];
-      boutons.push({ texte: jeu ? 'Régénérer les données fictives' : 'Créer le jeu de formation', action: async function () {
-        if (jeu && !confirm('Effacer le jeu de formation actuel (y compris les saisies des stagiaires) et en recréer un neuf ?')) return false;
-        await creer();
-        U.toast('Jeu de formation ' + (jeu ? 'régénéré' : 'créé') + '.');
-        setTimeout(U.formation.ouvrir, 0);
-        return true;
-      } });
-      boutons.push({ texte: 'Basculer ce poste en formation', classe: 'primaire', action: async function () {
-        if (!s.jeuFormation()) await creer();
-        var jusqua = duree.value === 'jour' ? finDeJournee() : Date.now() + (+duree.value) * 3600000;
-        var r = { jusqua: jusqua, par: s.utilisateur.nom, dossier: U.App.dossier.nom };
-        await SIC.Dossier.ecrireReglage(CLE_REGLAGE, r);
-        U.App.posteFormation = r;
-        await s.tracer('FORMATION_ACTIVE', { jusqua: new Date(jusqua).toISOString() });
-        await s.ouvrirFormation();
-        U.toast('Poste en mode formation jusqu’à ' + heure.format(jusqua) + '.');
-        return true;
-      } });
-
-      U.modale('Mode formation', h('div', { class: 'pile' },
-        h('p', { text: 'Le mode formation bascule ce poste de travail sur un jeu de données entièrement fictif, rangé à part sur le réseau. Les agents s’y connectent avec leur compte habituel : ils retrouvent leurs rôles et leurs services, et peuvent tout essayer sans toucher aux données réelles.' }),
-        etat,
-        h('label', {}, 'Durée de la bascule de ce poste', duree),
-        h('ul', { class: 'vigilance' },
-          h('li', { text: 'Un bandeau violet signale le mode formation sur tous les écrans.' }),
-          h('li', { text: 'Dans le jeu de formation, le formateur dispose aussi des droits IDE, secrétaire et cadre, sur tous les services.' }),
-          h('li', { text: 'Les comptes et les mots de passe restent les vrais : un changement de mot de passe fait en formation vaut aussi pour les données réelles.' }),
-          h('li', { text: 'Le poste revient aux données réelles à l’heure prévue, avec le bouton « Quitter le mode formation », ou depuis l’écran de connexion.' }))), boutons);
+      var avec = s.comptes.filter(function (c) { return c.actif && SIC.model.accesFormation(c); }).length;
+      var actifs = s.comptes.filter(function (c) { return c.actif; }).length;
+      return h('section', { class: 'panneau' }, h('h2', { text: 'Mode formation' }),
+        h('p', { class: 'muted', text: 'À la connexion, chaque agent choisit entre les données réelles et le mode formation. Le jeu de formation reprend les services, chambres de soins intensifs et postes de surveillance réels, avec des patients et des mesures fictifs ; il est chiffré à part dans le sous-dossier « formation ». L’accès se désactive compte par compte (bouton « Modifier »).' }),
+        h('div', { class: 'recap' },
+          h('div', { text: jeu ? 'Jeu de formation créé le ' + U.date(Date.parse(jeu.creeLe)) + ' par ' + jeu.par + '.' : 'Le jeu de formation sera créé à la première connexion en mode formation.' }),
+          h('div', { text: avec + ' compte(s) actif(s) sur ' + actifs + ' ont accès au mode formation.' })),
+        h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: async function () {
+          if (jeu && !confirm('Effacer le jeu de formation actuel (y compris les saisies des stagiaires) et en recréer un neuf ?')) return;
+          try { await s.creerFormation(generer(s.etat.config), 'Jeu de formation (données fictives)'); U.toast('Jeu de formation ' + (jeu ? 'régénéré' : 'créé') + '.'); U.rendreContenu(); }
+          catch (e) { alert(e.message); }
+        } }, jeu ? 'Régénérer les données fictives' : 'Créer le jeu de formation maintenant')));
     }
   };
 })();
