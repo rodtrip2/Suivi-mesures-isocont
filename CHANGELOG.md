@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.15.0 — 31 octobre 2026
+
+- **Pause d'une contention pendant un isolement** : l'agent doit confirmer si la pause concerne la contention seulement (le patient reste à l'isolement) ou aussi l'isolement ; dans le second cas, les deux mesures sont mises en pause ensemble. À la reprise d'une contention, l'outil propose de reprendre aussi l'isolement en pause.
+- **Pauses déduites partout — réglage du registre** pour une pause de la contention seule : en isolement seul (entrée A supplémentaire, par défaut) ou laissée dans l'entrée C sans déduction (pas d'entrée supplémentaire). Une pause commune à l'isolement et à la contention reste toujours déduite.
+
 ## 1.14.0 — 31 octobre 2026
 
 - Onglet Patients : bouton **Mesures** sur la ligne du patient — liste détaillée de ses mesures (type, service, lieu, début et fin avec psychiatre, durée, pauses, cycle JLD, tiers, accès au détail et au décompte), ses cumuls glissants et ses entrées du registre (numéro, catégorie, période, durée).

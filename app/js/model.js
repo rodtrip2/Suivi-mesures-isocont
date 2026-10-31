@@ -87,7 +87,9 @@
     // active : bouton Pause disponible (toujours vrai si les pauses sont déduites) ;
     // portee : 'jld' (déduction pour les délais JLD seulement) ou 'partout' (aussi registre et statistiques) ;
     // colonneRegistre : colonne des levées temporaires dans le registre.
-    pauses: { active: true, retrancher: false, portee: 'jld', colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
+    // contentionSeule (pauses déduites partout) : pause de la contention seule, l'isolement continuant —
+    // 'isolement' : ce temps devient de l'isolement seul (entrée A) ; 'contention' : il reste dans l'entrée C, non déduit.
+    pauses: { active: true, retrancher: false, portee: 'jld', contentionSeule: 'isolement', colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 }
   };
 
   function cloner(o) { return JSON.parse(JSON.stringify(o)); }
@@ -305,6 +307,7 @@
     o.active = o.retrancher || o.active !== false;
     if (o.portee !== 'partout') o.portee = 'jld';
     o.deduireRegistre = o.retrancher && o.portee === 'partout';
+    if (o.contentionSeule !== 'contention') o.contentionSeule = 'isolement';
     o.colonneRegistre = o.active && o.colonneRegistre !== false;
     return o;
   }
@@ -511,6 +514,27 @@
     E: "Contention hors espace d'isolement (exception prévue)"
   };
 
+  /** Intersection de deux listes de plages. */
+  function intersection(a, b) {
+    var r = [];
+    a.forEach(function (x) { b.forEach(function (y) { var d = Math.max(x[0], y[0]), f = Math.min(x[1], y[1]); if (f > d) r.push([d, f]); }); });
+    return r;
+  }
+
+  /**
+   * Plages déduites de la durée d'une entrée du registre (pauses déduites partout). Entrée C avec le réglage
+   * contentionSeule = 'contention' : seules les pauses où l'isolement est lui aussi suspendu sont déduites.
+   */
+  function exclusionsRegistre(st, x, maintenant) {
+    var op = optionsPauses(st.config);
+    if (!op.deduireRegistre) return [];
+    var ex = exclusions(x.mesure, maintenant, st.config);
+    if (x.cat !== 'C' || op.contentionSeule !== 'contention' || !ex.length) return ex;
+    var iso = [];
+    listeMesures(st).forEach(function (i) { if (i.type === 'Isolement' && i.csi && i.patientId === x.mesure.patientId) iso = iso.concat(exclusions(i, maintenant, st.config)); });
+    return intersection(ex, iso);
+  }
+
   /** Entrées brutes (catégorisées) d'un service, toutes années. */
   function entreesRegistre(st, service, maintenant) {
     var ms = listeMesures(st).filter(function (m) { return m.service === service && typeof m.debut === 'number'; });
@@ -525,7 +549,7 @@
         var finCalc = fin === null ? maintenant : fin;
         // Les portions couvertes par une contention en CSI deviennent l'entrée C. Si les pauses sont déduites
         // partout, une pause de la contention pendant laquelle l'isolement continue redevient de l'isolement seul (A).
-        var deduire = optionsPauses(st.config).deduireRegistre, contentions = [];
+        var opR = optionsPauses(st.config), deduire = opR.deduireRegistre && opR.contentionSeule === 'isolement', contentions = [];
         ms.filter(function (c) {
           return c.type === 'Contention' && c.csi && c.patientId === m.patientId;
         }).forEach(function (c) {
@@ -585,7 +609,7 @@
       return {
         numero: x.fin === null ? '' : x.cat + (depart + i + 1),
         categorie: x.cat, debut: x.debut, fin: x.fin,
-        dureeHeures: rules.heuresEffectives({ exclusions: optionsPauses(st.config).deduireRegistre ? exclusions(x.mesure, maintenant, st.config) : [] }, x.debut, finRef),
+        dureeHeures: rules.heuresEffectives({ exclusions: exclusionsRegistre(st, x, maintenant) }, x.debut, finRef),
         dureeReelleHeures: (finRef - x.debut) / H,
         pauses: pausesSur(x.mesure, x.debut, finRef, maintenant, st.config).map(function (q) { return [q.debut, q.fin]; }),
         type: x.mesure.type, lieu: x.mesure.lieu,

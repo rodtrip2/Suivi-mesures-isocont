@@ -114,7 +114,7 @@
       h('h3', { text: ms.length + ' mesure(s) — comptées comme le juge, isolement et contention séparément' }),
       tableMesures,
       h('h3', { text: 'Entrées du registre' }),
-      h('p', { class: 'muted' }, h('small', { text: 'Une contention en CSI et l’isolement qui l’accompagne forment une seule entrée C ; les portions d’isolement avant et après la contention forment des entrées A.' + (op.deduireRegistre ? ' Pauses déduites : une pause de la contention pendant laquelle l’isolement continue forme une entrée A.' : '') })),
+      h('p', { class: 'muted' }, h('small', { text: 'Une contention en CSI et l’isolement qui l’accompagne forment une seule entrée C ; les portions d’isolement avant et après la contention forment des entrées A.' + (op.deduireRegistre ? (op.contentionSeule === 'isolement' ? ' Pauses déduites : une pause de la contention pendant laquelle l’isolement continue forme une entrée A.' : ' Pauses déduites : une pause de la contention seule reste dans l’entrée C.') : '') })),
       tableRegistre), [{ texte: 'Fermer' }], { large: true });
   }
 

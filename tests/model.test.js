@@ -441,4 +441,28 @@ test('Scénario : isolement, contention ajoutée, pause de la contention, conten
   const st = etat({ retrancher: true, portee: 'partout' });
   assert.deepEqual(resume(st), [['A1', 8, 12, 4], ['A2', 14, 15, 1], ['C3', 12, 18, 5], ['A4', 18, 22, 4]]);
   assert.deepEqual(parPatient(st), [[[3, 9], [0, 0], [1, 5]], 1, 1]);
+  // Variante : la pause de la contention seule reste dans l'entrée C, non déduite (pas d'entrée A supplémentaire)
+  const st2 = etat({ retrancher: true, portee: 'partout', contentionSeule: 'contention' });
+  assert.deepEqual(resume(st2), [['A1', 8, 12, 4], ['C2', 12, 18, 6], ['A3', 18, 22, 4]]);
+  assert.deepEqual(parPatient(st2), [[[2, 8], [0, 0], [1, 6]], 1, 1]);
+});
+
+test('Variante du registre : une pause commune à l’isolement et à la contention reste déduite de l’entrée C', () => {
+  const d = h => local(2026, 3, 9, 0) + h * H;
+  const st = M.reduire([
+    evt('CONFIG', { cle: 'services', valeur: [{ code: 'U1', libelle: 'U1' }] }),
+    evt('CONFIG', { cle: 'pauses', valeur: { retrancher: true, portee: 'partout', contentionSeule: 'contention' } }),
+    evt('PATIENT', { patientId: 'P' }),
+    evt('MESURE_DEBUT', { mesureId: 'I', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: d(8), csi: true }),
+    evt('MESURE_DEBUT', { mesureId: 'C', patientId: 'P', service: 'U1', typeMesure: 'Contention', debut: d(12), csi: true }),
+    evt('PAUSE', { mesureId: 'C', debut: d(14), reprisePrevue: d(15) }, { base: 1 }),
+    evt('PAUSE', { mesureId: 'I', debut: d(14), reprisePrevue: d(15) }, { base: 2 }),
+    evt('REPRISE', { mesureId: 'C', date: d(15) }, { base: 2 }),
+    evt('REPRISE', { mesureId: 'I', date: d(15) }, { base: 3 }),
+    evt('MESURE_FIN', { mesureId: 'C', fin: d(18) }, { base: 3 }),
+    evt('MESURE_FIN', { mesureId: 'I', fin: d(22) }, { base: 4 })
+  ]);
+  const r = M.registre(st, 'U1', 2026, d(48)).map(e => [e.categorie, e.dureeHeures]);
+  assert.deepEqual(r, [['A', 4], ['C', 5], ['A', 4]]);   // patient sorti de l'isolement : l'heure est déduite, partout
+  assert.equal(M.optionsPauses({}).contentionSeule, 'isolement');
 });
