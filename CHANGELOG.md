@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.14.0 — 31 octobre 2026
+
+- Onglet Patients : bouton **Mesures** sur la ligne du patient — liste détaillée de ses mesures (type, service, lieu, début et fin avec psychiatre, durée, pauses, cycle JLD, tiers, accès au détail et au décompte), ses cumuls glissants et ses entrées du registre (numéro, catégorie, période, durée).
+- **Correction du registre quand les pauses sont déduites partout** : une pause de la contention pendant laquelle l'isolement continue était perdue (ni dans l'entrée C, ni ailleurs). Elle forme désormais une entrée A (isolement seul), de sorte que le registre totalise bien la durée de l'isolement. Les autres réglages ne sont pas modifiés.
+
 ## 1.13.0 — 31 octobre 2026
 
 - Onglet Patients : **statistiques par année** pour chaque patient — colonnes regroupant des catégories du registre, avec nombre d'entrées, durée cumulée et entrées en cours. Par défaut : isolement seul (A, B), contention seule (D, E ; en rouge si elle n'est pas à 0), isolement + contention (C).

@@ -523,9 +523,15 @@
         entrees.push({ cat: 'B', mesure: m, debut: m.debut, fin: fin });
       } else {
         var finCalc = fin === null ? maintenant : fin;
-        var contentions = ms.filter(function (c) {
+        // Les portions couvertes par une contention en CSI deviennent l'entrée C. Si les pauses sont déduites
+        // partout, une pause de la contention pendant laquelle l'isolement continue redevient de l'isolement seul (A).
+        var deduire = optionsPauses(st.config).deduireRegistre, contentions = [];
+        ms.filter(function (c) {
           return c.type === 'Contention' && c.csi && c.patientId === m.patientId;
-        }).map(function (c) { return [c.debut, typeof c.fin === 'number' ? c.fin : maintenant]; });
+        }).forEach(function (c) {
+          var cf = typeof c.fin === 'number' ? c.fin : maintenant;
+          contentions = contentions.concat(deduire ? rules.retrancher(c.debut, cf, exclusions(c, maintenant, st.config)) : [[c.debut, cf]]);
+        });
         soustraire(m.debut, finCalc, contentions).forEach(function (x) {
           entrees.push({ cat: 'A', mesure: m, debut: x[0], fin: (fin === null && x[1] === finCalc) ? null : x[1] });
         });

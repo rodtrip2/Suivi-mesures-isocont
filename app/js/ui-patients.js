@@ -61,12 +61,62 @@
             stats.colonnes.map(function (c, i) { var s = stats.parPatient[p.id]; return celluleAnnuelle(c, s && s.colonnes[i]); }),
             (function () { var s = stats.parPatient[p.id]; return h('td', { class: 'nowrap col-annuelle' }, s ? s.isolements + ' / ' + s.contentions : '0 / 0'); })(),
             h('td', { class: 'actions-ligne' },
+              x.total ? h('button', { class: 'btn petit', onclick: function () { modaleMesures(p); } }, 'Mesures') : null, ' ',
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleMode(p); } }, 'Mode') : null, ' ',
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleFiche(p); } }, 'Fiche') : null));
         })))) : h('div', { class: 'panneau vide', text: 'Aucun patient.' }),
       h('p', { class: 'muted' }, h('small', { text: 'Colonnes de l’année : entrées du registre (une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C), comptées l’année de leur début, avec leur durée cumulée ; la dernière colonne compte les mesures comme le juge, l’isolement et la contention séparément. Colonnes paramétrables par l’administrateur.' })),
       h('p', { class: 'muted' }, h('small', { text: 'Cumuls glissants calculés à l’instant, périodes qui se chevauchent comptées une seule fois, remis à zéro après une mainlevée du JLD. Indicateur de charge, non clinique.' })));
   };
+
+  /** Liste détaillée des mesures d'un patient, et ses entrées du registre. */
+  function modaleMesures(p) {
+    var etat = U.st(), maintenant = Date.now(), cfg = U.config(), op = M.optionsPauses(cfg);
+    var ms = M.listeMesures(etat).filter(function (m) { return m.patientId === p.id && U.dansService(m); }).sort(function (a, b) { return b.debut - a.debut; });
+    function ouvrir(fn) { var dlg = document.querySelector('dialog'); if (dlg) dlg.dispatchEvent(new Event('cancel')); setTimeout(fn, 0); }
+    var tableMesures = h('div', { class: 'table-wrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, ['Type', 'Service', 'Lieu', 'Début', 'Fin', op.retrancher ? 'Durée (délais JLD)' : 'Durée', 'Pauses', 'Cycle JLD', 'Tiers', ''].map(function (t) { return h('th', { text: t }); }))),
+      h('tbody', {}, ms.map(function (m) {
+        var enCours = typeof m.fin !== 'number', hp = M.dureePausesHeures(m, maintenant, cfg);
+        return h('tr', { class: enCours ? 'en-cours' : '' },
+          h('td', {}, U.badgeType(m.type), m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, U.badgePause(m, maintenant) ? h('div', {}, U.badgePause(m, maintenant)) : null),
+          h('td', { text: U.libService(m.service) }),
+          h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
+          h('td', { class: 'nowrap' }, U.date(m.debut), h('br'), h('small', { text: m.psychiatreDebut || '' })),
+          h('td', { class: 'nowrap' }, enCours ? h('b', { text: 'en cours' }) : U.date(m.fin), enCours ? null : h('br'), enCours ? null : h('small', { text: (m.psychiatreFin || '') + (m.motifFin ? ' — ' + m.motifFin : '') })),
+          h('td', { class: 'nowrap', text: U.duree(M.dureeHeures(m, maintenant, cfg)) }),
+          h('td', { class: 'nowrap', text: (m.pauses || []).length ? m.pauses.length + ' — ' + U.duree(hp) + (op.retrancher ? ' (déduites)' : '') : '—' }),
+          h('td', { text: String(m.cycle) }),
+          h('td', {}, U.tiersBadge(m)),
+          h('td', { class: 'actions-ligne' },
+            h('button', { class: 'btn petit', onclick: function () { ouvrir(function () { U.detailMesure(m); }); } }, 'Détail'), ' ',
+            U.actions.decompte && U.App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { ouvrir(function () { U.actions.decompte(m); }); } }, 'Décompte') : null));
+      }))));
+    // Entrées du registre (toutes années, services visibles)
+    var entrees = [], vus = {};
+    ms.forEach(function (m) { var an = new Date(m.debut).getFullYear(), cle = m.service + '|' + an; if (!vus[cle]) { vus[cle] = 1; entrees = entrees.concat(M.registre(etat, m.service, an, maintenant).filter(function (e) { return e.patientId === p.id; })); } });
+    entrees.sort(function (a, b) { return a.debut - b.debut; });
+    var tableRegistre = entrees.length ? h('div', { class: 'table-wrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, ['N° registre', 'Catégorie', 'Début', 'Fin', op.deduireRegistre ? 'Durée hors pauses' : 'Durée'].map(function (t) { return h('th', { text: t }); }))),
+      h('tbody', {}, entrees.map(function (e) {
+        return h('tr', { class: e.fin === null ? 'en-cours' : '' },
+          h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' })),
+          h('td', { title: M.LIB_CATEGORIES[e.categorie], text: e.categorie + ' — ' + M.LIB_CATEGORIES[e.categorie] }),
+          h('td', { class: 'nowrap', text: U.date(e.debut) }),
+          h('td', { class: 'nowrap', text: e.fin ? U.date(e.fin) : 'en cours' }),
+          h('td', { class: 'nowrap', text: U.duree(e.dureeHeures) }));
+      })))) : h('p', { class: 'muted', text: 'Aucune entrée.' });
+    var c = M.cumulsPatient(etat, p.id, maintenant);
+    U.modale('Mesures — ' + (p.nom || '') + ' ' + (p.prenom || ''), h('div', { class: 'pile' },
+      h('div', { class: 'recap' },
+        h('div', { text: 'IPP ' + (p.ipp || '—') + (p.naissance ? ' · né(e) le ' + p.naissance.split('-').reverse().join('/') : '') + ' · ' + (U.modeActuel(p) || 'mode non renseigné') }),
+        h('div', { text: 'Cumuls glissants : isolement ' + U.duree(c.iso48) + ' sur 48 h, ' + U.duree(c.iso15) + ' sur 15 jours ; contention ' + U.duree(c.cont48) + ' sur 48 h, ' + U.duree(c.cont15) + ' sur 15 jours.' })),
+      h('h3', { text: ms.length + ' mesure(s) — comptées comme le juge, isolement et contention séparément' }),
+      tableMesures,
+      h('h3', { text: 'Entrées du registre' }),
+      h('p', { class: 'muted' }, h('small', { text: 'Une contention en CSI et l’isolement qui l’accompagne forment une seule entrée C ; les portions d’isolement avant et après la contention forment des entrées A.' + (op.deduireRegistre ? ' Pauses déduites : une pause de la contention pendant laquelle l’isolement continue forme une entrée A.' : '') })),
+      tableRegistre), [{ texte: 'Fermer' }], { large: true });
+  }
 
   function modaleFiche(p) {
     var ipp = h('input', { type: 'text', value: p.ipp || '' });

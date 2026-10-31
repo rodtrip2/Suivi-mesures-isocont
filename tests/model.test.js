@@ -411,3 +411,34 @@ test('Statistiques annuelles par patient : colonnes de catégories paramétrable
   assert.deepEqual(s2.colonnes, [{ libelle: 'En CSI', categories: ['A', 'C'], alerte: false }]);
   assert.deepEqual(s2.parPatient.P1.colonnes.map(c => [c.n, c.heures]), [[3, 12]]);
 });
+
+test('Scénario : isolement, contention ajoutée, pause de la contention, contention retirée, isolement maintenu', () => {
+  // Isolement en CSI 8 h–22 h ; contention en CSI 12 h–18 h avec une pause 14 h–15 h.
+  const d = h => local(2026, 3, 2, 0) + h * H;
+  const etat = pauses => M.reduire([
+    evt('CONFIG', { cle: 'services', valeur: [{ code: 'U1', libelle: 'U1' }] }),
+    evt('CONFIG', { cle: 'pauses', valeur: pauses }),
+    evt('PATIENT', { patientId: 'P' }),
+    evt('MODE_HOSPI', { patientId: 'P', mode: 'SDT', date: d(-100) }),
+    evt('MESURE_DEBUT', { mesureId: 'I', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: d(8), csi: true, lieu: 'CSI 1' }),
+    evt('MESURE_DEBUT', { mesureId: 'C', patientId: 'P', service: 'U1', typeMesure: 'Contention', debut: d(12), csi: true, lieu: 'CSI 1' }),
+    evt('PAUSE', { mesureId: 'C', debut: d(14), reprisePrevue: d(15), motif: 'Repas' }, { base: 1 }),
+    evt('REPRISE', { mesureId: 'C', date: d(15) }, { base: 2 }),
+    evt('MESURE_FIN', { mesureId: 'C', fin: d(18) }, { base: 3 }),
+    evt('MESURE_FIN', { mesureId: 'I', fin: d(22) }, { base: 1 })
+  ]);
+  const t = d(48);
+  const resume = st => M.registre(st, 'U1', 2026, t).map(e => [e.numero, (e.debut - d(0)) / H, (e.fin - d(0)) / H, e.dureeHeures]);
+  const parPatient = st => { const s = M.statistiquesPatients(st, ['U1'], 2026, t).parPatient.P; return [s.colonnes.map(c => [c.n, c.heures]), s.isolements, s.contentions]; };
+  // Pauses comptées (défaut) et pauses déduites pour les délais JLD seulement : registre en durées réelles
+  for (const p of [{}, { retrancher: true }]) {
+    const st = etat(p);
+    assert.deepEqual(resume(st), [['A1', 8, 12, 4], ['C2', 12, 18, 6], ['A3', 18, 22, 4]]);
+    assert.deepEqual(parPatient(st), [[[2, 8], [0, 0], [1, 6]], 1, 1]);
+  }
+  assert.equal(M.dureeHeures(etat({ retrancher: true }).mesures.C, t, etat({ retrancher: true }).config), 5);   // délais JLD : contention 5 h
+  // Pauses déduites partout : la pause de la contention redevient de l'isolement seul, rien n'est perdu (9 h + 5 h = 14 h)
+  const st = etat({ retrancher: true, portee: 'partout' });
+  assert.deepEqual(resume(st), [['A1', 8, 12, 4], ['A2', 14, 15, 1], ['C3', 12, 18, 5], ['A4', 18, 22, 4]]);
+  assert.deepEqual(parPatient(st), [[[3, 9], [0, 0], [1, 5]], 1, 1]);
+});

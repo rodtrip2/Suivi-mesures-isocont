@@ -900,7 +900,7 @@
   function modale(titre, contenu, boutons, options) {
     return new Promise(function (resoudre) {
       var zoneErr = h('div');
-      var d = h('dialog', { 'aria-label': titre });
+      var d = h('dialog', { 'aria-label': titre, class: options && options.large ? 'large' : null });
       function fermer(v) { d.close(); d.remove(); resoudre(v); rendreContenu(); }
       var pied = h('div', { class: 'pied' });
       boutons.forEach(function (b) {
@@ -1855,7 +1855,8 @@
     toast: toast, modale: modale, imprimer: imprimer, erreurDans: erreurDans, fmtJour: fmtJour,
     App: App, st: st, config: config, services: services, tousServices: tousServices, libService: libService, etablissement: etablissement,
     patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
-    badgeType: badgeType, badgePause: badgePause, alerteChamp: alerteChamp, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
+    badgeType: badgeType, badgePause: badgePause, alerteChamp: alerteChamp, tiersBadge: tiersBadge,
+    detailMesure: function (m) { modaleDetail(m); }, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
     demarrer: rendre, verrouiller: verrouiller
   };

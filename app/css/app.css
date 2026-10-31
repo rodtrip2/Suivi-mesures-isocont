@@ -330,3 +330,4 @@ td.centre, th.centre { text-align: center; }
 th.col-annuelle, td.col-annuelle { border-left: 1px solid var(--line); }
 th.col-annuelle { white-space: normal; min-width: 7em; }
 input[type=number].champ-court[aria-label="Année des statistiques"] { width: 6.5em; }
+dialog.large { width: min(1150px, calc(100vw - 32px)); }
