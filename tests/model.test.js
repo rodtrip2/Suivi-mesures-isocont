@@ -264,3 +264,11 @@ test('Masque du décompte : date d’édition et auteur séparés, ancien régla
   assert.deepEqual(u1.marges, { haut: 45, droite: 15, bas: 15, gauche: 80 });
   assert.equal(M.masqueDecompte(cfg, 'U2').fond, '');                 // image supprimée : pas de fond
 });
+
+test('Masque du décompte : format des durées en heures, en jours ou les deux', () => {
+  const d = M.masqueDecompte({}, 'U1');
+  assert.deepEqual([d.formatDuree, d.formatCumul], ['j', 'j']);              // présentation inchangée par défaut
+  const m = M.masqueDecompte({ decompte: { U1: { formatDuree: 'h', formatCumul: 'hj' }, U2: { formatCumul: 'x' } } }, 'U1');
+  assert.deepEqual([m.formatDuree, m.formatCumul], ['h', 'hj']);
+  assert.equal(M.masqueDecompte({ decompte: { U2: { formatCumul: 'x' } } }, 'U2').formatCumul, 'j');
+});

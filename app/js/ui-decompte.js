@@ -14,6 +14,19 @@
   var LIB_SECTIONS = { periode: 'Période analysée', situation: 'Situation (en cours ou terminée)', total: 'Totaux (cumul antérieur, durée totale retenue)', cycle: 'Cycle et échéances JLD', jld: 'Envois au JLD déjà effectués', tiers: 'Information du tiers', pauses: 'Levées temporaires (pauses)', mentionLegale: 'Mention du mode de calcul (art. L. 3222-5-1)', dateEdition: 'Date d’édition', auteur: 'Auteur du document' };
   var LIB_NATURE = { INFO: 'information', SAISINE: 'saisine', DECISION: 'décision' };
 
+  var LIB_FORMATS = { h: 'En heures (ex. 68 h 05)', j: 'En jours et heures (ex. 2 j 20 h)', hj: 'Les deux (ex. 68 h 05, soit 2 j 20 h 05)' };
+
+  /** Durée (heures décimales) selon le format du masque : 'h', 'j' ou 'hj'. */
+  function formatDuree(heures, format) {
+    if (!isFinite(heures)) return '—';
+    var tot = Math.round(Math.abs(heures) * 60), hh = Math.floor(tot / 60), mm = String(tot % 60).padStart(2, '0');
+    var enHeures = hh + ' h ' + mm;
+    if (format === 'h') return enHeures;
+    var j = Math.floor(tot / 1440), reste = Math.floor((tot % 1440) / 60);
+    if (format === 'hj') return j ? enHeures + ', soit ' + j + ' j ' + reste + ' h ' + mm : enHeures;
+    return U.duree(heures);
+  }
+
   function dateNaissance(iso) { return iso ? iso.split('-').reverse().join('/') : '—'; }
   function multiligne(texte, classe) {
     var lignes = String(texte || '').split('\n');
@@ -40,8 +53,8 @@
         case 'N': return String(l.n);
         case 'Debut': return U.date(l.debut);
         case 'Fin': return U.date(l.fin);
-        case 'Duree': return l.type === 'pause' ? U.duree(l.duree) + ' (déduite)' : U.duree(l.duree);
-        case 'Cumul': return U.duree(l.cumul);
+        case 'Duree': return l.type === 'pause' ? formatDuree(l.duree, masque.formatDuree) + ' (déduite)' : formatDuree(l.duree, masque.formatDuree);
+        case 'Cumul': return formatDuree(l.cumul, masque.formatCumul);
         case 'Statut': return l.statut;
         default: return l.commentaire;
       }
@@ -69,7 +82,7 @@
         : plage && plage.nonConfirmee ? 'Déduite jusqu’à l’heure de reprise prévue, comptée ensuite'
         : 'Déduite du cumul';
       var duree = deduire && plage ? (plage.fin - plage.debut) / H : (f - x.debut) / H;
-      return { debut: U.date(x.debut), reprise: reprise, duree: U.duree(duree), motif: x.motif || '—', psychiatre: x.psychiatre || '—', prise: prise };
+      return { debut: U.date(x.debut), reprise: reprise, duree: formatDuree(duree, masque.formatDuree), motif: x.motif || '—', psychiatre: x.psychiatre || '—', prise: prise };
     });
     var explicationPauses = deduire
       ? 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées est déduite : elle n’est pas ajoutée au cumul. Chaque levée interrompt le tableau ci-dessus par une ligne « PAUSE » grisée, et les échéances JLD sont reportées d’autant.'
@@ -81,7 +94,7 @@
       lignes: d.lignes.map(function (l) { return masque.colonnes.map(function (c) { return cellule(l, c); }); }),
       typesLignes: d.lignes.map(function (l) { return l.type; }),
       explicationPauses: explicationPauses,
-      total: 'Cumul des mesures antérieures sur 15 jours : ' + U.duree(d.cumulAvant) + ' — Durée totale retenue : ' + U.duree(d.total) + '.',
+      total: 'Cumul des mesures antérieures sur 15 jours : ' + formatDuree(d.cumulAvant, masque.formatCumul) + ' — Durée totale retenue : ' + formatDuree(d.total, masque.formatCumul) + '.',
       cycle: 'Cycle de contrôle n° ' + j.cycle + ' — information avant le ' + U.date(j.info.echeance) + ', saisine avant le ' + U.date(j.saisine.echeance) + ', décision avant le ' + U.date(j.decision.echeance) + '.',
       envois: envois, tiers: tiers, pauses: pauses
     };
@@ -293,6 +306,8 @@
         });
       }
       dessinerColonnes();
+      var selFmt = function (v) { return h('select', {}, M.FORMATS_DUREE.map(function (f) { return h('option', { value: f, text: LIB_FORMATS[f], selected: f === v }); })); };
+      var fmtDuree = selFmt(mq.formatDuree), fmtCumul = selFmt(mq.formatCumul);
 
       // Papier à en-tête
       var images = JSON.parse(JSON.stringify(cfg.imagesDecompte || {}));
@@ -331,6 +346,7 @@
           colonnes: ordre.filter(function (c) { return actives[c]; }),
           sections: M.SECTIONS_DECOMPTE.reduce(function (o, k) { o[k] = casesSections[k].checked; return o; }, {}),
           piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, ''),
+          formatDuree: fmtDuree.value, formatCumul: fmtCumul.value,
           fond: selFond.value, fondPages: selPages.value,
           marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
         };
@@ -347,7 +363,7 @@
           vue.appendChild(doc); ajusterApercu(vue, doc);
         } catch (e) { vue.appendChild(h('div', { class: 'erreur', text: e.message })); }
       }
-      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
+      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
       Object.keys(casesIdentite).concat([]).forEach(function (k) { casesIdentite[k].addEventListener('change', apercu); });
       Object.keys(casesSections).forEach(function (k) { casesSections[k].addEventListener('change', apercu); });
       setTimeout(apercu, 0);
@@ -387,7 +403,8 @@
           h('div', { class: 'grille-2' }, h('label', {}, 'En-tête (adresse, service, téléphone…)', entete), h('label', {}, 'Destinataire (affiché à droite)', dest)),
           h('label', { class: 'case' }, conf, h('span', { text: 'Bandeau « Document confidentiel — données personnelles de santé »' })),
           h('fieldset', {}, h('legend', { text: 'Données d’identité exportées' }), blocIdentite),
-          h('fieldset', {}, h('legend', { text: 'Colonnes du tableau (cochées = exportées, dans cet ordre)' }), listeCol),
+          h('fieldset', {}, h('legend', { text: 'Colonnes du tableau (cochées = exportées, dans cet ordre)' }), listeCol,
+            h('div', { class: 'grille-2' }, h('label', {}, 'Format de la colonne Durée (et des pauses)', fmtDuree), h('label', {}, 'Format du cumul et des totaux', fmtCumul))),
           h('fieldset', {}, h('legend', { text: 'Sections exportées' }), blocSections),
           h('label', {}, 'Texte en pied de document', pied),
           h('label', {}, 'Bloc signature (ex. « Le directeur, par délégation » ; laisser vide pour aucun)', sign),

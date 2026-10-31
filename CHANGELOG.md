@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.8.0 — 31 octobre 2026
+
+- Décompte JLD, masques : **format des durées réglable** séparément pour la colonne Durée (et le tableau des pauses) et pour le cumul et les totaux : en heures (« 68 h 05 »), en jours et heures (« 2 j 20 h », présentation précédente, par défaut) ou les deux (« 68 h 05, soit 2 j 20 h 05 »). S'applique à l'impression, au PDF et au CSV.
+
 ## 1.7.1 — 31 octobre 2026
 
 - Décompte JLD : vocabulaire des pauses sans ambiguïté. « Non décomptée » (qui peut se lire « non déduite ») est remplacé par « déduite du cumul » ou « comptée dans le cumul », dans les lignes de pause (« 1 h 00 (déduite) », « Durée déduite, non ajoutée au cumul »), le tableau des levées temporaires, la phrase d'explication, la mention de calcul en bas de page (qui précise désormais la règle dans les deux cas) et l'export CSV. « Durée totale décomptée » devient « Durée totale retenue ».

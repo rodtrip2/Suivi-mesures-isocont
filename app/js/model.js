@@ -639,6 +639,7 @@
   var COLONNES_DECOMPTE = ['N', 'Debut', 'Fin', 'Duree', 'Cumul', 'Statut', 'Commentaire'];
   var IDENTITE_DECOMPTE = ['patient', 'naissance', 'ipp', 'service', 'modeHospi', 'protection', 'mesure', 'lieu', 'psychiatre'];
   var SECTIONS_DECOMPTE = ['periode', 'situation', 'total', 'cycle', 'jld', 'tiers', 'pauses', 'mentionLegale', 'dateEdition', 'auteur'];
+  var FORMATS_DUREE = ['h', 'j', 'hj'];
   var MASQUE_DEFAUT = {
     titreIsolement: 'Cumul des mesures d’isolement', titreContention: 'Cumul des mesures de contention', sousTitre: '',
     entete: '', destinataire: '', confidentiel: false,
@@ -646,6 +647,8 @@
     colonnes: COLONNES_DECOMPTE.slice(),
     sections: { periode: true, situation: true, total: true, cycle: true, jld: false, tiers: false, pauses: true, mentionLegale: true, dateEdition: true, auteur: true },
     piedPage: '', signature: '',
+    // Format des durées : 'h' (68 h 05), 'j' (2 j 20 h), 'hj' (68 h 05, soit 2 j 20 h 05)
+    formatDuree: 'j', formatCumul: 'j',
     // Papier à en-tête : image de fond (identifiant dans config.imagesDecompte), sur toutes les pages ou la première, marges (mm).
     fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 }
   };
@@ -677,6 +680,7 @@
     r.colonnes = r.colonnes.filter(function (c) { return COLONNES_DECOMPTE.indexOf(c) >= 0; });
     r.identite = r.identite.filter(function (c) { return IDENTITE_DECOMPTE.indexOf(c) >= 0; });
     Object.keys(r.marges).forEach(function (k) { var v = +r.marges[k]; r.marges[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; });
+    ['formatDuree', 'formatCumul'].forEach(function (k) { if (FORMATS_DUREE.indexOf(r[k]) < 0) r[k] = 'j'; });
     if (r.fond && !((config && config.imagesDecompte) || {})[r.fond]) r.fond = '';
     r.propre = !!(service && service !== '*' && dec[service]);
     return r;
@@ -763,6 +767,6 @@
     registre: registre, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
-    COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, masqueDecompte: masqueDecompte
+    COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte
   };
 });
