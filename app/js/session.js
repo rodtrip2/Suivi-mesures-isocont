@@ -32,7 +32,8 @@
   function cleActive(s) { return s.formation ? s.cleDonnees : s.cle; }
 
   Session.prototype.sur = function (fn) { this.auditeurs.push(fn); };
-  Session.prototype.notifier = function () { var s = this; this.auditeurs.forEach(function (f) { f(s); }); };
+  /** Prévient l'interface. `info` : { source: 'synchro', nouveaux: n } pour une synchronisation, sinon saisie locale. */
+  Session.prototype.notifier = function (info) { var s = this; this.auditeurs.forEach(function (f) { f(s, info || { source: 'local' }); }); };
 
   // --------------------------------------------------------- Coffre
   Session.prototype.chargerCoffre = async function () {
@@ -274,9 +275,9 @@
     return this.enregistrer('LOT', { evenements: evenements, libelle: (options && options.libelle) || '' }, undefined, options);
   };
 
-  Session.prototype.recalculer = function () {
+  Session.prototype.recalculer = function (info) {
     this.etat = M.reduire(this.evts);
-    this.notifier();
+    this.notifier(info);
   };
 
   Session.prototype.synchroniser = async function () {
@@ -303,8 +304,8 @@
     this.derniereSynchro = Date.now();
     if (r.evenements.length || !this.etat) {
       this.evts = this.evts.concat(r.evenements);
-      this.recalculer();
-    } else this.notifier();
+      this.recalculer({ source: 'synchro', nouveaux: r.evenements.length });
+    } else this.notifier({ source: 'synchro', nouveaux: 0 });
     return r.evenements.length;
   };
 

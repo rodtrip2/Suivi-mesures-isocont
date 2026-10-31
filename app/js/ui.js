@@ -112,6 +112,8 @@
     if (!App.session.cle) return racine.appendChild(ecranConnexion());
     if (App.session.utilisateur && App.session.utilisateur.mdpProvisoire) return racine.appendChild(ecranMotDePasseObligatoire());
     racine.appendChild(ecranApplication());
+    vueAffichee = null;
+    rendreContenu();   // une fois la page insérée dans le document
   }
 
   function marque(sousTitre) {
@@ -146,7 +148,7 @@
 
   async function demarrerSession() {
     App.session = new SIC.Session(App.dossier);
-    App.session.sur(function () { if (App.session.cle) rendreContenu(); });
+    App.session.sur(function (s, info) { if (App.session.cle) apresNotification(info); });
     await App.session.chargerCoffre();
     App.anomalie = App.session.coffre ? null : await App.dossier.anomalie();
     rendre();
@@ -306,6 +308,9 @@
     App.minuteurs.push(setInterval(function () {
       if (App.session && App.session.cle && document.visibilityState === 'visible') App.session.synchroniser().catch(function () {});
     }, 5000));
+    App.minuteurs.push(setInterval(function () {   // heures relatives (« dans 3 h ») et échéances qui changent de couleur
+      if (App.session && App.session.cle && document.visibilityState === 'visible' && !saisieEnCours() && App.onglet !== 'admin') rendreContenu();
+    }, 60000));
     App.minuteurs.push(setInterval(function () {
       var limite = (config().inactiviteMinutes || 10) * 60000;
       if (App.session && App.session.cle && Date.now() - App.derniereActivite > limite) verrouiller('Session verrouillée après ' + (config().inactiviteMinutes || 10) + ' minutes d’inactivité.');
@@ -330,7 +335,51 @@
     return frag;
   }
 
+  // ---------------------------------------------------------------- Actualisation sans perte de position
+  /** Vrai si l'agent est en train de saisir dans la page (champ actif, hors fenêtre). */
+  function saisieEnCours() {
+    var a = document.activeElement;
+    return !!(a && zoneContenu && zoneContenu.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  }
+  function signalerAttente() {
+    var b = document.getElementById('actualisation-attente');
+    if (b) b.hidden = !App.miseAJourEnAttente;
+  }
+  /** Après une synchronisation ou une saisie : n'actualise que ce qui doit l'être, sans ramener la page en haut. */
+  function apresNotification(info) {
+    if (info && info.source === 'synchro' && !info.nouveaux) { majStatutSynchro(); return; }
+    if (info && info.source === 'synchro' && (App.onglet === 'admin' || saisieEnCours())) {
+      // Saisies arrivées d'un autre poste pendant une saisie ou un paramétrage : on ne touche pas au formulaire.
+      App.miseAJourEnAttente = true; signalerAttente(); majStatutSynchro(); return;
+    }
+    rendreContenu();
+  }
+  function majStatutSynchro() {
+    var z = zoneEntete && zoneEntete.querySelector('.statut-synchro');
+    if (z && App.session) z.title = App.session.evts.length + ' saisies dans le journal — dernière synchronisation à ' + new Date(App.session.derniereSynchro || Date.now()).toLocaleTimeString('fr-FR');
+  }
+  document.addEventListener('focusout', function () {
+    // Fin de la saisie : appliquer les nouveautés en attente (sauf en administration, où l'agent choisit).
+    setTimeout(function () { if (App.miseAJourEnAttente && App.onglet !== 'admin' && !saisieEnCours() && App.session && App.session.cle) rendreContenu(); }, 300);
+  });
+
+  var vueAffichee = null;
   function rendreContenu() {
+    if (!zoneContenu || !document.body.contains(zoneContenu)) return;
+    // Même onglet : on garde la position de défilement de la page et des tableaux
+    var memeVue = vueAffichee === App.onglet + '|' + App.service;
+    var pos = memeVue ? { x: window.scrollX, y: window.scrollY, h: zoneContenu.offsetHeight, zones: Array.prototype.map.call(zoneContenu.querySelectorAll('.table-wrap, .apercu-document, .apercu-registre'), function (z) { return [z.scrollLeft, z.scrollTop]; }) } : null;
+    rendreContenuBrut();
+    vueAffichee = App.onglet + '|' + App.service;
+    App.miseAJourEnAttente = false; signalerAttente();
+    if (pos) {
+      zoneContenu.querySelectorAll('.table-wrap, .apercu-document, .apercu-registre').forEach(function (z, i) { if (pos.zones[i]) { z.scrollLeft = pos.zones[i][0]; z.scrollTop = pos.zones[i][1]; } });
+      window.scrollTo(pos.x, pos.y);
+      zoneContenu.style.minHeight = '';
+    } else { zoneContenu.style.minHeight = ''; window.scrollTo(0, 0); }
+  }
+
+  function rendreContenuBrut() {
     if (!zoneContenu || !document.body.contains(zoneContenu)) return;
     var s = App.session;
     var focus = document.activeElement && document.activeElement.closest && document.activeElement.closest('dialog');
@@ -360,6 +409,10 @@
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.ROLES[r]; }).join(' · ')),
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
       h('button', { class: 'btn petit', onclick: function () { verrouiller(); } }, 'Verrouiller')));
+    zoneEntete.appendChild(h('div', { id: 'actualisation-attente', class: 'actualisation-attente', hidden: !App.miseAJourEnAttente },
+      'Nouvelles saisies depuis un autre poste. ',
+      h('button', { class: 'btn petit primaire', onclick: function () { rendreContenu(); } }, 'Actualiser'),
+      App.onglet === 'admin' ? h('small', { text: ' (les modifications non enregistrées de cette page seront perdues)' }) : null));
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
     ONGLETS.forEach(function (o) {
       if (o[0] === 'admin' && !estAdmin) return;
@@ -368,6 +421,7 @@
     });
     zoneEntete.appendChild(nav);
 
+    zoneContenu.style.minHeight = zoneContenu.offsetHeight + 'px';   // évite que la page se replie pendant la reconstruction
     vider(zoneContenu);
     var vues = { tableau: vueTableau, mesures: vueMesures, jld: vueJLD, surveillance: vueSurveillance, registre: vueRegistre, journal: vueJournal, admin: vueAdmin };
     var vue = vues[App.onglet] || SIC.ui.vues[App.onglet] || vueTableau;

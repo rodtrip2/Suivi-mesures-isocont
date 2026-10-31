@@ -319,3 +319,5 @@ dialog .apercu-registre { max-width: 100%; overflow: auto; }
 .grille-occultation { align-items: start; }
 .grille-occultation > label { align-content: start; grid-auto-rows: min-content; }
 .grille-occultation select { height: auto; align-self: start; }
+.actualisation-attente { background: var(--warn-soft); color: var(--ink); padding: 6px 12px; border-radius: var(--radius); margin: 6px 0; font-size: .9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.actualisation-attente[hidden] { display: none; }

@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.10.2 — 31 octobre 2026
+
+- **Actualisation sans retour en haut de page** : la synchronisation (toutes les 5 secondes) ne reconstruit plus la page quand rien n'a changé ; seul l'indicateur de synchronisation est mis à jour.
+- Quand la page est actualisée (saisie d'un autre poste, enregistrement, fermeture d'une fenêtre, heures relatives rafraîchies chaque minute), la position de défilement de la page et des tableaux est conservée.
+- Pendant une saisie dans un champ, ou dans l'administration, les nouveautés d'un autre poste ne sont pas appliquées d'office : un bandeau « Nouvelles saisies depuis un autre poste — Actualiser » apparaît, et l'actualisation se fait à la fin de la saisie (dans l'administration, au clic, pour ne pas perdre un paramétrage non enregistré).
+
 ## 1.10.1 — 31 octobre 2026
 
 - **Journal plus lisible** : chaque saisie est décrite en clair, avec le patient et la mesure concernés.
