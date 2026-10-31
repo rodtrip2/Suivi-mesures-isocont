@@ -48,15 +48,17 @@
     cfg('psychiatres', ['Dr Arnaud (fictif)', 'Dr Benoît (fictif)', 'Dr Chen (fictif)', 'Dr Diallo (fictif)']);
 
     var patients = [
-      ['P01', '900101', 'ALPHA', 'Camille', 'SDT', U1],
-      ['P02', '900102', 'BRAVO', 'Dominique', 'SPI', U1],
-      ['P03', '900103', 'CHARLIE', 'Sacha', 'SL', U1],
-      ['P04', '900104', 'DELTA', 'Alix', 'SDRE', U2],
-      ['P05', '900105', 'ECHO', 'Noa', 'SDTU', U1],
-      ['P06', '900106', 'FOXTROT', 'Eden', 'SDT', U2]
+      ['P01', '900101', 'ALPHA', 'Camille', 'SDT', U1, 41],
+      ['P02', '900102', 'BRAVO', 'Dominique', 'SPI', U1, 33],
+      ['P03', '900103', 'CHARLIE', 'Sacha', 'SL', U1, 48],
+      ['P04', '900104', 'DELTA', 'Alix', 'SDRE', U2, 66],
+      ['P05', '900105', 'ECHO', 'Noa', 'SDTU', U1, 16],
+      ['P06', '900106', 'FOXTROT', 'Eden', 'SDT', U2, 27]
     ];
     patients.forEach(function (p, i) {
-      ajouter(t(-24 * 280 + i), 'PATIENT', { patientId: p[0], ipp: p[1], nom: p[2] + ' (fictif)', prenom: p[3], protection: i === 3 ? 'Curatelle' : '', service: p[5] });
+      var dn = new Date(now); dn.setFullYear(dn.getFullYear() - p[6]); dn.setMonth((i * 5) % 12, 3 + i * 4);
+      if (dn.getTime() > now - p[6] * 365.25 * J) dn.setFullYear(dn.getFullYear() - 1);   // âge révolu = p[6]
+      ajouter(t(-24 * 280 + i), 'PATIENT', { patientId: p[0], ipp: p[1], nom: p[2] + ' (fictif)', prenom: p[3], naissance: SIC.model.dateLocaleISO(dn.getTime()), protection: i === 3 ? 'Curatelle' : '', service: p[5] });
       ajouter(t(-24 * 280 + i), 'MODE_HOSPI', { patientId: p[0], mode: p[4], date: t(-24 * 400) });
     });
 

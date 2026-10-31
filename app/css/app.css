@@ -237,3 +237,7 @@ body.en-formation main { background-image: repeating-linear-gradient(135deg, tra
 .choix-jeu .case.formation { color: var(--formation); }
 .ecran-pile { min-height: 100vh; display: flex; flex-direction: column; }
 .ecran-pile > .ecran { flex: 1; min-height: 0; }
+
+/* ---------- Alertes sous les champs */
+.alerte-champ { color: var(--bad); font-size: .84rem; font-weight: 600; line-height: 1.35; display: grid; gap: 2px; margin-top: 2px; }
+.alerte-champ > div::before { content: "⚠ "; }

@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.3.1 — 31 octobre 2026
+
+- Nouvelle mesure : **date de naissance obligatoire** pour un nouveau patient, demandée aussi quand elle manque dans une fiche existante (patients importés).
+- **Alertes en rouge sous les champs concernés**, recalculées pendant la saisie : patient mineur, patient en soins libres, « SL mineur » incohérent avec l'âge, mesure du même type déjà en cours, cumul élevé sur 15 jours, protection juridique, IPP déjà attribué, saisie tardive ou dans le futur, contention hors espace d'isolement, service sans CSI paramétrée.
+- Patients fictifs (démonstration, formation) avec date de naissance, dont un mineur.
+
 ## 1.3.0 — 31 octobre 2026
 
 Le mode formation est revu : il remplace le rôle Formateur et la bascule de poste de la version 1.2.0.

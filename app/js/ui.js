@@ -722,6 +722,25 @@
   }
 
   // ---------------------------------------------------------------- Nouvelle mesure
+  /** Message d'alerte rouge placé sous un champ ; `afficher(textes)` le met à jour. */
+  function alerteChamp() {
+    var zone = h('div', { class: 'alerte-champ', role: 'alert', hidden: true });
+    zone.afficher = function (textes) {
+      textes = (textes || []).filter(Boolean);
+      vider(zone);
+      textes.forEach(function (t) { zone.appendChild(h('div', { text: t })); });
+      zone.hidden = !textes.length;
+    };
+    return zone;
+  }
+
+  function ageA(naissanceISO, date) {
+    if (!naissanceISO) return null;
+    var n = new Date(naissanceISO + 'T00:00:00'), d = new Date(date);
+    if (isNaN(n.getTime())) return null;
+    return d.getFullYear() - n.getFullYear() - ((d.getMonth() < n.getMonth() || (d.getMonth() === n.getMonth() && d.getDate() < n.getDate())) ? 1 : 0);
+  }
+
   function modaleNouvelleMesure() {
     var s = App.session, maintenant = Date.now();
     var svDefaut = App.service !== '*' ? App.service : (services()[0] || {}).code;
@@ -729,11 +748,30 @@
     var selPatient = h('select');
     var blocNouveau = h('div', { class: 'pile' });
     var ipp = h('input', { type: 'text', placeholder: 'IPP' }), nom = h('input', { type: 'text', placeholder: 'NOM' }), prenom = h('input', { type: 'text', placeholder: 'Prénom' });
+    var naissance = h('input', { type: 'date', max: M.dateLocaleISO(maintenant), required: true });
     var protection = h('select', {}, ['Aucune', 'Tutelle', 'Curatelle', 'Sauvegarde de justice', 'Habilitation familiale'].map(function (x) { return h('option', { value: x === 'Aucune' ? '' : x, text: x }); }));
     var selMode = h('select', {}, (config().modesHospitalisation || []).map(function (x) { return h('option', { value: x.code, text: x.code + ' — ' + x.libelle }); }));
     var infoMode = h('small', { class: 'muted' });
-    blocNouveau.appendChild(h('div', { class: 'grille-2' }, h('label', {}, 'IPP', ipp), h('label', {}, 'Protection juridique', protection)));
+    var type = h('select', {}, h('option', { value: 'Isolement', text: 'Isolement' }), h('option', { value: 'Contention', text: 'Contention' }));
+    var debut = h('input', { type: 'datetime-local', value: versSaisie(maintenant) });
+    var psy = selectPsychiatre();
+    var selLieu = h('select');
+    var chambre = h('input', { type: 'text', placeholder: 'N° de chambre', hidden: true });
+    var exception = h('input', { type: 'checkbox' });
+    var blocException = h('label', { class: 'case', hidden: true }, exception, h('span', { text: 'Contention hors espace d’isolement — exception prévue (catégorie E du registre)' }));
+    var avecIso = h('input', { type: 'checkbox', checked: true });
+    var blocIso = h('label', { class: 'case', hidden: true }, avecIso, h('span', { text: 'Créer aussi la mesure d’isolement qui accompagne cette contention (même début, même lieu)' }));
+
+    // Alertes sous les champs
+    var aPatient = alerteChamp(), aIpp = alerteChamp(), aNaissance = alerteChamp(), aMode = alerteChamp(), aType = alerteChamp(), aDebut = alerteChamp(), aLieu = alerteChamp();
+    var labelNaissance = h('label', {}, 'Date de naissance (obligatoire)', naissance, aNaissance);
+
+    blocNouveau.appendChild(h('div', { class: 'grille-2' }, h('label', {}, 'IPP', ipp, aIpp), h('label', {}, 'Protection juridique', protection)));
     blocNouveau.appendChild(h('div', { class: 'grille-2' }, h('label', {}, 'Nom', nom), h('label', {}, 'Prénom', prenom)));
+    var zoneNaissance = h('div', { class: 'grille-2' }, labelNaissance, h('div'));
+
+    function patientChoisi() { return selPatient.value === '__nouveau' ? null : patient(selPatient.value); }
+    function naissanceRequise() { var p = patientChoisi(); return !p || !p.naissance; }
 
     function remplirPatients() {
       vider(selPatient);
@@ -746,21 +784,15 @@
       majPatient();
     }
     function majPatient() {
-      var nouveau = selPatient.value === '__nouveau';
-      blocNouveau.hidden = !nouveau;
-      if (!nouveau) { var mode = modeActuel(patient(selPatient.value)); if (mode) selMode.value = mode; infoMode.textContent = mode ? 'Mode actuel : ' + mode + '. Modifiez-le si le statut a changé.' : ''; }
+      var p = patientChoisi();
+      blocNouveau.hidden = !!p;
+      zoneNaissance.hidden = !naissanceRequise();
+      labelNaissance.firstChild.textContent = p ? 'Date de naissance (absente de la fiche, obligatoire)' : 'Date de naissance (obligatoire)';
+      naissance.value = '';
+      if (p) { var mode = modeActuel(p); if (mode) selMode.value = mode; infoMode.textContent = mode ? 'Mode actuel : ' + mode + '. Modifiez-le si le statut a changé.' : ''; }
       else infoMode.textContent = '';
       majLieu();
     }
-    var type = h('select', {}, h('option', { value: 'Isolement', text: 'Isolement' }), h('option', { value: 'Contention', text: 'Contention' }));
-    var debut = h('input', { type: 'datetime-local', value: versSaisie(maintenant) });
-    var psy = selectPsychiatre();
-    var selLieu = h('select');
-    var chambre = h('input', { type: 'text', placeholder: 'N° de chambre', hidden: true });
-    var exception = h('input', { type: 'checkbox' });
-    var blocException = h('label', { class: 'case', hidden: true }, exception, h('span', { text: 'Contention hors espace d’isolement — exception prévue (catégorie E du registre)' }));
-    var avecIso = h('input', { type: 'checkbox', checked: true });
-    var blocIso = h('label', { class: 'case', hidden: true }, avecIso, h('span', { text: 'Créer aussi la mesure d’isolement qui accompagne cette contention (même début, même lieu)' }));
     function majLieu() {
       var lieux = (config().lieuxCSI || {})[selSv.value] || [];
       var avant = selLieu.value;
@@ -773,20 +805,85 @@
       blocException.hidden = !(hors && type.value === 'Contention');
       var isoEnCours = selPatient.value !== '__nouveau' && M.listeMesures(st()).some(function (m) { return m.patientId === selPatient.value && m.type === 'Isolement' && typeof m.fin !== 'number'; });
       blocIso.hidden = !(type.value === 'Contention' && !hors && !isoEnCours);
+      alertes();
     }
+
+    /** Recalcule toutes les alertes à chaque modification. */
+    function alertes() {
+      var p = patientChoisi(), tDebut = new Date(debut.value).getTime();
+      if (!isFinite(tDebut)) tDebut = Date.now();
+      var dn = (p && p.naissance) || naissance.value || '';
+      var age = ageA(dn, tDebut);
+      var libre = !M.estContrainte(config(), selMode.value);
+
+      // Date de naissance
+      var an = [];
+      if (naissanceRequise() && naissance.value) {
+        if (naissance.value > M.dateLocaleISO(Date.now())) an.push('Date de naissance dans le futur.');
+        else if (age !== null && age > 110) an.push('Date de naissance invraisemblable (' + age + ' ans) : vérifiez la saisie.');
+      }
+      if (age !== null && age >= 0 && age < 18) an.push('Patient mineur (' + age + ' ans) : vigilance renforcée ; informer les titulaires de l’autorité parentale.');
+      aNaissance.afficher(naissanceRequise() ? an : []);
+
+      // Patient existant
+      var ap = [];
+      if (p) {
+        if (age !== null && age >= 0 && age < 18) ap.push('Patient mineur (' + age + ' ans) : vigilance renforcée ; informer les titulaires de l’autorité parentale.');
+        var c = M.cumulsPatient(st(), p.id, tDebut);
+        if (c.niveau === 'rouge') ap.push('Cumul élevé sur 15 jours : isolement ' + duree(c.iso15) + ', contention ' + duree(c.cont15) + '. Les échéances JLD seront avancées.');
+        if (p.protection) ap.push('Mesure de protection juridique : ' + p.protection + '. Penser à informer le représentant légal.');
+      }
+      aPatient.afficher(ap);
+
+      // IPP déjà utilisé (nouveau patient)
+      var dup = !p && ipp.value.trim() && Object.keys(st().patients).map(function (k) { return st().patients[k]; }).filter(function (x) { return x.ipp === ipp.value.trim(); })[0];
+      aIpp.afficher(dup ? ['IPP déjà attribué à ' + (dup.nom || '') + ' ' + (dup.prenom || '') + ' : sa fiche sera proposée à l’enregistrement.'] : []);
+
+      // Mode d'hospitalisation
+      var am = [];
+      if (libre) am.push('Patient en soins libres : l’isolement et la contention sont réservés aux patients en soins sans consentement. Faire régulariser le mode d’hospitalisation sans délai.');
+      if (selMode.value === 'SL mineur' && age !== null && age >= 18) am.push('Mode « SL mineur » alors que le patient est majeur (' + age + ' ans) : vérifiez le mode ou la date de naissance.');
+      if (selMode.value !== 'SL mineur' && libre && age !== null && age < 18) am.push('Patient mineur en soins libres : utilisez le mode « SL mineur ».');
+      aMode.afficher(am);
+
+      // Type : mesure du même type déjà en cours
+      var at = [];
+      if (p) {
+        M.listeMesures(st()).forEach(function (m) {
+          if (m.patientId === p.id && typeof m.fin !== 'number' && (m.type === type.value || (!blocIso.hidden && avecIso.checked && m.type === 'Isolement')))
+            at.push(m.type + ' déjà en cours pour ce patient depuis le ' + date(m.debut) + ' (' + (m.lieu || '') + ') : vérifiez qu’il ne s’agit pas d’un doublon.');
+        });
+      }
+      aType.afficher(at);
+
+      // Début
+      var ad = [];
+      if (tDebut > Date.now() + 10 * 60000) ad.push('Date de début dans le futur.');
+      else if (Date.now() - tDebut > 24 * H) ad.push('Saisie tardive : début il y a ' + duree((Date.now() - tDebut) / H) + '. Les échéances JLD sont calculées depuis ce début et peuvent être proches ou dépassées.');
+      aDebut.afficher(ad);
+
+      // Lieu
+      var al = [];
+      if (selLieu.value === '__hors' && type.value === 'Contention' && !exception.checked) al.push('Contention hors espace d’isolement (catégorie D du registre) : à n’utiliser qu’à titre exceptionnel.');
+      if (!((config().lieuxCSI || {})[selSv.value] || []).length) al.push('Aucune chambre de soins intensifs n’est paramétrée pour ce service.');
+      aLieu.afficher(al);
+    }
+
     selSv.addEventListener('change', remplirPatients);
     selPatient.addEventListener('change', majPatient);
     type.addEventListener('change', majLieu);
     selLieu.addEventListener('change', majLieu);
+    [naissance, ipp, debut, chambre].forEach(function (x) { x.addEventListener('input', alertes); });
+    [selMode, exception, avecIso].forEach(function (x) { x.addEventListener('change', alertes); });
     remplirPatients();
 
     var corps = h('div', { class: 'pile' },
-      h('div', { class: 'grille-2' }, h('label', {}, 'Service', selSv), h('label', {}, 'Patient', selPatient)),
-      blocNouveau,
-      h('label', {}, "Mode d'hospitalisation", selMode, infoMode),
-      h('div', { class: 'grille-2' }, h('label', {}, 'Type de mesure', type), h('label', {}, 'Date et heure de la décision de début', debut)),
+      h('div', { class: 'grille-2' }, h('label', {}, 'Service', selSv), h('label', {}, 'Patient', selPatient, aPatient)),
+      blocNouveau, zoneNaissance,
+      h('label', {}, "Mode d'hospitalisation", selMode, infoMode, aMode),
+      h('div', { class: 'grille-2' }, h('label', {}, 'Type de mesure', type, aType), h('label', {}, 'Date et heure de la décision de début', debut, aDebut)),
       h('label', {}, 'Psychiatre décisionnaire', psy),
-      h('label', {}, 'Lieu', selLieu, chambre), blocException, blocIso,
+      h('label', {}, 'Lieu', selLieu, chambre, aLieu), blocException, blocIso,
       h('p', { class: 'muted' }, h('small', { text: 'Vous reportez la décision médicale prise par le psychiatre ; la prescription reste dans le DPI.' })));
 
     modale('Nouvelle mesure — report de la décision médicale', corps, [
@@ -794,6 +891,11 @@
       { texte: 'Enregistrer', classe: 'primaire', action: async function () {
         var tDebut = depuisSaisie(debut.value);
         if (tDebut > Date.now() + 10 * 60000) throw new Error('La date de début ne peut pas être dans le futur.');
+        if (naissanceRequise()) {
+          if (!naissance.value) { naissance.focus(); throw new Error('Indiquez la date de naissance du patient.'); }
+          if (naissance.value > M.dateLocaleISO(Date.now())) throw new Error('La date de naissance ne peut pas être dans le futur.');
+          if (ageA(naissance.value, Date.now()) > 120) throw new Error('Date de naissance invraisemblable : vérifiez la saisie.');
+        }
         var psyNom = psy.valeur();
         var hors = selLieu.value === '__hors';
         if (hors && !chambre.value.trim()) throw new Error('Indiquez la chambre.');
@@ -803,15 +905,19 @@
         if (existant) {
           if (!confirm('Un patient porte déjà l’IPP ' + existant.ipp + ' : ' + (existant.nom || '') + ' ' + (existant.prenom || '') + '. Utiliser sa fiche ?')) return false;
           patientId = existant.id;
-          if (existant.service !== selSv.value) await s.enregistrer('PATIENT', { patientId: patientId, service: selSv.value });
+          var maj = { patientId: patientId };
+          if (existant.service !== selSv.value) maj.service = selSv.value;
+          if (!existant.naissance && naissance.value) maj.naissance = naissance.value;
+          if (Object.keys(maj).length > 1) await s.enregistrer('PATIENT', maj);
           if (modeActuel(existant) !== selMode.value) await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
         } else if (patientId === '__nouveau') {
           if (!nom.value.trim()) throw new Error('Indiquez le nom du patient.');
           patientId = 'P' + C.hex(C.aleatoire(5));
-          await s.enregistrer('PATIENT', { patientId: patientId, ipp: ipp.value.trim(), nom: nom.value.trim().toUpperCase(), prenom: prenom.value.trim(), protection: protection.value, service: selSv.value });
+          await s.enregistrer('PATIENT', { patientId: patientId, ipp: ipp.value.trim(), nom: nom.value.trim().toUpperCase(), prenom: prenom.value.trim(), naissance: naissance.value, protection: protection.value, service: selSv.value });
           await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
-        } else if (modeActuel(patient(patientId)) !== selMode.value) {
-          await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
+        } else {
+          if (naissanceRequise()) await s.enregistrer('PATIENT', { patientId: patientId, naissance: naissance.value });
+          if (modeActuel(patient(patientId)) !== selMode.value) await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
         }
         var commun = { patientId: patientId, service: selSv.value, debut: tDebut, lieu: hors ? 'Chambre ' + chambre.value.trim() : selLieu.value, csi: !hors, psychiatre: psyNom, modeHospi: selMode.value };
         if (!blocIso.hidden && avecIso.checked) await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: idMesure(), typeMesure: 'Isolement' }, commun));

@@ -26,7 +26,8 @@
 IDE et AS disposent des mêmes droits.
 
 **Nouvelle mesure** (onglet *Mesures → + Nouvelle mesure*) : vous reportez la décision du psychiatre.
-- Choisir le patient (ou *+ Nouveau patient* avec son IPP : si l'IPP existe déjà, l'outil propose sa fiche).
+- Choisir le patient (ou *+ Nouveau patient* avec son IPP : si l'IPP existe déjà, l'outil propose sa fiche). La **date de naissance est obligatoire** pour un nouveau patient, et demandée si elle manque dans une fiche existante.
+- Lisez les **alertes en rouge** qui apparaissent sous les champs pendant la saisie : patient mineur, patient en soins libres, mode « SL mineur » incohérent avec l'âge, mesure du même type déjà en cours (doublon possible), cumul élevé sur 15 jours, mesure de protection juridique, saisie tardive, contention hors espace d'isolement. Elles n'empêchent pas l'enregistrement (sauf date dans le futur) : elles signalent ce qu'il faut vérifier ou régulariser.
 - Vérifier le mode d'hospitalisation.
 - Type, date et heure **de la décision**, psychiatre, lieu.
 - Pour une contention en chambre de soins intensifs sans isolement en cours, l'outil propose de créer aussi l'isolement : laissez la case cochée.
