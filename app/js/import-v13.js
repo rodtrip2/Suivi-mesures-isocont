@@ -395,15 +395,27 @@
     var modes = ['conserver', 'annee', 'tout'], sims = {};
     modes.forEach(function (mo) { sims[mo] = simuler(prep, compteursPar(mo), figeSelon(prep, mo, anneeCourante)); });
     return prep.anneesNumerotees.map(function (x) {
-      var r = { service: x.service, annee: x.annee, modes: {} };
+      var r = { service: x.service, annee: x.annee, modes: {}, mesures: [] }, parMesure = {};
       modes.forEach(function (mo) {
         var sim = sims[mo], s = M.statistiquesAnnee(sim, [x.service], x.annee, prep.maintenant);
         var reg = M.registre(sim, x.service, x.annee, prep.maintenant);
+        var dureeCat = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+        reg.forEach(function (e) {
+          if (e.fin !== null) dureeCat[e.categorie] += e.dureeHeures;
+          var m = sim.mesures[e.mesureId], p = sim.patients[m.patientId] || {};
+          var d = parMesure[e.mesureId] = parMesure[e.mesureId] || { mesureId: e.mesureId, patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim(), ipp: p.ipp || '', type: m.type, debut: m.debut, fin: m.fin, origine: (m.origine || '').replace(/^Classeur V1\.3 — /, ''), numeroOrigine: m.numeroOrigine || '', importee: !!m.origine, modes: {} };
+          (d.modes[mo] = d.modes[mo] || []).push({ numero: e.numero, categorie: e.categorie, debut: e.debut, fin: e.fin, duree: e.dureeHeures });
+        });
         r.modes[mo] = {
-          entrees: s.mesures, enCours: s.enCours, categories: s.categories, dureeTotale: s.duree.total, dureeMoyenne: s.duree.moyenne,
+          entrees: s.mesures, enCours: s.enCours, categories: s.categories, dureeCategories: dureeCat, dureeTotale: s.duree.total, dureeMoyenne: s.duree.moyenne,
           heuresCSI: s.heuresCSI, patients: s.patients, numeros: reg.filter(function (e) { return e.numero; }).map(function (e) { return e.numero; })
         };
       });
+      // Mesures dont les entrées du registre (catégorie, numéro, période, durée) diffèrent selon le choix
+      var signature = function (l) { return JSON.stringify((l || []).map(function (e) { return [e.numero, e.categorie, e.debut, e.fin, Math.round(e.duree * 60)]; })); };
+      r.mesures = Object.keys(parMesure).map(function (k) { return parMesure[k]; }).filter(function (d) {
+        return signature(d.modes.conserver) !== signature(d.modes.annee) || signature(d.modes.conserver) !== signature(d.modes.tout);
+      }).sort(function (a, b) { return a.debut - b.debut; });
       return r;
     });
   }

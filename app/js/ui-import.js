@@ -133,12 +133,13 @@
         try { res = I().impactNumerotation(prep, compteursPar, anneeCourante); } catch (e) { impact.appendChild(h('div', { class: 'erreur', text: 'Simulation impossible : ' + e.message })); return; }
         var modes = ['conserver', 'annee', 'tout'];
         var det = h('details', { open: true, class: 'impact-import' }, h('summary', {}, h('b', { text: 'Impact sur le registre et les statistiques, avant import' })),
-          h('p', { class: 'muted' }, h('small', { text: 'Simulation de l’import selon chaque choix, mesures déjà présentes dans l’outil comprises. Les valeurs qui diffèrent de « Laisser tel quel » sont surlignées ; la colonne du choix retenu est encadrée.' })));
+          h('p', { class: 'muted' }, h('small', { text: 'Simulation de l’import selon chaque choix, mesures déjà présentes dans l’outil comprises. Les valeurs qui diffèrent de « Laisser tel quel » sont surlignées ; la colonne du choix retenu est encadrée. Les durées sont celles des entrées terminées.' })));
         res.forEach(function (r) {
           var lignes = [
             ['Entrées du registre terminées', function (x) { return x.entrees; }, String],
             ['Entrées en cours', function (x) { return x.enCours; }, String]
-          ].concat(['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k], function (x) { return x.categories[k]; }, String]; }), [
+          ].concat(['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k] + ' : entrées', function (x) { return x.categories[k]; }, String]; }),
+            ['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' : durée cumulée', function (x) { return Math.round(x.dureeCategories[k] * 60); }, function (v) { return U.duree(v / 60); }]; }), [
             ['Durée cumulée', function (x) { return Math.round(x.dureeTotale * 60); }, function (v) { return U.duree(v / 60); }],
             ['Durée moyenne d’une entrée', function (x) { return x.dureeMoyenne == null ? null : Math.round(x.dureeMoyenne * 60); }, function (v) { return v == null ? '—' : U.duree(v / 60); }],
             ['Heures d’utilisation de la CSI', function (x) { return Math.round(x.heuresCSI * 60); }, function (v) { return U.duree(v / 60); }],
@@ -156,13 +157,25 @@
               }));
             })))));
         });
-        // Différences mesure par mesure si l'on recalcule
-        var ctrl = I().controleNumeros(prep, compteursPar('tout'), {});
-        det.appendChild(h('h4', { text: 'Mesures dont la numérotation changerait si l’on recalcule' }));
-        det.appendChild(ctrl.ecarts.length ? h('div', { class: 'table-wrap' }, h('table', {},
-          h('thead', {}, h('tr', {}, ['Mesure du classeur', 'N° du classeur', 'N° recalculé', 'Différence'].map(function (t) { return h('th', { text: t }); }))),
-          h('tbody', {}, ctrl.ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: e.classeur }), h('td', { text: e.outil }), h('td', { text: e.motif })); }))))
-          : h('p', { class: 'muted', text: 'Aucune : le recalcul redonnerait les numéros du classeur.' }));
+        // Détail des mesures modifiées : entrées du registre de chaque mesure selon chaque choix
+        var court = function (t) { return t == null ? 'en cours' : U.date(t); };
+        var texteEntrees = function (l) { return (l || []).map(function (e) { return (e.numero || 'en cours') + ' (' + e.categorie + ') · ' + court(e.debut) + ' → ' + court(e.fin) + ' · ' + U.duree(e.duree); }); };
+        res.forEach(function (r) {
+          det.appendChild(h('h4', { text: 'Mesures modifiées — ' + U.libService(r.service) + ' ' + r.annee + ' (' + r.mesures.length + ')' }));
+          if (!r.mesures.length) { det.appendChild(h('p', { class: 'muted', text: 'Aucune : les trois choix donnent les mêmes entrées.' })); return; }
+          det.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 'table-impact' },
+            h('thead', {}, h('tr', {}, h('th', { text: 'Mesure' }), modes.map(function (mo) { return h('th', { class: mo === modeNum ? 'choisi' : null, text: LIB_MODES[mo] }); }))),
+            h('tbody', {}, r.mesures.map(function (d) {
+              var ref = JSON.stringify(texteEntrees(d.modes.conserver));
+              return h('tr', {},
+                h('td', {}, h('b', { text: d.patient || '—' }), h('br'), h('small', { text: d.type + ' du ' + U.date(d.debut) + (d.fin ? ' au ' + U.date(d.fin) : ' (en cours)') }), h('br'),
+                  h('small', { class: 'muted', text: d.importee ? 'importée' + (d.origine ? ' (' + d.origine + ')' : '') + (d.numeroOrigine ? ', n° ' + d.numeroOrigine + ' dans le classeur' : '') : 'déjà présente dans l’outil' })),
+                modes.map(function (mo) {
+                  var t = texteEntrees(d.modes[mo]);
+                  return h('td', { class: [mo === modeNum ? 'choisi' : '', JSON.stringify(t) !== ref ? 'diff' : ''].join(' ').trim() || null }, t.length ? t.map(function (x, i) { return [i ? h('br') : null, x]; }) : '—');
+                }));
+            })))));
+        });
         impact.appendChild(det);
       }
       function majControle() {

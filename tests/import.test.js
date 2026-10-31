@@ -155,3 +155,18 @@ test('Import : impact des trois choix de numérotation sur le registre et les st
   assert.deepEqual([m.tout.categories.D, m.tout.categories.E], [0, 1]);
   assert.equal(m.conserver.entrees, 2); assert.equal(m.tout.dureeTotale, m.conserver.dureeTotale);
 });
+
+test('Import : aperçu — durée par catégorie et détail des mesures modifiées', async () => {
+  const c = await X.lire(fichier);
+  const prep = I.preparer(c, M.reduire([]), { maintenant: local(2026, 10, 6, 12) });
+  const imp = I.impactNumerotation(prep, mo => ({ UHP: { 2026: mo === 'conserver' ? 12 : 10 } }), 2026)[0];
+  assert.equal(imp.modes.conserver.dureeCategories.D, 6);
+  assert.equal(imp.modes.tout.dureeCategories.D, 0);
+  assert.equal(imp.modes.tout.dureeCategories.E, 6);
+  assert.equal(imp.modes.conserver.dureeCategories.A, 24);
+  assert.equal(imp.mesures.length, 1);                                    // seule M0003 change
+  const d = imp.mesures[0];
+  assert.equal(d.origine, 'M0003'); assert.equal(d.numeroOrigine, 'D12');
+  assert.deepEqual(d.modes.conserver.map(e => [e.numero, e.categorie, e.duree]), [['D12', 'D', 6]]);
+  assert.deepEqual(d.modes.tout.map(e => [e.numero, e.categorie, e.duree]), [['E12', 'E', 6]]);
+});

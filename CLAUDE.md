@@ -83,7 +83,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - **Compteurs du registre** proposés (calculés sur les entrées que l'outil numérotera) et modifiables ; dernier numéro du classeur mémorisé.
 - **Contrôle de la numérotation** (numéros du classeur contre numéros recalculés, écarts expliqués).
 - **Mesures déjà numérotées** : laisser tel quel (par défaut), recalculer l'année en cours, ou recalculer toutes les années (avertissement clair sur la modification des statistiques antérieures) ; modifiable ensuite année par année, compteur recalculé.
-- **Aperçu de l'impact** de chaque choix sur le registre et les statistiques avant de confirmer.
+- **Aperçu de l'impact** de chaque choix sur le registre et les statistiques avant de confirmer : entrées et **durée cumulée par catégorie**, durées, heures de CSI, patients, numéros, et **détail des mesures modifiées** (entrées de chaque mesure selon chaque choix, mesures déjà présentes comprises).
 
 ## 10. Interface
 

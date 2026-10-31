@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.20.0 — 31 octobre 2026
+
+- Aperçu de l'impact avant import : ajout de la **durée cumulée par catégorie** (A à E) pour chacun des trois choix, et du **détail des mesures modifiées** — pour chaque mesure dont le registre change selon le choix (mesures importées, ou déjà présentes dont la numérotation se décale) : patient, type, période, origine et numéro du classeur, et ses entrées (numéro, catégorie, période, durée) selon chaque choix, différences surlignées.
+
 ## 1.19.0 — 31 octobre 2026
 
 - Import du classeur V1.3 : **aperçu de l'impact avant confirmation** — pour chaque service et chaque année contenant des mesures numérotées, comparaison des trois choix (laisser tel quel, recalculer l'année en cours, recalculer tout) sur le registre et les statistiques : entrées terminées et en cours, catégories A à E, durée cumulée et moyenne, heures de CSI, patients distincts, numéros attribués. Simulation complète, mesures déjà présentes comprises ; valeurs différentes surlignées, choix retenu encadré ; liste des mesures dont la numérotation changerait.
