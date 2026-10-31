@@ -76,6 +76,7 @@
     compteursRegistre: {},     // { U1: { 2026: 37 } } : dernier numéro déjà utilisé (registre papier antérieur)
     registreFige: {},          // { U1: { 2025: true } } : années dont les mesures importées gardent la numérotation du classeur
     derniersClasseur: {},      // { U1: { 2025: 37 } } : dernier numéro du registre du classeur importé (pour recalculer le compteur)
+    registreFigeMesures: {},   // { mesureId: true|false } : décision mesure par mesure, prioritaire sur le choix de l'année
     decompte: {},              // masques du décompte JLD : { '*': masque de l'établissement, U1: masque du service } (voir masqueDecompte)
     inactiviteMinutes: 10,
     // Levées temporaires : retrancher les pauses des décomptes, reprise automatique à l'heure prévue, seuils (h).
@@ -199,7 +200,7 @@
           debut: d.debut, fin: null, lieu: d.lieu || '', csi: !!d.csi, exception: !!d.exception,
           psychiatreDebut: d.psychiatre || '', psychiatreFin: '', modeHospi: d.modeHospi || '',
           cycle: 1, jld: {}, leveeJLD: false, tiers: [], pauses: [], creePar: e.by, creeLe: e.at,
-          origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', suite: d.suiteDe || '',
+          origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', correctionImport: d.correctionImport || '', suite: d.suiteDe || '',
           version: 1, champs: {}, evts: [e.id]
         };
         break;
@@ -543,6 +544,8 @@
   /** Vrai si la mesure (importée, numérotée dans le classeur) garde la numérotation du classeur pour son année. */
   function estFigee(st, m) {
     if (!m.numeroOrigine) return false;
+    var parMesure = (st.config.registreFigeMesures || {})[m.id];
+    if (parMesure === true || parMesure === false) return parMesure;
     var f = (st.config.registreFige || {})[m.service] || {};
     return !!f[new Date(m.debut).getFullYear()];
   }
@@ -561,6 +564,35 @@
     var tmp = Object.assign({}, st, { config: Object.assign({}, st.config, { registreFige: fige }) });
     var n = registre(tmp, service, annee, maintenant).filter(function (e) { return e.fin !== null && (st.mesures[e.mesureId] || {}).numeroOrigine; }).length;
     return Math.max(0, +dernier - n);
+  }
+
+  var REGLES_CATEGORIES = {
+    A: 'isolement en chambre de soins intensifs',
+    B: 'isolement hors chambre de soins intensifs',
+    C: 'contention en chambre de soins intensifs (elle couvre l’isolement qui l’accompagne)',
+    D: 'contention hors espace d’isolement, sans exception prévue',
+    E: 'contention hors espace d’isolement, exception prévue'
+  };
+
+  /**
+   * Pourquoi une entrée du registre a sa catégorie : règle appliquée et données de la mesure,
+   * et, pour une mesure importée, comparaison avec la catégorie inscrite dans le classeur.
+   */
+  function explicationEntree(st, e) {
+    var m = st.mesures[e.mesureId] || {}, lieu = m.lieu || (m.csi ? 'CSI' : 'hors CSI');
+    if (e.fige) return 'Catégorie et numéro repris du classeur (' + e.numero + ').';
+    var t = 'Catégorie ' + e.categorie + ' : ' + REGLES_CATEGORIES[e.categorie] + ' — lieu « ' + lieu + ' »';
+    if (m.type === 'Contention' && !m.csi) t += ', case « exception » ' + (m.exception ? 'cochée' : 'non cochée');
+    if (e.categorie === 'A' && (e.debut !== m.debut || (e.fin !== null && e.fin !== m.fin))) t += ', portion de l’isolement en dehors de la contention en CSI';
+    t += '.';
+    var no = String(m.numeroOrigine || '').trim().toUpperCase(), mo = /^([A-E])/.exec(no);
+    if (mo && mo[1] !== e.categorie) {
+      var piste = (mo[1] === 'D' && e.categorie === 'E') || (mo[1] === 'E' && e.categorie === 'D') ? 'vérifier la case « exception » de la mesure'
+        : /[AB]/.test(mo[1] + e.categorie) && /[CDE]/.test(mo[1] + e.categorie) ? 'vérifier le type de mesure ou la contention concomitante'
+        : 'vérifier le lieu (CSI ou non)';
+      t += ' Le classeur indiquait ' + mo[1] + ' (' + no + ') : ' + piste + '.';
+    }
+    return t;
   }
 
   function entreesRegistre(st, service, maintenant) {
@@ -637,14 +669,16 @@
       .sort(function (a, b) { return a.fin - b.fin || a.debut - b.debut || (a.mesure.id < b.mesure.id ? -1 : 1); });
     var enCours = entrees.filter(function (x) { return x.fin === null; }).sort(function (a, b) { return a.debut - b.debut; });
     var depart = +(((st.config.compteursRegistre || {})[service] || {})[annee] || 0);
-    // Numéros conservés du classeur : la numérotation de l'outil reprend après le plus élevé.
-    entrees.forEach(function (x) { if (x.fige && x.rang > depart) depart = x.rang; });
-    var rang = 0;
+    // Numéros conservés du classeur : la numérotation de l'outil part du compteur et saute les numéros déjà pris.
+    var pris = {};
+    entrees.forEach(function (x) { if (x.fige && x.rang) pris[x.rang] = true; });
+    var rang = depart;
+    function suivant() { do { rang++; } while (pris[rang]); return rang; }
     return terminees.concat(enCours).map(function (x) {
       var mode = modeRetenu(st, x.mesure);
       var finRef = x.fin === null ? maintenant : x.fin;
       return {
-        numero: x.fige ? x.numero : x.fin === null ? '' : x.cat + (depart + (++rang)), fige: !!x.fige,
+        numero: x.fige ? x.numero : x.fin === null ? '' : x.cat + suivant(), fige: !!x.fige,
         categorie: x.cat, debut: x.debut, fin: x.fin,
         dureeHeures: rules.heuresEffectives({ exclusions: exclusionsRegistre(st, x, maintenant) }, x.debut, finRef),
         dureeReelleHeures: (finRef - x.debut) / H,
@@ -1024,7 +1058,7 @@
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
-    registre: registre, estFigee: estFigee, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
+    registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

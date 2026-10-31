@@ -64,6 +64,8 @@
    * @param options    { serviceParDefaut, maintenant, services }
    *   services : choix pour les services du classeur absents de l'outil,
    *              { code: { action: 'creer', libelle } | { action: 'rattacher', vers } | { action: 'ignorer' } }
+   *   corrections : corrections des données d'une mesure avant import, par référence du classeur (ID),
+   *              { M0003: { csi: true|false, exception: true|false } }
    */
   function preparer(classeur, etat, options) {
     options = options || {};
@@ -196,7 +198,7 @@
       if (id) (cyclesParMesure[id] = cyclesParMesure[id] || []).push(c);
     });
     var psychiatres = (etat.config.psychiatres || []).slice();
-    var attendus = [], parPatient = {}, numeros = {};
+    var attendus = [], parPatient = {}, numeros = {}, refs = {}, corrections = options.corrections || {};
 
     lignesMesures.forEach(function (l) {
       var idV13 = txt(col(l, 'ID')), ipp = txt(col(l, 'IPP')), type = txt(col(l, 'Type'));
@@ -212,7 +214,11 @@
       var patientId = patientPour(ipp, col(l, 'Nom'));
       var sv = parIPP[ipp].service || svDefaut;
       var lieuType = norm(col(l, 'Lieu (CSI/Autre)')), nomLieu = txt(col(l, 'Nom du lieu'));
-      var csi = lieuType ? lieuType === 'csi' : true;
+      var csi = lieuType ? lieuType === 'csi' : true, exception = oui(col(l, 'Exception CSI (contention)'));
+      // Corrections décidées à l'import (lieu CSI ou non, exception), tracées dans la saisie
+      var corr = idV13 && corrections[idV13], notes = [];
+      if (corr && typeof corr.csi === 'boolean' && corr.csi !== csi) { notes.push('lieu : ' + (csi ? 'CSI' : 'hors CSI') + ' → ' + (corr.csi ? 'CSI' : 'hors CSI')); csi = corr.csi; }
+      if (corr && typeof corr.exception === 'boolean' && corr.exception !== exception && type === 'Contention') { notes.push('exception : ' + (exception ? 'oui' : 'non') + ' → ' + (corr.exception ? 'oui' : 'non')); exception = corr.exception; }
       var psy = txt(col(l, 'Psychiatre'));
       if (psy && psychiatres.indexOf(psy) < 0) psychiatres.push(psy);
       var mesureId = 'I' + aleatoire();
@@ -220,9 +226,11 @@
       ajouter('MESURE_DEBUT', {
         mesureId: mesureId, patientId: patientId, service: sv, typeMesure: type, debut: debut,
         lieu: csi ? (nomLieu || 'CSI') : (nomLieu ? 'Chambre ' + nomLieu.replace(/^chambre\s*/i, '') : 'Hors CSI'),
-        csi: csi, exception: oui(col(l, 'Exception CSI (contention)')), psychiatre: psy,
-        origine: 'Classeur V1.3' + (idV13 ? ' — ' + idV13 : ''), numeroOrigine: numero
+        csi: csi, exception: csi ? false : exception, psychiatre: psy,
+        origine: 'Classeur V1.3' + (idV13 ? ' — ' + idV13 : ''), numeroOrigine: numero,
+        correctionImport: notes.length ? 'Corrigé à l’import : ' + notes.join(' ; ') : ''
       });
+      if (idV13) refs[idV13] = mesureId;
       rapport.mesures++;
       if (numero) { var an = new Date(debut).getFullYear(); numeros[sv + '|' + an] = (numeros[sv + '|' + an] || 0) + 1; }
       (parPatient[ipp + '|' + type] = parPatient[ipp + '|' + type] || []).push([debut, fin || maintenant]);
@@ -290,7 +298,7 @@
       compteurs.push({ service: sv, annee: an, dernier: dernier, mesuresNumerotees: numeros[sv + '|' + an] || 0 });
     });
     var anneesNumerotees = Object.keys(numeros).map(function (k) { var x = k.split('|'); return { service: x[0], annee: +x[1], mesures: numeros[k] }; });
-    var prep = { evenements: evts, config: config, rapport: rapport, attendus: attendus, compteurs: compteurs, servicesACreer: servicesACreer, etatAvant: etat, maintenant: maintenant, anneesNumerotees: anneesNumerotees };
+    var prep = { evenements: evts, config: config, rapport: rapport, attendus: attendus, compteurs: compteurs, servicesACreer: servicesACreer, etatAvant: etat, maintenant: maintenant, anneesNumerotees: anneesNumerotees, refs: refs, corrections: corrections };
     var sim = simuler(prep, {}, {});
     compteurs.forEach(function (c) {
       c.entreesNumerotees = M.registre(sim, c.service, c.annee, maintenant).filter(function (e) { return e.fin !== null && (sim.mesures[e.mesureId] || {}).numeroOrigine; }).length;
@@ -326,6 +334,21 @@
     return r;
   }
 
+  /**
+   * Décisions mesure par mesure ({ référence du classeur: 'classeur' | 'outil' }), traduites en
+   * { mesureId: true|false } et fusionnées avec le paramétrage existant.
+   */
+  function fusionFigeMesures(etat, prep, decisions) {
+    var r = JSON.parse(JSON.stringify((etat.config && etat.config.registreFigeMesures) || {}));
+    Object.keys(decisions || {}).forEach(function (ref) {
+      var id = prep.refs[ref];
+      if (!id) return;
+      if (decisions[ref] === 'classeur') r[id] = true;
+      else if (decisions[ref] === 'outil') r[id] = false;
+    });
+    return r;
+  }
+
   /** Compteurs choisis, fusionnés avec ceux déjà paramétrés : { service: { annee: n } }. */
   function fusionCompteurs(etat, choix) {
     var r = JSON.parse(JSON.stringify((etat.config && etat.config.compteursRegistre) || {}));
@@ -337,7 +360,7 @@
    * État obtenu si l'import était enregistré (paramétrage actuel + paramétrage du classeur + services créés
    * + compteurs choisis + mesures importées). Les mesures déjà présentes dans l'outil n'y figurent pas.
    */
-  function simuler(prep, compteurs, fige) {
+  function simuler(prep, compteurs, fige, decisions) {
     var etat = prep.etatAvant, n = 0, evts = [];
     // Avec les saisies existantes (prep.evtsExistants, fournies par l'interface), la simulation comprend aussi
     // les mesures déjà présentes dans l'outil ; les saisies simulées sont alors datées après elles.
@@ -349,6 +372,7 @@
     if (prep.servicesACreer.length) evt('CONFIG', { cle: 'services', valeur: (etat.config.services || []).concat(prep.servicesACreer) });
     evt('CONFIG', { cle: 'compteursRegistre', valeur: fusionCompteurs(etat, compteurs) });
     evt('CONFIG', { cle: 'registreFige', valeur: fusionFige(etat, prep, fige || {}) });
+    evt('CONFIG', { cle: 'registreFigeMesures', valeur: fusionFigeMesures(etat, prep, decisions || {}) });
     evt('LOT', { evenements: prep.evenements });
     return M.reduire(evts);
   }
@@ -357,8 +381,8 @@
    * Compare les numéros du registre du classeur (« A11 ») à ceux que l'outil attribue après import.
    * Retourne { verifiees, ecarts: [{ ref, classeur, outil, motif }] }.
    */
-  function controleNumeros(prep, compteurs, fige) {
-    var sim = simuler(prep, compteurs, fige), parMesure = {}, vus = {};
+  function controleNumeros(prep, compteurs, fige, decisions) {
+    var sim = simuler(prep, compteurs, fige, decisions), parMesure = {}, vus = {};
     M.listeMesures(sim).forEach(function (m) {
       if (!m.numeroOrigine) return;
       var an = new Date(m.debut).getFullYear(), cle = m.service + '|' + an;
@@ -391,9 +415,11 @@
    * contenant des mesures importées numérotées. `compteursPar(mode)` : compteurs retenus pour chaque choix.
    * Retourne [{ service, annee, modes: { conserver|annee|tout: indicateurs } }].
    */
-  function impactNumerotation(prep, compteursPar, anneeCourante) {
+  function impactNumerotation(prep, compteursPar, anneeCourante, decisions) {
     var modes = ['conserver', 'annee', 'tout'], sims = {};
-    modes.forEach(function (mo) { sims[mo] = simuler(prep, compteursPar(mo), figeSelon(prep, mo, anneeCourante)); });
+    modes.forEach(function (mo) { sims[mo] = simuler(prep, compteursPar(mo), figeSelon(prep, mo, anneeCourante), decisions); });
+    var parId = {};
+    Object.keys(prep.refs).forEach(function (ref) { parId[prep.refs[ref]] = ref; });
     return prep.anneesNumerotees.map(function (x) {
       var r = { service: x.service, annee: x.annee, modes: {}, mesures: [] }, parMesure = {};
       modes.forEach(function (mo) {
@@ -403,8 +429,9 @@
         reg.forEach(function (e) {
           if (e.fin !== null) dureeCat[e.categorie] += e.dureeHeures;
           var m = sim.mesures[e.mesureId], p = sim.patients[m.patientId] || {};
-          var d = parMesure[e.mesureId] = parMesure[e.mesureId] || { mesureId: e.mesureId, patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim(), ipp: p.ipp || '', type: m.type, debut: m.debut, fin: m.fin, origine: (m.origine || '').replace(/^Classeur V1\.3 — /, ''), numeroOrigine: m.numeroOrigine || '', importee: !!m.origine, modes: {} };
+          var d = parMesure[e.mesureId] = parMesure[e.mesureId] || { mesureId: e.mesureId, ref: parId[e.mesureId] || '', patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim(), ipp: p.ipp || '', type: m.type, debut: m.debut, fin: m.fin, origine: (m.origine || '').replace(/^Classeur V1\.3 — /, ''), numeroOrigine: m.numeroOrigine || '', importee: !!m.origine, csi: m.csi, exception: m.exception, lieu: m.lieu, correction: m.correctionImport || '', modes: {}, pourquoi: {} };
           (d.modes[mo] = d.modes[mo] || []).push({ numero: e.numero, categorie: e.categorie, debut: e.debut, fin: e.fin, duree: e.dureeHeures });
+          (d.pourquoi[mo] = d.pourquoi[mo] || []).push(M.explicationEntree(sim, e));
         });
         r.modes[mo] = {
           entrees: s.mesures, enCours: s.enCours, categories: s.categories, dureeCategories: dureeCat, dureeTotale: s.duree.total, dureeMoyenne: s.duree.moyenne,
@@ -414,7 +441,8 @@
       // Mesures dont les entrées du registre (catégorie, numéro, période, durée) diffèrent selon le choix
       var signature = function (l) { return JSON.stringify((l || []).map(function (e) { return [e.numero, e.categorie, e.debut, e.fin, Math.round(e.duree * 60)]; })); };
       r.mesures = Object.keys(parMesure).map(function (k) { return parMesure[k]; }).filter(function (d) {
-        return signature(d.modes.conserver) !== signature(d.modes.annee) || signature(d.modes.conserver) !== signature(d.modes.tout);
+        return signature(d.modes.conserver) !== signature(d.modes.annee) || signature(d.modes.conserver) !== signature(d.modes.tout)
+          || (d.ref && (prep.corrections[d.ref] || (decisions || {})[d.ref]));       // mesure corrigée ou décidée : reste visible
       }).sort(function (a, b) { return a.debut - b.debut; });
       return r;
     });
@@ -436,5 +464,5 @@
     return ecarts;
   }
 
-  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, figeSelon: figeSelon, fusionFige: fusionFige, impactNumerotation: impactNumerotation, norm: norm };
+  return { preparer: preparer, comparer: comparer, simuler: simuler, controleNumeros: controleNumeros, fusionCompteurs: fusionCompteurs, figeSelon: figeSelon, fusionFige: fusionFige, fusionFigeMesures: fusionFigeMesures, impactNumerotation: impactNumerotation, norm: norm };
 });

@@ -170,3 +170,28 @@ test('Import : aperçu — durée par catégorie et détail des mesures modifié
   assert.deepEqual(d.modes.conserver.map(e => [e.numero, e.categorie, e.duree]), [['D12', 'D', 6]]);
   assert.deepEqual(d.modes.tout.map(e => [e.numero, e.categorie, e.duree]), [['E12', 'E', 6]]);
 });
+
+test('Import : explication de la catégorie, décision et correction mesure par mesure', async () => {
+  const c = await X.lire(fichier);
+  const maintenant = local(2026, 10, 6, 12);
+  let prep = I.preparer(c, M.reduire([]), { maintenant });
+  const cpt = () => ({ UHP: { 2026: 10 } });
+  let imp = I.impactNumerotation(prep, cpt, 2026)[0];
+  const d = imp.mesures.find(x => x.ref === 'M0003');
+  assert.match(d.pourquoi.tout[0], /Catégorie E : contention hors espace d’isolement, exception prévue — lieu « Chambre 12 », case « exception » cochée\. Le classeur indiquait D \(D12\) : vérifier la case « exception »/);
+  assert.match(d.pourquoi.conserver[0], /repris du classeur \(D12\)/);
+  // Décision par mesure : garder D12 même si l'on recalcule tout
+  imp = I.impactNumerotation(prep, cpt, 2026, { M0003: 'classeur' })[0];
+  assert.deepEqual(imp.mesures.find(x => x.ref === 'M0003').modes.tout.map(e => e.numero), ['D12']);
+  assert.deepEqual(I.controleNumeros(prep, { UHP: { 2026: 10 } }, {}, { M0003: 'classeur' }).ecarts, []);
+  // Correction des données : exception décochée → l'outil retrouve D12 ; la correction est tracée
+  prep = I.preparer(c, M.reduire([]), { maintenant, corrections: { M0003: { exception: false } } });
+  const debut = prep.evenements.find(e => e.type === 'MESURE_DEBUT' && /M0003/.test(e.data.origine));
+  assert.equal(debut.data.exception, false);
+  assert.equal(debut.data.correctionImport, 'Corrigé à l’import : exception : oui → non');
+  assert.deepEqual(I.controleNumeros(prep, { UHP: { 2026: 10 } }, {}).ecarts, []);
+  imp = I.impactNumerotation(prep, cpt, 2026)[0];
+  assert.equal(imp.mesures.length, 1);                                    // la mesure corrigée reste visible
+  assert.match(imp.mesures[0].correction, /exception : oui → non/);
+  assert.deepEqual(I.fusionFigeMesures(M.reduire([]), prep, { M0003: 'outil', INCONNUE: 'classeur' }), { [prep.refs.M0003]: false });
+});

@@ -11,13 +11,14 @@
     var fichier = h('input', { type: 'file', accept: '.xlsx,.xlsm' });
     var zone = h('div', { class: 'pile' });
     var prep = null, cases = [], classeur = null, choixServices = {}, champsCompteurs = [], dernierControle = null, modeNum = 'conserver';
+    var decisions = {}, corrections = {};   // par référence du classeur (M0003…) : décision de numérotation, correction des données
     var anneeCourante = new Date().getFullYear();
     function figeChoisi() { return prep ? I().figeSelon(prep, modeNum, anneeCourante) : {}; }
     function estFigeLigne(c) { var f = figeChoisi(); return !!(f[c.service] && f[c.service][c.annee]); }
     var svDefaut = h('select', {}, h('option', { value: '', text: 'Service actif du classeur (recommandé)' }), U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle }); }));
 
     async function lire() {
-      classeur = null; choixServices = {};
+      classeur = null; choixServices = {}; decisions = {}; corrections = {};
       U.vider(zone);
       if (!fichier.files[0]) return;
       zone.appendChild(h('div', { class: 'info', text: 'Lecture du classeur…' }));
@@ -36,7 +37,7 @@
       prep = null; cases = []; champsCompteurs = [];
       U.vider(zone);
       if (!classeur) return;
-      try { prep = I().preparer(classeur, U.st(), { serviceParDefaut: svDefaut.value || undefined, services: choixServices }); }
+      try { prep = I().preparer(classeur, U.st(), { serviceParDefaut: svDefaut.value || undefined, services: choixServices, corrections: corrections }); }
       catch (e) { zone.appendChild(h('div', { class: 'erreur', text: e.message })); return; }
       prep.evtsExistants = U.App.session.evts;   // simulations complètes : mesures déjà présentes dans l'outil comprises
       var r = prep.rapport;
@@ -130,7 +131,7 @@
         U.vider(impact);
         if (!prep.anneesNumerotees.length) return;
         var res;
-        try { res = I().impactNumerotation(prep, compteursPar, anneeCourante); } catch (e) { impact.appendChild(h('div', { class: 'erreur', text: 'Simulation impossible : ' + e.message })); return; }
+        try { res = I().impactNumerotation(prep, compteursPar, anneeCourante, decisions); } catch (e) { impact.appendChild(h('div', { class: 'erreur', text: 'Simulation impossible : ' + e.message })); return; }
         var modes = ['conserver', 'annee', 'tout'];
         var det = h('details', { open: true, class: 'impact-import' }, h('summary', {}, h('b', { text: 'Impact sur le registre et les statistiques, avant import' })),
           h('p', { class: 'muted' }, h('small', { text: 'Simulation de l’import selon chaque choix, mesures déjà présentes dans l’outil comprises. Les valeurs qui diffèrent de « Laisser tel quel » sont surlignées ; la colonne du choix retenu est encadrée. Les durées sont celles des entrées terminées.' })));
@@ -157,6 +158,36 @@
               }));
             })))));
         });
+        /** Décision de numérotation et correction des données, pour une mesure importée du classeur. */
+        function celluleDecision(d) {
+          if (!d.ref) return h('small', { class: 'muted', text: 'Mesure déjà présente : sa numérotation suit celle des autres.' });
+          var bloc = h('div', { class: 'pile decision-mesure' });
+          if (d.numeroOrigine) {
+            var sel = h('select', { 'aria-label': 'Décision ' + d.ref },
+              h('option', { value: '', text: 'Suivre le choix général', selected: !decisions[d.ref] }),
+              h('option', { value: 'classeur', text: 'Garder le n° du classeur (' + d.numeroOrigine + ')', selected: decisions[d.ref] === 'classeur' }),
+              h('option', { value: 'outil', text: 'Appliquer la règle de l’outil', selected: decisions[d.ref] === 'outil' }));
+            sel.addEventListener('change', function () { if (sel.value) decisions[d.ref] = sel.value; else delete decisions[d.ref]; majControle(); majImpact(); });
+            bloc.appendChild(sel);
+          }
+          // Correction des données qui déterminent la catégorie (lieu CSI ou non, exception)
+          var c = corrections[d.ref] || {};
+          var lieu = h('select', { 'aria-label': 'Lieu ' + d.ref }, h('option', { value: 'csi', text: 'En CSI', selected: d.csi }), h('option', { value: 'hors', text: 'Hors CSI', selected: !d.csi }));
+          var exc = h('input', { type: 'checkbox', checked: !!d.exception, 'aria-label': 'Exception ' + d.ref });
+          var excLbl = d.type === 'Contention' ? h('label', { class: 'case', hidden: d.csi }, exc, h('span', { text: 'Exception prévue (contention hors espace d’isolement)' })) : null;
+          lieu.addEventListener('change', function () { if (excLbl) excLbl.hidden = lieu.value === 'csi'; });
+          var appliquer = h('button', { type: 'button', class: 'btn petit', onclick: function () {
+            corrections[d.ref] = { csi: lieu.value === 'csi' };
+            if (d.type === 'Contention') corrections[d.ref].exception = lieu.value === 'csi' ? false : exc.checked;
+            analyser();
+          } }, 'Appliquer la correction');
+          var annuler = Object.keys(c).length ? h('button', { type: 'button', class: 'btn petit', onclick: function () { delete corrections[d.ref]; analyser(); } }, 'Annuler la correction') : null;
+          bloc.appendChild(h('details', { open: !!Object.keys(c).length }, h('summary', { text: 'Corriger les données de la mesure' }),
+            h('div', { class: 'pile' }, h('label', {}, 'Lieu', lieu), excLbl, h('div', { class: 'actions' }, appliquer, annuler),
+              h('small', { class: 'muted', text: 'La correction est enregistrée avec la mesure importée et tracée au journal ; le classeur n’est pas modifié.' }))));
+          return bloc;
+        }
+
         // Détail des mesures modifiées : entrées du registre de chaque mesure selon chaque choix
         var court = function (t) { return t == null ? 'en cours' : U.date(t); };
         var texteEntrees = function (l) { return (l || []).map(function (e) { return (e.numero || 'en cours') + ' (' + e.categorie + ') · ' + court(e.debut) + ' → ' + court(e.fin) + ' · ' + U.duree(e.duree); }); };
@@ -164,23 +195,26 @@
           det.appendChild(h('h4', { text: 'Mesures modifiées — ' + U.libService(r.service) + ' ' + r.annee + ' (' + r.mesures.length + ')' }));
           if (!r.mesures.length) { det.appendChild(h('p', { class: 'muted', text: 'Aucune : les trois choix donnent les mêmes entrées.' })); return; }
           det.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 'table-impact' },
-            h('thead', {}, h('tr', {}, h('th', { text: 'Mesure' }), modes.map(function (mo) { return h('th', { class: mo === modeNum ? 'choisi' : null, text: LIB_MODES[mo] }); }))),
+            h('thead', {}, h('tr', {}, h('th', { text: 'Mesure' }), modes.map(function (mo) { return h('th', { class: mo === modeNum ? 'choisi' : null, text: LIB_MODES[mo] }); }), h('th', { text: 'Décision pour cette mesure' }))),
             h('tbody', {}, r.mesures.map(function (d) {
               var ref = JSON.stringify(texteEntrees(d.modes.conserver));
               return h('tr', {},
-                h('td', {}, h('b', { text: d.patient || '—' }), h('br'), h('small', { text: d.type + ' du ' + U.date(d.debut) + (d.fin ? ' au ' + U.date(d.fin) : ' (en cours)') }), h('br'),
-                  h('small', { class: 'muted', text: d.importee ? 'importée' + (d.origine ? ' (' + d.origine + ')' : '') + (d.numeroOrigine ? ', n° ' + d.numeroOrigine + ' dans le classeur' : '') : 'déjà présente dans l’outil' })),
+                h('td', {}, h('b', { text: d.patient || '—' }), h('br'), h('small', { text: d.type + ' du ' + U.date(d.debut) + (d.fin ? ' au ' + U.date(d.fin) : ' (en cours)') + ' — ' + (d.lieu || (d.csi ? 'CSI' : 'hors CSI')) }), h('br'),
+                  h('small', { class: 'muted', text: d.importee ? 'importée' + (d.origine ? ' (' + d.origine + ')' : '') + (d.numeroOrigine ? ', n° ' + d.numeroOrigine + ' dans le classeur' : '') : 'déjà présente dans l’outil' }),
+                  d.correction ? h('div', {}, h('small', { class: 'badge warn', text: d.correction })) : null),
                 modes.map(function (mo) {
-                  var t = texteEntrees(d.modes[mo]);
-                  return h('td', { class: [mo === modeNum ? 'choisi' : '', JSON.stringify(t) !== ref ? 'diff' : ''].join(' ').trim() || null }, t.length ? t.map(function (x, i) { return [i ? h('br') : null, x]; }) : '—');
-                }));
+                  var t = texteEntrees(d.modes[mo]), pq = d.pourquoi[mo] || [];
+                  return h('td', { class: [mo === modeNum ? 'choisi' : '', JSON.stringify(t) !== ref ? 'diff' : ''].join(' ').trim() || null },
+                    t.length ? t.map(function (x, i) { return h('div', { class: 'entree-impact' }, h('div', { text: x }), pq[i] ? h('small', { class: 'pourquoi', text: pq[i] }) : null); }) : '—');
+                }),
+                h('td', {}, celluleDecision(d)));
             })))));
         });
         impact.appendChild(det);
       }
       function majControle() {
         U.vider(controle);
-        dernierControle = I().controleNumeros(prep, compteursChoisis(), figeChoisi());
+        dernierControle = I().controleNumeros(prep, compteursChoisis(), figeChoisi(), decisions);
         var c = dernierControle;
         if (!c.verifiees && !c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Aucune mesure numérotée dans le classeur : pas de contrôle possible.' })); return; }
         if (!c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Contrôle de la numérotation : les ' + c.verifiees + ' numéro(s) du classeur sont retrouvés à l’identique.' })); return; }
@@ -219,6 +253,7 @@
           if (modeNum === 'tout' && !confirm('Recalculer toutes les années : les numéros et les statistiques des années passées peuvent changer. Confirmer ?')) return false;
           var fige = I().fusionFige(U.st(), prep, figeChoisi());
           if (JSON.stringify(fige) !== JSON.stringify(U.config().registreFige || {})) await s.enregistrer('CONFIG', { cle: 'registreFige', valeur: fige });
+          if (Object.keys(decisions).length) await s.enregistrer('CONFIG', { cle: 'registreFigeMesures', valeur: I().fusionFigeMesures(U.st(), prep, decisions) });
         }
         if (prep.compteurs.length) {
           var derniers = JSON.parse(JSON.stringify(U.config().derniersClasseur || {}));

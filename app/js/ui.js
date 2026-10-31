@@ -715,7 +715,7 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du registre du classeur importé', registreFige: 'Années gardant la numérotation du classeur'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du registre du classeur importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
   };
   var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', type: 'type de mesure' };
 
@@ -777,6 +777,8 @@
       case 'services': return (v || []).map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ');
       case 'lieuxCSI': return Object.keys(v || {}).map(function (k) { return k + ' : ' + (v[k] || []).join(', '); }).join(' ; ');
       case 'pauses': return resumePauses(v);
+      case 'compteursRegistre': case 'derniersClasseur': return Object.keys(v || {}).map(function (k) { return libService(k) + ' : ' + Object.keys(v[k]).map(function (an) { return an + ' → ' + v[k][an]; }).join(', '); }).join(' ; ') || 'aucun';
+      case 'registreFigeMesures': var vals = Object.keys(v || {}).map(function (k) { return v[k]; }); return vals.filter(Boolean).length + ' mesure(s) gardant le n° du classeur, ' + vals.filter(function (x) { return x === false; }).length + ' recalculée(s)';
       case 'registreFige': return Object.keys(v || {}).map(function (k) { return libService(k) + ' : ' + Object.keys(v[k]).join(', '); }).join(' ; ') || 'aucune année (tout est recalculé)';
       case 'colonnesPatients': return (v || []).map(function (c) { return c.libelle + ' (' + (c.categories || []).join(', ') + ')'; }).join(', ');
       case 'decompte': return Object.keys(v || {}).map(function (k) { return k === '*' ? 'établissement' : libService(k); }).join(', ') || 'aucun masque';
@@ -815,7 +817,7 @@
     switch (e.type) {
       case 'MESURE_DEBUT':
         var fem = d.typeMesure === 'Contention' ? 'e' : '';
-        return nomPatient(d.patientId).trim() + ' — ' + (d.typeMesure || '').toLowerCase() + ' débuté' + fem + ' le ' + date(d.debut) + ', décidé' + fem + ' par ' + (d.psychiatre || '?') + ', ' + (d.lieu || 'lieu non précisé') + (d.suiteDe ? ' (suite d’un changement de lieu)' : '');
+        return nomPatient(d.patientId).trim() + ' — ' + (d.typeMesure || '').toLowerCase() + ' débuté' + fem + ' le ' + date(d.debut) + ', décidé' + fem + ' par ' + (d.psychiatre || '?') + ', ' + (d.lieu || 'lieu non précisé') + (d.suiteDe ? ' (suite d’un changement de lieu)' : '') + (d.origine ? ' — ' + d.origine + (d.numeroOrigine ? ', n° ' + d.numeroOrigine : '') : '') + (d.correctionImport ? ' — ' + d.correctionImport : '');
       case 'MESURE_FIN': return sur + 'fin le ' + date(d.fin) + ', décidée par ' + (d.psychiatre || '?') + (d.motif ? ' (' + d.motif.toLowerCase() + ')' : '');
       case 'PAUSE': return sur + 'pause à partir du ' + date(d.debut) + ', reprise prévue le ' + date(d.reprisePrevue) + (d.motif ? ' — motif : ' + d.motif : '') + (d.psychiatre ? ' — décidée par ' + d.psychiatre : '');
       case 'REPRISE': return sur + 'reprise après pause le ' + date(d.date);

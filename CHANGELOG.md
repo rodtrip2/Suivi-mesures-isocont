@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.21.0 — 31 octobre 2026
+
+- Aperçu d'import : **pourquoi de chaque catégorie** sous chaque entrée — règle appliquée, lieu, case « exception », portion d'isolement hors contention, et, en cas d'écart avec le classeur, la lettre du classeur et une piste de vérification (« vérifier la case « exception » de la mesure »…).
+- **Décision mesure par mesure** : garder le n° du classeur ou appliquer la règle de l'outil, prioritaire sur le choix de l'année (paramètre `registreFigeMesures`, tracé au journal).
+- **Correction des données d'une mesure avant import** (lieu CSI ou non, exception) : appliquée à la mesure importée, tracée (« Corrigé à l'import : exception : oui → non »), visible dans le détail et le journal ; le classeur n'est pas modifié. Une mesure corrigée ou décidée reste affichée dans l'aperçu.
+- Registre : les numéros attribués par l'outil partent du compteur et **sautent les numéros conservés du classeur** (auparavant, ils reprenaient après le plus grand, ce qui décalait les mesures recalculées).
+- Journal : libellés lisibles pour les compteurs du registre et les derniers numéros du classeur.
+
 ## 1.20.0 — 31 octobre 2026
 
 - Aperçu de l'impact avant import : ajout de la **durée cumulée par catégorie** (A à E) pour chacun des trois choix, et du **détail des mesures modifiées** — pour chaque mesure dont le registre change selon le choix (mesures importées, ou déjà présentes dont la numérotation se décale) : patient, type, période, origine et numéro du classeur, et ses entrées (numéro, catégorie, période, durée) selon chaque choix, différences surlignées.
