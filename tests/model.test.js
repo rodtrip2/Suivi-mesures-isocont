@@ -183,11 +183,11 @@ test('Option : pauses retranchées des décomptes et échéances reportées d’
   assert.equal(dc.total, 18);
   // La pause interrompt le décompte : ligne de pause non décomptée, puis reprise
   assert.deepEqual(dc.lignes.map(l => [l.n, l.type, l.duree, l.cumul]), [[1, 'mesure', 4, 4], ['', 'pause', 2, 4], [2, 'mesure', 14, 18]]);
-  assert.match(dc.lignes[1].commentaire, /Durée non décomptée/);
+  assert.match(dc.lignes[1].commentaire, /Durée déduite, non ajoutée au cumul/);
   assert.match(dc.lignes[2].commentaire, /Reprise de la mesure après levée temporaire/);
   const dcSans = M.decompte(sans, sans.mesures.M1, t);
   assert.equal(dcSans.lignes.length, 1);
-  assert.match(dcSans.lignes[0].commentaire, /dont levée temporaire de 12:00 à 14:00, comptée dans la durée/);
+  assert.match(dcSans.lignes[0].commentaire, /dont levée temporaire de 12:00 à 14:00, non déduite \(comptée dans le cumul\)/);
   assert.equal(M.registre(avec, 'U1', 2026, t)[0].dureeHeures, 18);
   // Mesure suivante : le cumul des 15 jours tient compte de la pause retranchée
   const suite = evts({ retrancher: true }).concat([

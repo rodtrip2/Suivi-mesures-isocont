@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.7.1 — 31 octobre 2026
+
+- Décompte JLD : vocabulaire des pauses sans ambiguïté. « Non décomptée » (qui peut se lire « non déduite ») est remplacé par « déduite du cumul » ou « comptée dans le cumul », dans les lignes de pause (« 1 h 00 (déduite) », « Durée déduite, non ajoutée au cumul »), le tableau des levées temporaires, la phrase d'explication, la mention de calcul en bas de page (qui précise désormais la règle dans les deux cas) et l'export CSV. « Durée totale décomptée » devient « Durée totale retenue ».
+- Écrans et administration : « retrancher » devient « déduire ».
+
 ## 1.7.0 — 31 octobre 2026
 
 - Décompte JLD, masques : **date d'édition** et **auteur** deviennent deux sections distinctes (l'ancien réglage commun est repris pour les deux).

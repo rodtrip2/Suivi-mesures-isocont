@@ -11,7 +11,7 @@
 
   var LIB_COLONNES = { N: 'N°', Debut: 'Début', Fin: 'Fin ou référence', Duree: 'Durée', Cumul: 'Cumul', Statut: 'Statut', Commentaire: 'Commentaire' };
   var LIB_IDENTITE = { patient: 'Patient (nom, prénom)', naissance: 'Date de naissance', ipp: 'IPP', service: 'Service', modeHospi: "Mode d'hospitalisation", protection: 'Protection juridique', mesure: 'Mesure (type, date de décision)', lieu: 'Lieu', psychiatre: 'Psychiatre décisionnaire' };
-  var LIB_SECTIONS = { periode: 'Période analysée', situation: 'Situation (en cours ou terminée)', total: 'Totaux (cumul antérieur, durée décomptée)', cycle: 'Cycle et échéances JLD', jld: 'Envois au JLD déjà effectués', tiers: 'Information du tiers', pauses: 'Levées temporaires (pauses)', mentionLegale: 'Mention du mode de calcul (art. L. 3222-5-1)', dateEdition: 'Date d’édition', auteur: 'Auteur du document' };
+  var LIB_SECTIONS = { periode: 'Période analysée', situation: 'Situation (en cours ou terminée)', total: 'Totaux (cumul antérieur, durée totale retenue)', cycle: 'Cycle et échéances JLD', jld: 'Envois au JLD déjà effectués', tiers: 'Information du tiers', pauses: 'Levées temporaires (pauses)', mentionLegale: 'Mention du mode de calcul (art. L. 3222-5-1)', dateEdition: 'Date d’édition', auteur: 'Auteur du document' };
   var LIB_NATURE = { INFO: 'information', SAISINE: 'saisine', DECISION: 'décision' };
 
   function dateNaissance(iso) { return iso ? iso.split('-').reverse().join('/') : '—'; }
@@ -40,7 +40,7 @@
         case 'N': return String(l.n);
         case 'Debut': return U.date(l.debut);
         case 'Fin': return U.date(l.fin);
-        case 'Duree': return l.type === 'pause' ? U.duree(l.duree) + ' non décomptée' : U.duree(l.duree);
+        case 'Duree': return l.type === 'pause' ? U.duree(l.duree) + ' (déduite)' : U.duree(l.duree);
         case 'Cumul': return U.duree(l.cumul);
         case 'Statut': return l.statut;
         default: return l.commentaire;
@@ -65,15 +65,15 @@
         : typeof m.fin === 'number' && m.fin <= d.reference ? 'aucune — fin de la mesure le ' + U.date(m.fin)
         : d.reference > x.reprisePrevue ? 'non saisie (prévue le ' + U.date(x.reprisePrevue) + ')'
         : 'pause en cours (reprise prévue le ' + U.date(x.reprisePrevue) + ')';
-      var prise = !deduire ? 'Comptée dans la durée'
-        : plage && plage.nonConfirmee ? 'Non décomptée jusqu’à l’heure prévue, décomptée ensuite'
-        : 'Non décomptée';
+      var prise = !deduire ? 'Comptée dans le cumul'
+        : plage && plage.nonConfirmee ? 'Déduite jusqu’à l’heure de reprise prévue, comptée ensuite'
+        : 'Déduite du cumul';
       var duree = deduire && plage ? (plage.fin - plage.debut) / H : (f - x.debut) / H;
       return { debut: U.date(x.debut), reprise: reprise, duree: U.duree(duree), motif: x.motif || '—', psychiatre: x.psychiatre || '—', prise: prise };
     });
     var explicationPauses = deduire
-      ? 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées n’est pas décomptée : chacune interrompt le tableau ci-dessus par une ligne « PAUSE », et les échéances JLD sont reportées d’autant.'
-      : 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées reste comptée dans la durée de la mesure : le tableau ci-dessus n’est pas interrompu et les échéances JLD ne sont pas reportées.';
+      ? 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées est déduite : elle n’est pas ajoutée au cumul. Chaque levée interrompt le tableau ci-dessus par une ligne « PAUSE » grisée, et les échéances JLD sont reportées d’autant.'
+      : 'Le psychiatre a levé temporairement la mesure, sans y mettre fin. Selon la règle retenue par l’établissement, la durée de ces levées n’est pas déduite : elle reste comptée dans le cumul, comme le reste de la mesure. Le tableau ci-dessus n’est pas interrompu et les échéances JLD ne sont pas reportées.';
     return {
       d: d, j: j, titre: m.type === 'Isolement' ? masque.titreIsolement : masque.titreContention,
       identite: identite,
@@ -81,7 +81,7 @@
       lignes: d.lignes.map(function (l) { return masque.colonnes.map(function (c) { return cellule(l, c); }); }),
       typesLignes: d.lignes.map(function (l) { return l.type; }),
       explicationPauses: explicationPauses,
-      total: 'Cumul des mesures antérieures sur 15 jours : ' + U.duree(d.cumulAvant) + ' — Durée totale décomptée : ' + U.duree(d.total) + '.',
+      total: 'Cumul des mesures antérieures sur 15 jours : ' + U.duree(d.cumulAvant) + ' — Durée totale retenue : ' + U.duree(d.total) + '.',
       cycle: 'Cycle de contrôle n° ' + j.cycle + ' — information avant le ' + U.date(j.info.echeance) + ', saisine avant le ' + U.date(j.saisine.echeance) + ', décision avant le ' + U.date(j.decision.echeance) + '.',
       envois: envois, tiers: tiers, pauses: pauses
     };
@@ -113,7 +113,7 @@
     else if (s.dateEdition) edition = 'Édité le ' + U.date(Date.now()) + '.';
     else if (s.auteur && options.auteur) edition = 'Édité par ' + options.auteur + '.';
     var mentions = [edition];
-    if (s.mentionLegale) mentions.push('Décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois' + (c.d.pausesRetranchees ? ' ; levées temporaires non décomptées' : '') + ').');
+    if (s.mentionLegale) mentions.push('Décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois' + (c.d.pausesRetranchees ? ' ; durée des levées temporaires déduite du cumul' : ' ; durée des levées temporaires comptée dans le cumul') + ').');
     mentions = mentions.filter(Boolean);
     var corps = [
       masque.confidentiel ? h('div', { class: 'doc-confidentiel', text: 'Document confidentiel — données personnelles de santé' }) : null,
@@ -158,7 +158,7 @@
     c.identite.forEach(function (x) { lignes.push(x); });
     lignes.push([]);
     if (c.entetes.length) { lignes.push(c.entetes); c.lignes.forEach(function (l) { lignes.push(l); }); lignes.push([]); }
-    if (s.total) lignes.push(['Cumul antérieur (h)', c.d.cumulAvant.toFixed(2).replace('.', ','), 'Durée totale décomptée (h)', c.d.total.toFixed(2).replace('.', ',')]);
+    if (s.total) lignes.push(['Cumul antérieur (h)', c.d.cumulAvant.toFixed(2).replace('.', ','), 'Durée totale retenue (h)', c.d.total.toFixed(2).replace('.', ',')]);
     if (s.cycle) lignes.push(['Cycle', c.j.cycle, 'Information avant', U.date(c.j.info.echeance), 'Saisine avant', U.date(c.j.saisine.echeance), 'Décision avant', U.date(c.j.decision.echeance)]);
     if (s.jld) c.envois.forEach(function (t) { lignes.push(['Envoi JLD', t]); });
     if (s.tiers) c.tiers.forEach(function (t) { lignes.push(['Tiers', t]); });

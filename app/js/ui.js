@@ -522,7 +522,7 @@
         h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
         h('td', { class: 'nowrap', text: court(m.debut) }),
         h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
-          hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: M.optionsPauses(config()).retrancher ? 'Levées temporaires, retranchées de la durée' : 'Levées temporaires, comptées dans la durée', text: (M.optionsPauses(config()).retrancher ? 'pauses retranchées ' : 'dont pauses ') + duree(hPauses) })) : null),
+          hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: M.optionsPauses(config()).retrancher ? 'Levées temporaires, déduites de la durée' : 'Levées temporaires, comptées dans la durée', text: (M.optionsPauses(config()).retrancher ? 'pauses déduites ' : 'dont pauses comptées ') + duree(hPauses) })) : null),
         h('td', { text: String(j.cycle) }),
         h('td', {}, cellEcheance(j.info)), h('td', {}, cellEcheance(j.saisine)), h('td', {}, cellEcheance(j.decision)),
         h('td', {}, tiersBadge(m)),
@@ -1033,7 +1033,7 @@
 
     modale('Pause — levée temporaire de la mesure', h('div', { class: 'pile' }, recapMesure(m, maintenant),
       h('p', { class: 'muted' }, h('small', { text: 'Report de la décision du psychiatre (repas, hygiène, visite…). La pause ne met pas fin à la mesure. ' +
-        (op.retrancher ? 'Selon le paramétrage de l’établissement, sa durée est retranchée des décomptes et les échéances JLD sont reportées d’autant (jusqu’à l’heure de reprise prévue au plus). ' : 'Sa durée et les échéances JLD continuent de courir. ') +
+        (op.retrancher ? 'Selon le paramétrage de l’établissement, sa durée est déduite du cumul et les échéances JLD sont reportées d’autant (jusqu’à l’heure de reprise prévue au plus). ' : 'Sa durée et les échéances JLD continuent de courir. ') +
         (op.repriseAuto ? 'La mesure reprendra automatiquement à l’heure prévue ; saisissez une reprise seulement si elle a lieu plus tôt. ' : 'Saisissez la reprise au retour du patient. ') +
         'Si le patient ne réintègre pas la mesure, saisissez la fin de mesure.' })),
       h('div', { class: 'grille-2' }, h('label', {}, 'Début de la pause', debut, aDebut), h('label', {}, 'Reprise', mode)),
@@ -1165,7 +1165,7 @@
         h('div', { text: 'Mode d’hospitalisation retenu : ' + (M.modeRetenu(st(), m).mode || '—') }),
         m.fin ? h('div', { text: 'Fin : ' + date(m.fin) + ' (' + (m.psychiatreFin || '?') + ')' }) : null),
       (m.pauses || []).length ? h('div', { class: 'recap' },
-        h('b', { text: 'Levées temporaires (' + m.pauses.length + ', total ' + duree(M.dureePausesHeures(m, maintenant, config())) + (M.optionsPauses(config()).retrancher ? ', retranchées de la durée et des échéances' : ', comptées dans la durée de la mesure') + ')' }),
+        h('b', { text: 'Levées temporaires (' + m.pauses.length + ', total ' + duree(M.dureePausesHeures(m, maintenant, config())) + (M.optionsPauses(config()).retrancher ? ', déduites du cumul, échéances reportées d’autant' : ', comptées dans le cumul') + ')' }),
         m.pauses.map(function (p) {
           var effective = p.reprise != null ? 'reprise le ' + date(p.reprise)
             : M.repriseAutomatique(m, p, maintenant, config()) ? 'reprise automatique le ' + date(p.reprisePrevue)
@@ -1425,12 +1425,12 @@
     var cbAuto = h('input', { type: 'checkbox', checked: op.repriseAuto });
     var nAlerte = h('input', { type: 'number', min: 0, max: M.PAUSE_MAX_HEURES, step: 0.5, value: op.alerteHeures, class: 'champ-court' });
     var nRefus = h('input', { type: 'number', min: 1, max: M.PAUSE_MAX_HEURES, step: 0.5, value: op.refusHeures, class: 'champ-court' });
-    var avertRetr = h('div', { class: 'alerte', hidden: !cbRetr.checked, text: 'Retrancher les pauses reporte les échéances JLD de la durée des pauses. Ce choix relève d’une lecture des textes à valider par la direction (et, si possible, avec le JLD) : par défaut, la loi prévoit qu’une mesure reprise moins de 48 h après la fin de la précédente s’y ajoute, ce qui plaide pour laisser courir la durée. Le réglage s’applique à toutes les mesures, y compris passées (échéances, cumuls, décompte, registre, statistiques), et il est tracé dans le journal.' });
+    var avertRetr = h('div', { class: 'alerte', hidden: !cbRetr.checked, text: 'Déduire les pauses reporte les échéances JLD de la durée des pauses. Ce choix relève d’une lecture des textes à valider par la direction (et, si possible, avec le JLD) : par défaut, la loi prévoit qu’une mesure reprise moins de 48 h après la fin de la précédente s’y ajoute, ce qui plaide pour laisser courir la durée. Le réglage s’applique à toutes les mesures, y compris passées (échéances, cumuls, décompte, registre, statistiques), et il est tracé dans le journal.' });
     cbRetr.addEventListener('change', function () { avertRetr.hidden = !cbRetr.checked; });
     var pPauses = h('section', { class: 'panneau' }, h('h2', { text: 'Pauses (levées temporaires)' }),
-      h('label', { class: 'case' }, cbRetr, h('span', { text: 'Retrancher les pauses des décomptes (durées, cumuls sur 15 jours, échéances JLD, décompte, registre, statistiques)' })),
+      h('label', { class: 'case' }, cbRetr, h('span', { text: 'Déduire la durée des pauses du cumul (durées, cumuls sur 15 jours, échéances JLD, décompte, registre, statistiques)' })),
       avertRetr,
-      h('small', { class: 'muted', text: 'Une pause sans reprise saisie n’est retranchée que jusqu’à son heure de reprise prévue.' }),
+      h('small', { class: 'muted', text: 'Une pause sans reprise saisie n’est déduite que jusqu’à son heure de reprise prévue.' }),
       h('label', { class: 'case' }, cbAuto, h('span', { text: 'Reprise automatique à l’heure prévue (sans saisie de la reprise)' })),
       h('small', { class: 'muted', text: 'Sans cette option, une reprise prévue dépassée et non saisie est signalée en rouge. Avec elle, la mesure reprend d’elle-même ; une reprise plus tôt que prévu se saisit toujours avec le bouton Reprise, et un patient qui ne réintègre pas la mesure doit faire l’objet d’une fin de mesure.' }),
       h('div', { class: 'grille-2' },
@@ -1441,7 +1441,7 @@
         var a = +nAlerte.value, r = +nRefus.value;
         if (!isFinite(r) || r <= 0 || r > M.PAUSE_MAX_HEURES) throw new Error('Le seuil de refus doit être compris entre 0 et ' + M.PAUSE_MAX_HEURES + ' h.');
         if (!isFinite(a) || a < 0 || (a && a >= r)) throw new Error('Le seuil d’alerte doit être inférieur au seuil de refus (0 pour aucune alerte).');
-        if (cbRetr.checked !== op.retrancher && !confirm(cbRetr.checked ? 'Retrancher les pauses va reporter les échéances JLD de toutes les mesures concernées. Confirmer ?' : 'Ne plus retrancher les pauses va avancer les échéances JLD des mesures concernées. Confirmer ?')) return false;
+        if (cbRetr.checked !== op.retrancher && !confirm(cbRetr.checked ? 'Déduire les pauses va reporter les échéances JLD de toutes les mesures concernées. Confirmer ?' : 'Ne plus déduire les pauses va avancer les échéances JLD des mesures concernées. Confirmer ?')) return false;
         await enregistrerConfig([['pauses', { retrancher: cbRetr.checked, repriseAuto: cbAuto.checked, alerteHeures: a, refusHeures: r }]]);
       }));
 

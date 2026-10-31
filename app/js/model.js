@@ -685,7 +685,7 @@
   /**
    * Décompte JLD d'une mesure à une date de référence : lignes des mesures antérieures (15 jours glissants),
    * puis de la mesure par tranches de 24 h (isolement) ou 12 h (contention).
-   * Pauses déduites (option) : chaque pause interrompt le décompte par une ligne « pause » non décomptée,
+   * Pauses déduites (option) : chaque pause interrompt le décompte par une ligne « pause » dont la durée est déduite du cumul,
    * et la ligne suivante reprend à l'heure de reprise. Sinon, les pauses sont signalées dans le commentaire.
    */
   function decompte(st, m, reference) {
@@ -702,7 +702,7 @@
       var notes = plagesPauses(x, reference).filter(function (q) { return q.debut < f && q.fin > d; }).map(function (q) {
         return 'levée temporaire de ' + hhmm(Math.max(q.debut, d)) + ' à ' + hhmm(Math.min(q.fin, f)) + (q.pause.motif ? ' (' + q.pause.motif + ')' : '');
       });
-      return notes.length ? ' — dont ' + notes.join(', ') + ', comptée dans la durée' : '';
+      return notes.length ? ' — dont ' + notes.join(', ') + ', non déduite (comptée dans le cumul)' : '';
     }
     function ligneMesure(x, d, f, commentaire, statut) {
       intervalles.push([d, f]);
@@ -710,7 +710,7 @@
     }
     function lignePause(q, d, f) {
       lignes.push({ type: 'pause', debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'PAUSE',
-        commentaire: 'Interruption du décompte : ' + libPause(q.pause) + '. Durée non décomptée.' + (q.nonConfirmee ? ' Reprise non saisie : décompte repris à l’heure de reprise prévue.' : '') });
+        commentaire: 'Pause : ' + libPause(q.pause) + '. Durée déduite, non ajoutée au cumul.' + (q.nonConfirmee ? ' Reprise non saisie : la durée est de nouveau comptée à partir de l’heure de reprise prévue.' : '') });
     }
     /** Découpe [d, f] d'une mesure aux bornes `grille` et aux pauses déduites ; appelle `ligne(d, f, apresPause, premiere)`. */
     function parcourir(x, d, f, grille, ligne) {
