@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.26.0 — 1er novembre 2026
+
+- **Transfert vers un autre service** (détail de la mesure) : la mesure reste unique pour le JLD et elle est répartie au registre entre les services ; mesures en cours du patient transférées ensemble ; lieux successifs dans le détail.
+- **Passage en soins somatiques ou aux urgences** (détail de la mesure, puis bouton *Retour*) selon la règle choisie dans *Cas particuliers* : poursuite comptée au registre du service (par défaut), poursuite comptée dans un registre dédié (« Hébergement somatique », « Urgences »…), suspension jusqu'au retour (délais JLD reportés, ligne « SUSPENDUE » au décompte), ou fin de la mesure.
+- **Motif de fin** de mesure (décision médicale, suite à la mainlevée, sortie, transfert hors de l'établissement, soins somatiques, fugue, décès, autre) ; rappel de la déclaration d'événement indésirable grave à l'ARS en cas de décès.
+- **Recours au JLD et appel** (détail de la mesure) : saisine à l'initiative du patient, d'un proche, de l'avocat…, décision, appel devant le premier président et décision ; une mainlevée sur recours a les effets d'une mainlevée. Recours repris dans le décompte JLD.
+- Corrections : boutons du pied des fenêtres renvoyés à la ligne quand ils sont nombreux ; libellé du journal d'un changement de service sur la fiche patient.
+
 ## 1.25.0 — 1er novembre 2026
 
 - **Sous-onglet *Cas particuliers*** dans l'administration, pour les arbitrages des situations moins fréquentes.

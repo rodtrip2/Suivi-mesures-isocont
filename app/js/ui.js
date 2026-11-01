@@ -67,7 +67,7 @@
   var LIB_NATURE = { INFO: 'Information du JLD', SAISINE: 'Saisine du JLD', DECISION: 'Décision reçue du JLD' };
   var LIB_EVT = {
     CONFIG: 'Paramétrage', PATIENT: 'Patient', MODE_HOSPI: "Mode d'hospitalisation", MESURE_DEBUT: 'Début de mesure',
-    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
+    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', TRANSFERT: 'Transfert entre services', SOMATIQUE: 'Soins somatiques ou urgences', SOMATIQUE_RETOUR: 'Retour dans le service', RECOURS: 'Recours ou appel (JLD)', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
   var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
@@ -590,7 +590,7 @@
       var infos = M.informationsATracer(st(), maintenant, function (x) { return x.id === m.id; });
       tbody.appendChild(h('tr', { class: etat + (pause ? ' en-pause' : '') },
         h('td', { class: 'patient' }, h('b', { text: nomPatient(m.patientId) }), h('br'), h('small', { text: 'IPP ' + (patient(m.patientId).ipp || '—') + ' · ' + libService(m.service) })),
-        h('td', {}, badgeType(m.type), infos.length ? h('div', {}, h('span', { class: 'badge bad', title: infos.map(function (x) { return x.regle.libelle + ' : informer ' + x.regle.destinataires; }).join(' ; '), text: 'Information à tracer' })) : null, m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
+        h('td', {}, badgeType(m.type), m.somatique ? h('div', {}, SIC.ui.parcours.badge(m)) : null, infos.length ? h('div', {}, h('span', { class: 'badge bad', title: infos.map(function (x) { return x.regle.libelle + ' : informer ' + x.regle.destinataires; }).join(' ; '), text: 'Information à tracer' })) : null, m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
         h('td', {}, m.lieu || (m.csi ? 'CSI' : 'Hors CSI'), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Mesure débutée avant l’arrivée dans le service : les délais JLD partent de la décision initiale', text: 'débutée le ' + court(m.debutInitial) + (m.lieuInitial ? ' — ' + m.lieuInitial : '') })) : null),
         h('td', { class: 'nowrap', text: court(m.debut) }),
         h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Depuis la décision initiale, avant l’arrivée dans le service', text: duree(((typeof m.fin === 'number' ? m.fin : maintenant) - m.debutInitial) / H) + ' au total' })) : null, enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
@@ -604,6 +604,7 @@
           App.session.peut('TIERS') ? h('button', { class: 'btn petit', onclick: function () { modaleTiers(m); } }, 'Tiers') : null, ' ',
           enCours && !pause && App.session.peut('PAUSE') && M.optionsPauses(config()).active ? h('button', { class: 'btn petit', title: 'Levée temporaire décidée par le psychiatre', onclick: function () { modalePause(m); } }, 'Pause') : null,
           pause && App.session.peut('REPRISE') ? h('button', { class: 'btn petit primaire', onclick: function () { modaleReprise(m); } }, 'Reprise') : null, ' ',
+          enCours && m.somatique && App.session.peut('SOMATIQUE_RETOUR') ? h('button', { class: 'btn petit primaire', title: 'Retour dans le service après les soins somatiques', onclick: function () { SIC.ui.parcours.modaleRetour(m); } }, 'Retour') : null, ' ',
           enCours && App.session.peut('MESURE_FIN') ? h('button', { class: 'btn petit danger', onclick: function () { modaleFin(m); } }, 'Fin') : null, ' ',
           SIC.ui.actions.decompte && App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { SIC.ui.actions.decompte(m); } }, 'Décompte') : null, ' ',
           h('button', { class: 'btn petit', onclick: function () { modaleDetail(m); } }, 'Détail'))));
@@ -847,6 +848,10 @@
       case 'MESURE_FIN': return sur + 'fin le ' + date(d.fin) + ', décidée par ' + (d.psychiatre || '?') + (d.motif ? ' (' + d.motif.toLowerCase() + ')' : '');
       case 'PAUSE': return sur + 'pause à partir du ' + date(d.debut) + ', reprise prévue le ' + date(d.reprisePrevue) + (d.motif ? ' — motif : ' + d.motif : '') + (d.psychiatre ? ' — décidée par ' + d.psychiatre : '');
       case 'REPRISE': return sur + 'reprise après pause le ' + date(d.date);
+      case 'TRANSFERT': return sur + 'transfert le ' + date(d.date) + ' vers ' + libService(d.service) + ' (' + (d.lieu || 'lieu non précisé') + ')';
+      case 'SOMATIQUE': return sur + 'départ en soins somatiques ou aux urgences le ' + date(d.date) + ' (' + (d.lieu || '') + ') — ' + (SIC.ui.cas.LIB_SOMA[d.mode] || d.mode) + (d.mode === 'poursuite-registre' ? ' (' + libService(d.serviceRegistre) + ')' : '');
+      case 'SOMATIQUE_RETOUR': return sur + 'retour dans le service le ' + date(d.date) + (d.lieu ? ' (' + d.lieu + ')' : '');
+      case 'RECOURS': return sur + SIC.ui.parcours.libRecours(d);
       case 'FUSION':
         var fg = st().patients[M.ciblePatient(st(), d.garde)] || {}, fa = ((fg.fusionnes || []).filter(function (x) { return x.id === d.absorbe; })[0]) || {};
         return 'Fiches fusionnées : ' + ((fa.nom || '?') + ' ' + (fa.prenom || '')).trim() + (fa.ipp ? ' (IPP ' + fa.ipp + ')' : '') + ' rattachée à ' + nomPatient(d.garde).trim() + (fg.ipp ? ' (IPP ' + fg.ipp + ')' : '') + '. Motif : ' + (d.motif || 'non précisé') + '.';
@@ -858,7 +863,7 @@
         return 'Surveillance en CSI — ' + libService(d.service) + ', ' + (d.date ? d.date.split('-').reverse().join('/') : '') + ', ' + (per ? per.libelle.toLowerCase() : d.periode) + ' : ' + d.nom + (d.fonction ? ' (' + d.fonction + ')' : '');
       case 'PATIENT':
         var fiches = index().patients[d.patientId] || [], premiere = !fiches.length || fiches[0].id === e.id;
-        return 'Fiche patient ' + (premiere ? 'créée' : 'modifiée') + ' : ' + [((d.nom || '') + ' ' + (d.prenom || '')).trim(), d.ipp ? 'IPP ' + d.ipp : '', d.naissance ? 'né(e) le ' + d.naissance.split('-').reverse().join('/') : '', d.protection ? 'protection : ' + d.protection.toLowerCase() : ''].filter(Boolean).join(', ');
+        return 'Fiche patient ' + (premiere ? 'créée' : 'modifiée') + ' : ' + [((d.nom || '') + ' ' + (d.prenom || '')).trim(), d.ipp ? 'IPP ' + d.ipp : '', d.naissance ? 'né(e) le ' + d.naissance.split('-').reverse().join('/') : '', d.protection ? 'protection : ' + d.protection.toLowerCase() : '', d.service ? 'service : ' + libService(d.service) : ''].filter(Boolean).join(', ') + (premiere ? '' : ' (' + nomPatient(d.patientId).trim() + ')');
       case 'MODE_HOSPI':
         var def = (config().modesHospitalisation || []).filter(function (x) { return x.code === d.mode; })[0];
         return nomPatient(d.patientId).trim() + ' — mode d’hospitalisation : ' + d.mode + (def ? ' (' + def.libelle.toLowerCase() + ')' : '') + ' à partir du ' + date(d.date);
@@ -1231,9 +1236,21 @@
     var fin = h('input', { type: 'datetime-local', value: versSaisie(pause ? pause.debut : Date.now()) });
     var psy = selectPsychiatre(m.psychiatreDebut);
     var lies = M.listeMesures(st()).filter(function (x) { return x.patientId === m.patientId && x.id !== m.id && typeof x.fin !== 'number'; });
+    var motif = h('select', {}, M.MOTIFS_FIN.map(function (x) { return h('option', { value: x, text: x, selected: m.leveeJLD ? x === 'Suite à la mainlevée du JLD' : false }); }));
+    var precision = h('input', { type: 'text', placeholder: 'Précision (facultatif)' });
+    var infoMotif = h('div', { class: 'alerte-etab information', hidden: true });
+    function majMotif() {
+      vider(infoMotif);
+      var txt = motif.value === 'Décès' ? 'Décès pendant une mesure d’isolement ou de contention : s’il est inattendu au regard de l’état de santé du patient, c’est un événement indésirable grave associé à des soins, à déclarer sans délai à l’agence régionale de santé sur le portail de signalement (art. L. 1413-14 et R. 1413-67 et suivants du code de la santé publique), selon la procédure de l’établissement. Prévenir la direction et le cadre.'
+        : motif.value === 'Fugue' ? 'Fugue : suivre la procédure de l’établissement (information de la direction, et du représentant de l’État pour un patient en SDRE).'
+        : motif.value === 'Passage en soins somatiques ou aux urgences' ? 'Si la mesure doit se poursuivre pendant les soins somatiques, utilisez plutôt « Soins somatiques ou urgences… » dans le détail de la mesure.' : '';
+      infoMotif.hidden = !txt; if (txt) infoMotif.appendChild(h('b', { text: txt }));
+    }
+    motif.addEventListener('change', majMotif); majMotif();
     modale('Fin de mesure — report de la décision médicale', h('div', { class: 'pile' }, recapMesure(m),
       pause ? h('div', { class: 'info', text: 'Mesure en pause depuis le ' + date(pause.debut) + '. Si elle n’a pas repris (le psychiatre décide de ne pas la reprendre), la fin correspond en principe au début de la pause : la date est préremplie ainsi. Modifiez-la si la décision est autre.' }) : null,
       h('label', {}, 'Date et heure de la décision de fin', fin), h('label', {}, 'Psychiatre décisionnaire', psy),
+      h('div', { class: 'grille-2' }, h('label', {}, 'Motif de fin', motif), h('label', {}, 'Précision', precision)), infoMotif,
       lies.length ? h('div', { class: 'info', text: 'Autre mesure en cours pour ce patient : ' + lies.map(function (x) { return x.type + ' depuis ' + court(x.debut); }).join(', ') + '. Elle reste en cours.' }) : null,
       m.leveeJLD ? h('div', { class: 'info', text: 'Le JLD a ordonné la levée : à compter de cette fin, le cumul des 15 jours repartira de zéro pour ce patient et ce type de mesure.' }) : null), [
       { texte: 'Annuler' },
@@ -1241,7 +1258,7 @@
         var t = depuisSaisie(fin.value);
         if (t < m.debut) throw new Error('La fin ne peut pas précéder le début (' + date(m.debut) + ').');
         if (t > Date.now() + 10 * 60000) throw new Error('La date de fin ne peut pas être dans le futur.');
-        await App.session.enregistrer('MESURE_FIN', { mesureId: m.id, fin: t, psychiatre: psy.valeur() }, base);
+        await App.session.enregistrer('MESURE_FIN', { mesureId: m.id, fin: t, psychiatre: psy.valeur(), motif: motif.value + (precision.value.trim() ? ' (' + precision.value.trim() + ')' : '') }, base);
         toast('Fin de mesure enregistrée.');
       } }]);
   }
@@ -1474,6 +1491,8 @@
           return h('div', { text: date(p.debut) + ' → reprise prévue ' + date(p.reprisePrevue) + ' — ' + effective + (p.motif ? ' — ' + p.motif : '') + ' (' + (p.psychiatre || '?') + ')' });
         })) : null,
       SIC.ui.alertes.detailMesure(m),
+      SIC.ui.parcours.detailMesure(m),
+      m.motifFin ? h('div', { class: 'recap', text: 'Motif de fin : ' + m.motifFin }) : null,
       h('h3', { text: 'Historique' }),
       h('div', { class: 'table-wrap' }, h('table', {}, h('tbody', {}, evts.map(function (e) {
         var annule = st().annules[e.id];
@@ -1490,6 +1509,9 @@
           } }, 'Annuler') : null));
       })))));
     var boutons = [{ texte: 'Fermer' }];
+    if (App.session.peut('RECOURS')) boutons.unshift({ texte: 'Recours ou appel…', action: function () { setTimeout(function () { SIC.ui.parcours.modaleRecours(m); }, 0); return true; } });
+    if (typeof m.fin !== 'number' && !m.somatique && App.session.peut('SOMATIQUE')) boutons.unshift({ texte: 'Soins somatiques ou urgences…', action: function () { setTimeout(function () { SIC.ui.parcours.modaleSomatique(m); }, 0); return true; } });
+    if (typeof m.fin !== 'number' && App.session.peut('TRANSFERT')) boutons.unshift({ texte: 'Transfert vers un autre service…', action: function () { setTimeout(function () { SIC.ui.parcours.modaleTransfert(m); }, 0); return true; } });
     if (typeof m.fin !== 'number' && App.session.peut('MESURE_FIN') && App.session.peut('MESURE_DEBUT')) boutons.unshift({ texte: 'Changer de lieu…', action: function () { setTimeout(function () { modaleLieu(m); }, 0); return true; } });
     if (peutCorriger) boutons.unshift({ texte: 'Corriger…', action: function () { setTimeout(function () { modaleCorrection(m); }, 0); return true; } });
     modale('Détail de la mesure', corps, boutons);

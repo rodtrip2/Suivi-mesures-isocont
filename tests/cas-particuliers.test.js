@@ -77,3 +77,74 @@ test('Mesure débutée ailleurs : délais JLD depuis la décision initiale, regi
   assert.match(lignes[1].commentaire, /Arrivée dans le service/);
   assert.equal(Math.round(lignes[1].cumul), 36);
 });
+
+// ------------------------------------------------------------------ Lot 2
+function mesureIso(id, debut, extra) {
+  return evt('MESURE_DEBUT', Object.assign({ mesureId: id, patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: debut, csi: true, lieu: 'CSI 1' }, extra || {}));
+}
+
+test('Transfert entre services : une seule mesure pour le JLD, répartie au registre', () => {
+  const evts = patient('P1').concat([
+    mesureIso('M1', local(2026, 3, 1, 8)),
+    evt('TRANSFERT', { mesureId: 'M1', date: local(2026, 3, 2, 8), service: 'U2', lieu: 'CSI A', csi: true }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 2, 20) })
+  ]);
+  const st = M.reduire(evts);
+  assert.equal(st.mesures.M1.service, 'U2');
+  const r1 = M.registre(st, 'U1', 2026, local(2026, 4, 1)), r2 = M.registre(st, 'U2', 2026, local(2026, 4, 1));
+  assert.equal(r1.length, 1); assert.equal(Math.round(r1[0].dureeHeures), 24); assert.equal(r1[0].numero, 'A1');
+  assert.equal(r2.length, 1); assert.equal(Math.round(r2[0].dureeHeures), 12); assert.equal(r2[0].lieu, 'CSI A');
+  const j = M.suiviJLD(st, st.mesures.M1, local(2026, 3, 2, 9));
+  assert.equal(j.info.echeance, local(2026, 3, 3, 8));                         // 48 h depuis le début, transfert sans effet
+});
+
+test('Soins somatiques : poursuite (service ou registre dédié) et suspension', () => {
+  const base = (mode, extra) => patient('P1').concat([
+    mesureIso('M1', local(2026, 3, 1, 8)),
+    evt('SOMATIQUE', Object.assign({ mesureId: 'M1', date: local(2026, 3, 1, 20), lieu: 'Urgences (fictif)', mode: mode }, extra || {})),
+    evt('SOMATIQUE_RETOUR', { mesureId: 'M1', date: local(2026, 3, 2, 8) }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 2, 20) })
+  ]);
+  let st = M.reduire(base('poursuite-service'));
+  let r = M.registre(st, 'U1', 2026, local(2026, 4, 1));
+  assert.deepEqual(r.map((e) => e.categorie + Math.round(e.dureeHeures)), ['A12', 'B12', 'A12']);
+  assert.equal(st.mesures.M1.lieu, 'CSI 1');                                   // retour au lieu d'avant
+  st = M.reduire(base('poursuite-registre', { serviceRegistre: 'SOMA' }));
+  assert.deepEqual(M.registre(st, 'U1', 2026, local(2026, 4, 1)).map((e) => Math.round(e.dureeHeures)), [12, 12]);
+  assert.deepEqual(M.registre(st, 'SOMA', 2026, local(2026, 4, 1)).map((e) => e.categorie + Math.round(e.dureeHeures)), ['B12']);
+  st = M.reduire(base('suspension'));
+  assert.equal(M.registre(st, 'U1', 2026, local(2026, 4, 1)).length, 2);
+  assert.equal(Math.round(M.dureeHeures(st.mesures.M1, local(2026, 4, 1), st.config)), 24);
+  assert.equal(M.suiviJLD(st, st.mesures.M1, local(2026, 3, 2, 9)).info.echeance, local(2026, 3, 3, 20));   // reportée de 12 h
+});
+
+test('Recours : décision de levée sur saisine du patient ou en appel = mainlevée', () => {
+  const evts = patient('P1').concat([
+    mesureIso('M1', local(2026, 3, 1, 8)),
+    evt('RECOURS', { mesureId: 'M1', nature: 'SAISINE', auteur: 'Patient', date: local(2026, 3, 1, 12) }),
+    evt('RECOURS', { mesureId: 'M1', nature: 'DECISION', decision: 'MAINTIEN', date: local(2026, 3, 1, 18) }),
+    evt('RECOURS', { mesureId: 'M1', nature: 'APPEL', auteur: 'Avocat', date: local(2026, 3, 1, 20) }),
+    evt('RECOURS', { mesureId: 'M1', nature: 'DECISION_APPEL', decision: 'LEVEE', date: local(2026, 3, 2, 10) }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 2, 11) }),
+    mesureIso('M2', local(2026, 3, 3, 9))
+  ]);
+  const st = M.reduire(evts);
+  assert.equal(st.mesures.M1.recours.length, 4);
+  assert.ok(st.mesures.M1.leveeJLD);
+  assert.equal(M.apresMainlevee(st, st.mesures.M2).recours, 'DECISION_APPEL');
+  assert.ok(M.MOTIFS_FIN.indexOf('Décès') >= 0);
+});
+
+test('Décompte : la suspension interrompt le tableau sans s’ajouter au cumul', () => {
+  const evts = patient('P1').concat([
+    mesureIso('M1', local(2026, 3, 1, 8)),
+    evt('SOMATIQUE', { mesureId: 'M1', date: local(2026, 3, 1, 20), lieu: 'Urgences (fictif)', mode: 'suspension' }),
+    evt('SOMATIQUE_RETOUR', { mesureId: 'M1', date: local(2026, 3, 2, 8) }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 2, 20) })
+  ]);
+  const st = M.reduire(evts);
+  const d = M.decompte(st, st.mesures.M1, local(2026, 3, 3), { tranche: 0 });
+  assert.deepEqual(d.lignes.map((l) => l.statut), ['TERMINÉE', 'SUSPENDUE', 'TERMINÉE']);
+  assert.equal(Math.round(d.lignes[2].cumul), 24);
+  assert.match(d.lignes[2].commentaire, /Retour dans le service/);
+});

@@ -19,6 +19,19 @@
     var rMeme = h('input', { type: 'radio', name: nom, checked: o.mainleveeType === 'meme' });
     var cbInfo = h('input', { type: 'checkbox', checked: o.mainleveeInfoSansDelai });
     var cbAilleurs = h('input', { type: 'checkbox', checked: o.debutAilleurs });
+    var nomSoma = 'soma-' + Math.random().toString(36).slice(2, 7);
+    var CHOIX_SOMA = [
+      ['poursuite-service', 'La mesure continue, avec changement de lieu ; elle reste comptée au registre du service (isolement en B, contention en D pour cette période)'],
+      ['poursuite-registre', 'La mesure continue ; cette période est comptée dans un registre dédié (« Hébergement somatique », « Urgences »…)'],
+      ['suspension', 'La mesure est suspendue jusqu’au retour dans le service : cette période n’est comptée ni dans les délais JLD, ni au registre'],
+      ['arret', 'La mesure prend fin au départ ; une nouvelle mesure est saisie au retour si le psychiatre la décide']
+    ];
+    var radiosSoma = CHOIX_SOMA.map(function (c) { return { v: c[0], r: h('input', { type: 'radio', name: nomSoma, value: c[0], checked: o.somatique === c[0] }), t: c[1] }; });
+    var selRegistre = h('select', {}, h('option', { value: '', text: '— Choisir le service qui porte ce registre —' }),
+      U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle + ' (' + x.code + ')', selected: x.code === o.serviceSomatique }); }));
+    var blocRegistre = h('label', {}, 'Registre dédié', selRegistre, h('small', { class: 'muted', text: 'Créez au besoin ce service dans Établissement et services (ex. code SOMA, libellé « Hébergement somatique », sans CSI).' }));
+    function majSoma() { blocRegistre.hidden = !radiosSoma[1].r.checked; }
+    radiosSoma.forEach(function (x) { x.r.addEventListener('change', majSoma); }); majSoma();
     return h('section', { class: 'panneau' }, h('h2', { text: 'Cas particuliers' }),
       h('p', { class: 'muted', text: 'Situations moins fréquentes, à arbitrer par l’établissement. Chaque choix est tracé au journal.' }),
       h('h3', { text: 'Nouvelle mesure après une mainlevée du JLD' }),
@@ -30,11 +43,19 @@
       h('h3', { text: 'Mesure débutée avant l’arrivée dans le service' }),
       h('label', { class: 'case' }, cbAilleurs, h('span', { text: 'Proposer, dans la nouvelle mesure, la saisie d’une mesure débutée ailleurs (urgences, autre établissement, unité pour malades difficiles…)' })),
       h('p', { class: 'muted', text: 'On saisit l’heure de la décision initiale et le lieu d’origine. Les délais JLD et les cumuls partent de la décision initiale (durée totale de la mesure) ; le registre et les statistiques du service partent de l’arrivée. Le décompte JLD présente la partie antérieure sur une ligne distincte. Les étapes JLD déjà faites se saisissent ensuite avec le bouton JLD, à leur date.' }),
+      h('h3', { text: 'Passage en soins somatiques ou aux urgences pendant une mesure' }),
+      h('p', { class: 'muted', text: 'Le registre n’est pas demandé dans les services de soins somatiques : la règle varie selon les établissements. Bouton « Soins somatiques ou urgences… » dans le détail de la mesure, puis « Retour » à son retour. Le choix en vigueur au départ du patient est enregistré avec la saisie.' }),
+      h('div', { class: 'pile serre' }, radiosSoma.map(function (x) { return h('label', { class: 'case' }, x.r, h('span', { text: x.t })); })),
+      blocRegistre,
+      h('h3', { text: 'Transfert vers un autre service' }),
+      h('p', { class: 'muted', text: 'Bouton « Transfert vers un autre service… » dans le détail de la mesure : la mesure reste unique pour le JLD (mêmes délais, même cycle) et elle est répartie au registre entre les deux services, chacun avec sa numérotation. Les mesures en cours du patient sont transférées ensemble.' }),
       h('h3', { text: 'Fiches patient en double' }),
       h('p', { class: 'muted', text: 'Le cadre de santé peut fusionner deux fiches (onglet Patients, bouton « Fusionner »), après avoir vu l’effet sur les cumuls et les échéances JLD. La fusion est tracée et annulable. À la création d’un patient, une alerte signale les fiches proches (même IPP, même nom et prénom, ou même date de naissance et même nom ou prénom).' }),
       U.boutonEnregistrer(async function () {
+        if (radiosSoma[1].r.checked && !selRegistre.value) throw new Error('Choisissez le service qui porte le registre dédié aux soins somatiques ou aux urgences.');
         await U.enregistrerConfig([['casParticuliers', Object.assign({}, U.config().casParticuliers || {}, {
-          mainleveeType: rMeme.checked ? 'meme' : 'tout', mainleveeInfoSansDelai: cbInfo.checked, debutAilleurs: cbAilleurs.checked
+          mainleveeType: rMeme.checked ? 'meme' : 'tout', mainleveeInfoSansDelai: cbInfo.checked, debutAilleurs: cbAilleurs.checked,
+          somatique: radiosSoma.filter(function (x) { return x.r.checked; })[0].v, serviceSomatique: selRegistre.value
         })]]);
       }));
   }
@@ -42,8 +63,10 @@
   function resumeConfig(v) {
     var o = M.optionsCas({ casParticuliers: v });
     return 'alerte après mainlevée : ' + (o.mainleveeType === 'tout' ? 'toute nouvelle mesure' : 'même type') + ', information du JLD ' + (o.mainleveeInfoSansDelai ? 'sans délai' : 'selon les délais habituels') +
-      ', mesure débutée ailleurs ' + (o.debutAilleurs ? 'proposée' : 'non proposée');
+      ', mesure débutée ailleurs ' + (o.debutAilleurs ? 'proposée' : 'non proposée') + ', soins somatiques ou urgences : ' + LIB_SOMA[o.somatique] + (o.somatique === 'poursuite-registre' ? ' (' + U.libService(o.serviceSomatique) + ')' : '');
   }
+
+  var LIB_SOMA = { 'poursuite-service': 'mesure poursuivie, comptée au registre du service', 'poursuite-registre': 'mesure poursuivie, comptée au registre dédié', suspension: 'mesure suspendue jusqu’au retour', arret: 'fin de la mesure' };
 
   // ------------------------------------------------------------ Saisie
   /** Texte de l'alerte « mainlevée récente » (ou null). */
@@ -163,5 +186,5 @@
     return res;
   }
 
-  U.cas = { panneauAdmin: panneauAdmin, resumeConfig: resumeConfig, alerteMainlevee: alerteMainlevee, alerteDoublons: alerteDoublons, modaleFusion: modaleFusion, pairesProches: pairesProches, libFiche: libFiche };
+  U.cas = { LIB_SOMA: LIB_SOMA, panneauAdmin: panneauAdmin, resumeConfig: resumeConfig, alerteMainlevee: alerteMainlevee, alerteDoublons: alerteDoublons, modaleFusion: modaleFusion, pairesProches: pairesProches, libFiche: libFiche };
 })();

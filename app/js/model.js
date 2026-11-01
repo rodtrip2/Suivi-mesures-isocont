@@ -31,10 +31,10 @@
   // Types d'événements autorisés par rôle. L'IDE dispose en permanence des
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
   var DROITS = {
-    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION'],
-    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION'],   // mêmes droits que l'IDE
-    SECRETAIRE: ['JLD'],
-    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'CORRECTION', 'ANNULATION', 'STATS', 'FUSION'],
+    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS'],
+    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS'],   // mêmes droits que l'IDE
+    SECRETAIRE: ['JLD', 'RECOURS'],
+    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'CORRECTION', 'ANNULATION', 'STATS', 'FUSION'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -98,7 +98,11 @@
     // mainleveeType : 'tout' (toute nouvelle mesure) ou 'meme' (même type) dans les 48 h suivant une mainlevée du JLD ;
     // mainleveeInfoSansDelai : l'information du JLD de cette nouvelle mesure est due sans délai (art. L. 3222-5-1, II) ;
     // debutAilleurs : saisie d'une mesure débutée avant l'arrivée dans le service (urgences, autre établissement).
-    casParticuliers: { mainleveeType: 'tout', mainleveeInfoSansDelai: true, debutAilleurs: true },
+    // somatique : passage en soins somatiques ou aux urgences pendant une mesure — 'poursuite-service' (la mesure continue,
+    // lieu changé, comptée au registre du service), 'poursuite-registre' (comptée au registre du service `serviceSomatique`,
+    // ex. « Hébergement somatique » ou « Urgences »), 'suspension' (mesure suspendue jusqu'au retour, période non comptée),
+    // 'arret' (la mesure prend fin ; une nouvelle mesure est saisie au retour si besoin).
+    casParticuliers: { mainleveeType: 'tout', mainleveeInfoSansDelai: true, debutAilleurs: true, somatique: 'poursuite-service', serviceSomatique: '' },
     // Alertes de l'établissement (voir alertesConfig) : 'rappel' affiché à la saisie, ou 'information' d'une personne
     // à tracer dans un délai (0 = sans délai). services [] = tous. depuis : mesures saisies à partir de cette date.
     alertes: [
@@ -238,7 +242,7 @@
           origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', correctionImport: d.correctionImport || '', suite: d.suiteDe || '',
           // Import d'un registre : entrées d'origine (numéro, catégorie, période, soignants) et soignants cités
           entreesOrigine: d.entreesOrigine || null, professionnelsOrigine: d.professionnelsOrigine || '',
-          informations: {},
+          informations: {}, segments: null, somatique: null, recours: [],
           version: 1, champs: {}, evts: [e.id]
         };
         break;
@@ -281,6 +285,31 @@
         var ouverte = m.pauses.filter(function (x) { return x.reprise == null && (!d.pause || x.evt === d.pause); }).pop();
         if (ouverte) { ouverte.reprise = d.date; ouverte.evtReprise = e.id; }
         break;
+      case 'TRANSFERT':
+      case 'SOMATIQUE':
+      case 'SOMATIQUE_RETOUR':
+        if (typeof m.fin === 'number' || typeof d.date !== 'number' || d.date <= m.debut) break;
+        m.segments = m.segments || [{ debut: m.debut, service: m.service, lieu: m.lieu, csi: m.csi, exception: m.exception, nature: 'service' }];
+        if (e.type === 'TRANSFERT') {
+          m.segments.push({ debut: d.date, service: d.service, lieu: d.lieu || '', csi: !!d.csi, exception: !!d.exception, nature: 'service', transfert: true, evt: e.id });
+          m.service = d.service; m.lieu = d.lieu || ''; m.csi = !!d.csi; m.exception = !!d.exception; m.somatique = null;
+        } else if (e.type === 'SOMATIQUE') {
+          var mode = d.mode === 'suspension' || d.mode === 'poursuite-registre' ? d.mode : 'poursuite-service';
+          var seg = { debut: d.date, service: mode === 'poursuite-registre' && d.serviceRegistre ? d.serviceRegistre : m.service, lieu: d.lieu || 'Soins somatiques', csi: false, exception: false, nature: 'somatique', mode: mode, evt: e.id };
+          m.segments.push(seg);
+          m.somatique = { debut: d.date, lieu: seg.lieu, mode: mode, lieuAvant: m.lieu, csiAvant: m.csi };
+        } else {
+          var av = m.somatique || {};
+          m.segments.push({ debut: d.date, service: m.service, lieu: d.lieu || av.lieuAvant || m.lieu, csi: d.csi != null ? !!d.csi : !!av.csiAvant, exception: !!d.exception, nature: 'service', retour: true, evt: e.id });
+          m.lieu = d.lieu || av.lieuAvant || m.lieu; m.csi = d.csi != null ? !!d.csi : !!av.csiAvant; m.somatique = null;
+        }
+        m.segments.sort(function (a, b) { return a.debut - b.debut; });
+        break;
+      case 'RECOURS':
+        m.recours = m.recours || [];
+        m.recours.push({ nature: d.nature, auteur: d.auteur || '', date: d.date, decision: d.decision || null, commentaire: d.commentaire || '', evt: e.id, by: e.by });
+        if ((d.nature === 'DECISION' || d.nature === 'DECISION_APPEL') && d.decision === 'LEVEE') m.leveeJLD = true;
+        break;
       case 'INFORMATION':
         m.informations = m.informations || {};
         m.informations[d.regle] = { regle: d.regle, libelle: d.libelle || '', personne: d.personne || '', moyen: d.moyen || '', date: d.date, commentaire: d.commentaire || '', evt: e.id, by: e.by };
@@ -301,6 +330,8 @@
         ['debut', 'fin', 'lieu', 'csi', 'psychiatreDebut', 'psychiatreFin', 'modeHospi', 'exception', 'type', 'debutInitial', 'lieuInitial'].forEach(function (k) {
           if (ch[k] !== undefined) m[k] = ch[k];
         });
+        // Mesure découpée (transfert, soins somatiques) : le lieu corrigé est celui de la période en cours.
+        if (m.segments) ['lieu', 'csi', 'exception'].forEach(function (k) { if (ch[k] !== undefined) m.segments[m.segments.length - 1][k] = ch[k]; });
         break;
     }
   }
@@ -415,10 +446,11 @@
     var ms = listeMesures(st), retr = optionsPauses(st.config).retrancher;
     return ms.map(function (m) {
       var ailleurs = typeof m.debutInitial === 'number' && m.debutInitial < m.debut;
-      if (!retr && !ailleurs) return m;
+      var susp = suspensions(m, maintenant);
+      if (!retr && !ailleurs && !susp.length) return m;
       var x = Object.assign({}, m);
       if (ailleurs) { x.debutService = m.debut; x.debut = m.debutInitial; }
-      if (retr) x.exclusions = exclusions(m, maintenant, st.config);
+      if (retr || susp.length) x.exclusions = (retr ? exclusions(m, maintenant, st.config) : []).concat(susp).sort(function (a, b) { return a[0] - b[0]; });
       return x;
     });
   }
@@ -429,7 +461,43 @@
     o.mainleveeType = o.mainleveeType === 'meme' ? 'meme' : 'tout';
     o.mainleveeInfoSansDelai = o.mainleveeInfoSansDelai !== false;
     o.debutAilleurs = o.debutAilleurs !== false;
+    if (['poursuite-service', 'poursuite-registre', 'suspension', 'arret'].indexOf(o.somatique) < 0) o.somatique = 'poursuite-service';
+    o.serviceSomatique = String(o.serviceSomatique || '');
+    if (o.somatique === 'poursuite-registre' && !o.serviceSomatique) o.somatique = 'poursuite-service';
     return o;
+  }
+
+  /**
+   * Morceaux d'une mesure pour le registre : une mesure transférée ou passée en soins somatiques est répartie
+   * entre les services (et lieux) successifs ; une période de suspension n'est comptée nulle part.
+   * Sans découpage, la mesure elle-même.
+   */
+  function morceaux(m) {
+    if (!m.segments || m.segments.length < 2) return [m];
+    var segs = m.segments.slice().sort(function (a, b) { return a.debut - b.debut; }), res = [];
+    segs.forEach(function (sg, i) {
+      var d = i === 0 ? m.debut : Math.max(sg.debut, m.debut);
+      var f = i + 1 < segs.length ? segs[i + 1].debut : (typeof m.fin === 'number' ? m.fin : null);
+      if (typeof m.fin === 'number') { if (d >= m.fin) return; if (f !== null && f > m.fin) f = m.fin; }
+      if (f !== null && f <= d) return;
+      if (sg.mode === 'suspension') return;
+      res.push(Object.assign({}, m, { debut: d, fin: f, service: sg.service, lieu: sg.lieu, csi: sg.csi, exception: sg.exception, morceau: i, nature: sg.nature, debutMesure: m.debut }));
+    });
+    return res;
+  }
+
+  /** Périodes de suspension d'une mesure (soins somatiques, réglage « suspension ») : non comptées dans les durées. */
+  function suspensions(m, maintenant) {
+    if (!m.segments) return [];
+    var segs = m.segments.slice().sort(function (a, b) { return a.debut - b.debut; }), res = [];
+    var limite = typeof m.fin === 'number' ? m.fin : maintenant;
+    segs.forEach(function (sg, i) {
+      if (sg.mode !== 'suspension') return;
+      var f = i + 1 < segs.length ? segs[i + 1].debut : limite;
+      f = Math.min(f, limite);
+      if (f > sg.debut) res.push([sg.debut, f]);
+    });
+    return res;
   }
 
   /** Mainlevées ordonnées par le JLD : [{ date, mesure, type, patientId }]. */
@@ -440,6 +508,9 @@
       Object.keys(m.jld || {}).forEach(function (c) {
         var dec = m.jld[c].DECISION;
         if (dec && dec.decision === 'LEVEE' && typeof dec.date === 'number') res.push({ date: dec.date, mesure: m, type: m.type, patientId: patientId });
+      });
+      (m.recours || []).forEach(function (r) {
+        if ((r.nature === 'DECISION' || r.nature === 'DECISION_APPEL') && r.decision === 'LEVEE' && typeof r.date === 'number') res.push({ date: r.date, mesure: m, type: m.type, patientId: patientId, recours: r.nature });
       });
     });
     return res.sort(function (a, b) { return a.date - b.date; });
@@ -478,7 +549,7 @@
   /** Durée décomptée d'une mesure (heures) ; avec `config`, les pauses sont retranchées si l'option est active. */
   function dureeHeures(m, maintenant, config) {
     var fin = typeof m.fin === 'number' ? m.fin : maintenant;
-    return rules.heuresEffectives({ exclusions: exclusions(m, maintenant, config) }, m.debut, fin);
+    return rules.heuresEffectives({ exclusions: exclusions(m, maintenant, config).concat(suspensions(m, maintenant)) }, m.debut, fin);
   }
 
   /** Dernière information du tiers pour le cycle courant (ou null). */
@@ -526,6 +597,10 @@
     var age = d.getFullYear() - n.getFullYear() - ((d.getMonth() < n.getMonth() || (d.getMonth() === n.getMonth() && d.getDate() < n.getDate())) ? 1 : 0);
     return age < 18;
   }
+
+  // Motifs de fin de mesure (le premier est la décision médicale ordinaire).
+  var MOTIFS_FIN = ['Décision médicale', 'Suite à la mainlevée du JLD', 'Sortie du patient', 'Transfert hors de l’établissement',
+    'Passage en soins somatiques ou aux urgences', 'Fugue', 'Décès', 'Autre'];
 
   // ------------------------------------------------------- Fiches en double
   function normaliserNom(t) {
@@ -806,7 +881,8 @@
   }
 
   function entreesRegistre(st, service, maintenant) {
-    var ms = listeMesures(st).filter(function (m) { return m.service === service && typeof m.debut === 'number'; });
+    var ms = [];
+    listeMesures(st).forEach(function (m) { if (typeof m.debut === 'number') morceaux(m).forEach(function (x) { if (x.service === service) ms.push(x); }); });
     var entrees = [];
     ms.forEach(function (m) {
       var fin = typeof m.fin === 'number' ? m.fin : null;
@@ -1224,17 +1300,25 @@
       lignes.push({ type: 'mesure', mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
     }
     function lignePause(q, d, f) {
+      if (q.suspension) {
+        lignes.push({ type: 'pause', suspension: true, mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'SUSPENDUE',
+          commentaire: 'Mesure suspendue pendant les soins somatiques ou aux urgences (' + q.lieu + ') : durée non ajoutée au cumul, règle de l’établissement.' });
+        return;
+      }
       lignes.push({ type: 'pause', mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'PAUSE',
         commentaire: 'Pause : ' + libPause(q.pause) + '. Durée déduite, non ajoutée au cumul.' + (q.nonConfirmee ? ' Reprise non saisie : la durée est de nouveau comptée à partir de l’heure de reprise prévue.' : '') });
     }
     /** Découpe [d, f] d'une mesure aux bornes `grille` et aux pauses déduites ; appelle `ligne(d, f, apresPause, premiere)`. */
     function parcourir(x, d, f, grille, ligne) {
-      var plages = deduire ? plagesPauses(x, reference).filter(function (q) { return q.debut < f && q.fin > d; }) : [];
+      var plages = (deduire ? plagesPauses(x, reference) : []).concat(suspensions(x, reference).map(function (z) {
+        var sg = (x.segments || []).filter(function (y) { return y.debut === z[0]; })[0] || {};
+        return { debut: z[0], fin: z[1], suspension: true, lieu: sg.lieu || 'soins somatiques' };
+      })).filter(function (q) { return q.debut < f && q.fin > d; }).sort(function (a, b) { return a.debut - b.debut; });
       var coupe = x.debutService && x.debutService > d && x.debutService < f ? x.debutService : null;   // arrivée dans le service
       var t = d, apresPause = false, premiere = true, k = 0;
       while (t < f || (premiere && t === f)) {
         var q = plages.filter(function (z) { return z.debut <= t && z.fin > t; })[0];
-        if (q) { var fp = Math.min(q.fin, f); lignePause(q, t, fp); t = fp; apresPause = true; premiere = false; continue; }
+        if (q) { var fp = Math.min(q.fin, f); lignePause(q, t, fp); t = fp; apresPause = q.suspension ? 'suspension' : true; premiere = false; continue; }
         while (grille && grille(k) <= t) k++;
         var suivante = Math.min(f, grille ? grille(k) : f);
         plages.forEach(function (z) { if (z.debut > t && z.debut < suivante) suivante = z.debut; });
@@ -1263,7 +1347,7 @@
       nTranche++;
       // Le statut est celui de la mesure (et non de la tranche) : une mesure en cours l'est sur toutes ses lignes.
       var lieuAvant = m.debutService && a < m.debutService ? ' — ' + (m.lieuInitial || 'avant l’arrivée dans le service') + ' (avant l’arrivée dans le service)' : '';
-      ligneMesure(m, a, b, (m.debutService && a === m.debutService ? 'Arrivée dans le service, suite de la même mesure' : premiere ? 'Début de la mesure' + lieuAvant : apres ? 'Reprise de la mesure après levée temporaire' + (pas ? ' (tranche ' + nTranche + ')' : '') : 'Suite de la même mesure (tranche ' + nTranche + ')'), mesureFinie ? 'TERMINÉE' : 'EN COURS');
+      ligneMesure(m, a, b, (m.debutService && a === m.debutService ? 'Arrivée dans le service, suite de la même mesure' : premiere ? 'Début de la mesure' + lieuAvant : apres === 'suspension' ? 'Retour dans le service : reprise de la mesure' : apres ? 'Reprise de la mesure après levée temporaire' + (pas ? ' (tranche ' + nTranche + ')' : '') : 'Suite de la même mesure (tranche ' + nTranche + ')'), mesureFinie ? 'TERMINÉE' : 'EN COURS');
     });
     // N° : numéro de la mesure dans le décompte, suivi du numéro de tranche si elle occupe plusieurs lignes (2.1, 2.2…).
     var parMesure = {}, rang = {};
@@ -1275,7 +1359,7 @@
       l.n = parMesure[l.mesure] > 1 ? l.mesure + '.' + rang[l.mesure] : String(l.mesure);
     });
     var dernier = lignes[lignes.length - 1];
-    if (dernier && dernier.type === 'pause' && !mesureFinie) dernier.statut = 'PAUSE EN COURS';
+    if (dernier && dernier.type === 'pause' && !mesureFinie) dernier.statut = dernier.suspension ? 'SUSPENDUE (EN COURS)' : 'PAUSE EN COURS';
     return {
       lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: !mesureFinie, reference: fin, fenetreDebut: borne,
       tranches: lignes.some(function (l) { return /\./.test(l.n); }), tranche: tranche, debutService: m.debutService || null, lieuInitial: m.lieuInitial || '', apresMainlevee: apresMainlevee(st, m),
@@ -1293,7 +1377,7 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
-    optionsCas: optionsCas, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
+    optionsCas: optionsCas, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
     DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
     reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

@@ -53,7 +53,7 @@
         case 'N': return String(l.n);
         case 'Debut': return U.date(l.debut);
         case 'Fin': return U.date(l.fin);
-        case 'Duree': return l.type === 'pause' ? formatDuree(l.duree, masque.formatDuree) + ' (déduite)' : formatDuree(l.duree, masque.formatDuree);
+        case 'Duree': return l.type === 'pause' ? formatDuree(l.duree, masque.formatDuree) + (l.suspension ? ' (suspendue)' : ' (déduite)') : formatDuree(l.duree, masque.formatDuree);
         case 'Cumul': return formatDuree(l.cumul, masque.formatCumul);
         case 'Statut': return l.statut;
         default: return l.commentaire;
@@ -66,6 +66,7 @@
         if (x && typeof x.date === 'number' && x.date <= d.reference) envois.push('Cycle ' + c + ' — ' + LIB_NATURE[n] + ' le ' + U.date(x.date) + (x.decision ? ' (' + (x.decision === 'LEVEE' ? 'mainlevée' : 'maintien') + ')' : ''));
       });
     });
+    (m.recours || []).forEach(function (r) { if (r.date <= d.reference) envois.push(U.parcours.libRecours(r)); });
     var tiers = m.tiers.filter(function (t) { return t.date <= d.reference; }).map(function (t) {
       return 'Cycle ' + t.cycle + ' — ' + (U.LIB_TIERS[t.statut] || t.statut) + (t.personne ? ' (' + t.personne + ')' : '') + ' le ' + U.date(t.date) + ', par ' + (t.informateur === 'IDE' ? 'l’IDE' : (t.nomInformateur || 'le psychiatre'));
     });
