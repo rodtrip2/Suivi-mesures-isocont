@@ -20,7 +20,7 @@ Le DPI couvre la prescription médicale et la surveillance infirmière. Cet outi
 | Report des décisions de début et de fin, changement de lieu, patients et mode d'hospitalisation | IDE, AS, cadre |
 | Échéances JLD calculées (cumul 15 jours, cycles, rythme des mesures longues, mainlevée), alertes | tous |
 | Envois JLD (information, saisine, décision), décompte imprimable | secrétaire, IDE et AS (en permanence, usage prévu le week-end) |
-| Information des tiers par cycle (psychiatre, IDE en dernier recours) | IDE, AS, cadre |
+| Information des tiers par cycle (psychiatre ou autre fonction paramétrable) | IDE, AS, cadre |
 | Professionnels chargés de la surveillance en CSI, par poste | IDE, AS, cadre |
 | Registre anonymisé A–E, statistiques annuelles N/N-1, exports | cadre |
 | Corrections et annulations tracées, arbitrage des saisies concurrentes | cadre |
