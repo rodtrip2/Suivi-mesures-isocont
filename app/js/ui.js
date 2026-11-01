@@ -1449,7 +1449,15 @@
       h('blockquote', {},
         h('p', { text: '« Le médecin informe du renouvellement de ces mesures au moins un membre de la famille du patient, en priorité son conjoint, le partenaire lié à lui par un pacte civil de solidarité ou son concubin, ou une personne susceptible d’agir dans son intérêt dès lors qu’une telle personne est identifiée, dans le respect de la volonté du patient et du secret médical. »' }),
         h('p', { text: '« Le médecin réitère l’information susmentionnée lors de chaque saisine du juge des libertés et de la détention. »' })),
-      h('small', { class: 'muted', text: 'Version en vigueur depuis le 1er septembre 2024. Les mots « ou une personne susceptible d’agir dans son intérêt dès lors qu’une telle personne est identifiée » ont été déclarés contraires à la Constitution (Conseil constitutionnel, décision n° 2024-1127 QPC du 5 mars 2025, rendue sur la rédaction issue de la loi du 22 janvier 2022), au motif que la loi n’imposait pas d’informer la personne chargée d’une mesure de protection juridique. Pour un majeur protégé, informer aussi, par prudence, son tuteur ou son curateur.' }));
+      h('small', { class: 'muted', text: 'Version en vigueur depuis le 1er septembre 2024.' }),
+      h('div', { class: 'note-qpc' },
+        h('b', { text: 'À savoir : décision du Conseil constitutionnel n° 2024-1127 QPC du 5 mars 2025' }),
+        h('ul', {},
+          h('li', {}, h('b', { text: 'Situation visée : ' }), 'le renouvellement d’un isolement ou d’une contention chez un patient majeur protégé (tutelle, curatelle…).'),
+          h('li', {}, h('b', { text: 'Ce qui a été jugé : ' }), 'la loi n’obligeait pas à informer la personne chargée de la mesure de protection. Or un majeur protégé peut ne pas être en état de défendre seul ses droits, notamment de demander au juge la levée de la mesure. Le Conseil y a vu une atteinte au droit à un recours effectif devant un juge.'),
+          h('li', {}, h('b', { text: 'Effet sur le texte : ' }), 'les mots « ou une personne susceptible d’agir dans son intérêt dès lors qu’une telle personne est identifiée » ont été déclarés contraires à la Constitution et ne sont plus applicables. Les mesures prises avant la décision ne peuvent pas être contestées pour ce motif.'),
+          h('li', {}, h('b', { text: 'En pratique : ' }), 'informer la famille comme prévu ci-dessus et, pour un patient majeur protégé, informer aussi son tuteur ou son curateur à chaque renouvellement.'),
+          h('li', {}, h('b', { text: 'Point à faire confirmer : ' }), 'la décision a été rendue sur la rédaction de l’article issue de la loi du 22 janvier 2022 ; Légifrance la signale sur la version actuelle, qui reprend les mêmes mots. Sa portée exacte est à valider par la direction des affaires juridiques de l’établissement.'))));
   }
 
   function modaleTiers(m) {
@@ -1470,7 +1478,7 @@
     })) : null;
     modale('Information du tiers — cycle ' + m.cycle, h('div', { class: 'pile' }, recapMesure(m), historique,
       h('p', { class: 'muted' }, h('small', { text: 'L’article L. 3222-5-1 confie cette information au médecin ; l’établissement précise qui la réalise selon son organisation. Elle doit être renouvelée à chaque cycle, en même temps que l’information ou la saisine du juge.' })),
-      patient(m.patientId).protection ? h('div', { class: 'alerte-etab information' }, h('b', { text: 'Patient sous ' + patient(m.patientId).protection.toLowerCase() + ' : informer aussi la personne chargée de la mesure de protection (voir le texte de loi).' })) : null,
+      patient(m.patientId).protection ? h('div', { class: 'alerte-etab information' }, h('b', { text: 'Patient sous ' + patient(m.patientId).protection.toLowerCase() + ' : à chaque renouvellement, informer aussi la personne chargée de la mesure de protection (tuteur, curateur…), en plus de la famille. Voir « À savoir » sous le texte de loi.' })) : null,
       extraitLoiTiers(false),
       h('div', { class: 'grille-2' }, h('label', {}, 'Résultat', statut), h('label', {}, 'Tiers (qualité)', personne)),
       h('div', { class: 'grille-2' }, h('label', {}, 'Information faite par', informateur), h('label', {}, 'Date et heure', quand)),

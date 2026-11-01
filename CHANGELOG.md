@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.32.2 — 1er novembre 2026
+
+- **Information du tiers** : explication de la décision n° 2024-1127 QPC réécrite en clair, sous l'extrait de loi (situation visée, ce qui a été jugé, effet sur le texte, ce qu'il faut faire en pratique, point à faire confirmer) ; rappel plus explicite pour un patient sous protection juridique.
+
 ## 1.32.1 — 1er novembre 2026
 
 - **Information du tiers** : extrait de l'article L. 3222-5-1, II (« Le médecin informe du renouvellement de ces mesures… », « Le médecin réitère… ») dans la fenêtre *Tiers* et dans le réglage des fonctions, avec la mention de la décision du Conseil constitutionnel n° 2024-1127 QPC du 5 mars 2025. Rappel, pour un patient sous protection juridique, d'informer aussi la personne chargée de la mesure de protection.
