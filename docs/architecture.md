@@ -74,3 +74,7 @@ Voir la fiche technique : chiffrement, politique de sécurité du contenu, modè
 ## 8. Évolutions envisagées
 
 Rotation de la clé de données, export du registre au format tableur natif, interopérabilité avec le DPI (lecture des décisions), notifications.
+
+## Enregistrement en PDF
+
+`app/js/pdf.js` écrit les fichiers PDF du décompte JLD sans bibliothèque externe : polices standard Helvetica (codage WinAnsi, accents français), paragraphes et tableaux avec retour à la ligne et saut de page (en-tête de tableau répété), aplats et filets, image JPEG du papier à en-tête (première page ou toutes), numéros de page. Le contenu est celui du document imprimé (`contenu()` dans `ui-decompte.js`).

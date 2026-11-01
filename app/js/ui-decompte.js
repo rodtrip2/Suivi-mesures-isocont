@@ -43,7 +43,7 @@
       patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim() || '—',
       naissance: dateNaissance(p.naissance), ipp: p.ipp || '—', service: U.libService(m.service),
       modeHospi: mode ? mode + (defMode ? ' — ' + defMode.libelle : '') : '—', protection: p.protection || 'Aucune',
-      mesure: m.type + ' décidée le ' + U.date(m.debut), lieu: m.lieu || (m.csi ? 'CSI' : 'Hors CSI'), psychiatre: m.psychiatreDebut || '—'
+      mesure: m.type + ' - décidée le ' + U.date(m.debut), lieu: m.lieu || (m.csi ? 'CSI' : 'Hors CSI'), psychiatre: m.psychiatreDebut || '—'
     };
     var identite = masque.identite.map(function (k) { return [LIB_IDENTITE[k].replace(/ \(.*\)$/, ''), valeurs[k]]; });
     if (masque.sections.periode) identite.push(['Période analysée', 'du ' + U.date(d.fenetreDebut) + ' au ' + U.date(d.reference) + ' (15 jours glissants avant le début de la mesure, puis la mesure)']);
@@ -194,6 +194,80 @@
     return '﻿' + lignes.map(function (l) { return l.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
   }
 
+  /**
+   * Décompte en PDF, sans passer par l'impression : même contenu et même masque que le document imprimé
+   * (papier à en-tête, marges, sections, mise en évidence), numéros de page en bas à droite.
+   */
+  function pdf(etat, m, reference, masque, options) {
+    options = options || {};
+    var c = contenu(etat, m, reference, masque), s = masque.sections;
+    var images = options.images || etat.config.imagesDecompte || {};
+    var fond = masque.fond && images[masque.fond];
+    var doc = new SIC.pdf.Document({ titre: c.titre, auteur: options.auteur || '', marges: masque.marges, fond: fond ? fond.donnees : null, fondPages: masque.fondPages,
+      piedDePage: function (n, total) { return 'Page ' + n + ' / ' + total; } });
+    var G = doc.mg.g, L = doc.largeurUtile;
+    if (masque.confidentiel) doc.paragraphe('DOCUMENT CONFIDENTIEL — DONNÉES PERSONNELLES DE SANTÉ', { taille: 8.5, style: 'gras', aligne: 'centre', cadre: true, apres: 8 });
+    if (masque.entete || masque.destinataire) {
+      var y0 = doc.y;
+      if (masque.entete) doc.paragraphe(masque.entete, { taille: 9, largeur: L * 0.55, apres: 0 });
+      var yE = doc.y; doc.y = y0;
+      if (masque.destinataire) doc.paragraphe(masque.destinataire, { taille: 9, x: G + L * 0.58, largeur: L * 0.42, apres: 0 });
+      doc.y = Math.min(yE, doc.y) - 10;
+    }
+    var etab = [U.etablissement(), U.libService(m.service)].filter(Boolean).join(' — ');
+    if (etab) doc.paragraphe(etab, { taille: 8.5, rgb: [0.35, 0.35, 0.35], apres: 2 });
+    doc.paragraphe(c.titre, { taille: 15, style: 'gras', apres: masque.sousTitre ? 2 : 8 });
+    if (masque.sousTitre) doc.paragraphe(masque.sousTitre, { taille: 10, rgb: [0.3, 0.3, 0.3], apres: 8 });
+    if (c.identite.length) doc.tableau({ lignes: c.identite, poids: [32, 68], taille: 8.5, colonneGrasse: 0 });
+    if (c.entetes.length) {
+      var POIDS = { 'N°': 6, 'Début': 13, 'Fin ou référence': 13, 'Durée': 11, 'Cumul': 12, 'Statut': 10, 'Commentaire': 30 };
+      var ev = masque.miseEnEvidence;
+      doc.tableau({ entetes: c.entetes, lignes: c.lignes, poids: c.entetes.map(function (t) { return POIDS[t] || 12; }), taille: 7.5,
+        styles: function (i) {
+          var pause = c.typesLignes[i] === 'pause', act = c.actuelles[i];
+          var st = pause ? { fond: [0.925, 0.925, 0.925], style: 'italique', rgb: [0.27, 0.27, 0.27], pointille: true } : {};
+          if (act && (ev === 'actuelle' || ev === 'les-deux')) { st.fond = pause ? [0.953, 0.918, 0.816] : [1, 0.953, 0.769]; if (!pause) st.style = 'gras'; }
+          if (!act && (ev === 'anterieures' || ev === 'les-deux')) { st.rgb = [0.54, 0.54, 0.54]; if (!pause) st.fond = [0.965, 0.965, 0.965]; }
+          return st;
+        } });
+      if (masque.colonnes.indexOf('N') >= 0) doc.paragraphe('N° : numéro de la mesure dans le décompte' + (c.d.tranches ? ', suivi du numéro de tranche quand une même mesure est présentée sur plusieurs lignes (2.1, 2.2…)' : '') + '.', { taille: 7, rgb: [0.35, 0.35, 0.35], apres: 6 });
+    }
+    if (s.total) doc.paragraphe(c.total, { taille: 9, style: 'gras', apres: 5 });
+    if (s.cycle) doc.paragraphe(c.cycle, { taille: 9, apres: 5 });
+    function liste(titre, items, vide) {
+      doc.paragraphe(titre, { taille: 9, style: 'gras', apres: 2 });
+      if (items.length) doc.liste(items, 8.5); else doc.paragraphe(vide, { taille: 8.5 });
+    }
+    if (s.jld) liste('Envois au juge des libertés et de la détention', c.envois, 'Aucun envoi enregistré.');
+    if (s.tiers) liste('Information du tiers', c.tiers, 'Non renseignée.');
+    if (s.pauses && c.pauses.length) {
+      doc.paragraphe('Levées temporaires de la mesure (pauses)', { taille: 9, style: 'gras', avant: 4, apres: 2 });
+      doc.paragraphe(c.explicationPauses, { taille: 8, rgb: [0.25, 0.25, 0.25], apres: 4 });
+      doc.tableau({ entetes: ['Début de la pause', 'Reprise', 'Durée', 'Motif', 'Décidée par', 'Prise en compte'], poids: [15, 19, 11, 17, 15, 23], taille: 7.5,
+        lignes: c.pauses.map(function (x) { return [x.debut, x.reprise, x.duree, x.motif, x.psychiatre, x.prise]; }) });
+    }
+    if (masque.piedPage) doc.paragraphe(masque.piedPage, { taille: 8.5, avant: 4 });
+    if (masque.signature) {
+      doc.y -= 8;
+      doc.paragraphe('Fait le ' + U.date(Date.now()).split(' ')[0], { taille: 9, x: G + L * 0.55, largeur: L * 0.45, apres: 2 });
+      doc.paragraphe(masque.signature, { taille: 9, x: G + L * 0.55, largeur: L * 0.45, apres: 8 });
+    }
+    var edition = '';
+    if (s.dateEdition && s.auteur && options.auteur) edition = 'Édité le ' + U.date(Date.now()) + ' par ' + options.auteur + '.';
+    else if (s.dateEdition) edition = 'Édité le ' + U.date(Date.now()) + '.';
+    else if (s.auteur && options.auteur) edition = 'Édité par ' + options.auteur + '.';
+    var mentions = [edition];
+    if (s.mentionLegale) mentions.push('Décompte calculé selon l’article L. 3222-5-1 du code de la santé publique (périodes qui se chevauchent comptées une seule fois' + (c.d.pausesRetranchees ? ' ; durée des levées temporaires déduite du cumul' : '') + ').');
+    mentions = mentions.filter(Boolean);
+    if (mentions.length) { doc.y -= 4; doc.filet(G, doc.y, G + L, doc.y); doc.y -= 3; doc.paragraphe(mentions.join(' '), { taille: 7, rgb: [0.35, 0.35, 0.35] }); }
+    return doc.octets();
+  }
+
+  function telechargerPDF(octets, nom) {
+    var a = h('a', { href: URL.createObjectURL(new Blob([octets], { type: 'application/pdf' })), download: nom });
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
   function telecharger(texte, nom) {
     var a = h('a', { href: URL.createObjectURL(new Blob([texte], { type: 'text/csv;charset=utf-8' })), download: nom });
     document.body.appendChild(a); a.click(); a.remove();
@@ -214,18 +288,26 @@
       h('label', {}, 'Date et heure de référence (en général : maintenant)', ref),
       h('small', { class: 'muted', text: 'Masque : ' + (masque.propre ? 'propre au service ' + U.libService(m.service) : 'de l’établissement') + ' (modifiable par l’administrateur).' }),
       apercu,
-      h('small', { class: 'muted', text: 'Pour un PDF, choisissez « Enregistrer au format PDF » comme imprimante' + (masque.fond ? ', format A4, sans marges ajoutées par le navigateur (« Marges : par défaut »)' : '') + '. L’export CSV contient des données nominatives : enregistrez-le uniquement sur le réseau de l’établissement.' })), [
+      h('small', { class: 'muted', text: '« Enregistrer en PDF » crée directement le fichier, sans passer par l’impression (masque et papier à en-tête compris).' + (masque.fond ? ' Pour imprimer : format A4, marges « par défaut ».' : '') + ' Le PDF' + (masque.exportCSV ? ' et l’export CSV contiennent' : ' contient') + ' des données nominatives : enregistrez-les uniquement sur le réseau de l’établissement.' })), [
       { texte: 'Fermer' },
-      { texte: 'Exporter (CSV)', action: function () {
-        var p = etat.patients[m.patientId] || {};
-        telecharger(csv(etat, m, U.depuisSaisie(ref.value), masque), 'decompte_' + m.type.toLowerCase() + '_' + (p.ipp || m.patientId) + '_' + M.dateLocaleISO(U.depuisSaisie(ref.value)) + '.csv');
+      masque.exportCSV ? { texte: 'Exporter (CSV)', action: function () {
+        telecharger(csv(etat, m, U.depuisSaisie(ref.value), masque), nomFichier('csv'));
         return false;
-      } },
-      { texte: 'Imprimer / PDF', classe: 'primaire', action: function () {
+      } } : null,
+      { texte: 'Imprimer', action: function () {
         var doc = document_(etat, m, U.depuisSaisie(ref.value), masque, options);
         setTimeout(function () { U.imprimer(doc); }, 50);
         return true;
-      } }]);
+      } },
+      { texte: 'Enregistrer en PDF', classe: 'primaire', action: function () {
+        telechargerPDF(pdf(etat, m, U.depuisSaisie(ref.value), masque, options), nomFichier('pdf'));
+        U.toast('PDF enregistré (dossier des téléchargements) : rangez-le sur le réseau de l’établissement.');
+        return false;
+      } }].filter(Boolean));
+    function nomFichier(ext) {
+      var p = etat.patients[m.patientId] || {};
+      return 'decompte_' + m.type.toLowerCase() + '_' + (p.ipp || m.patientId) + '_' + M.dateLocaleISO(U.depuisSaisie(ref.value)) + '.' + ext;
+    }
     setTimeout(maj, 0);
   };
 
@@ -292,6 +374,7 @@
       var tIso = champ(mq.titreIsolement), tCont = champ(mq.titreContention), sous = champ(mq.sousTitre);
       var entete = zoneT(mq.entete), dest = zoneT(mq.destinataire), pied = zoneT(mq.piedPage, 2), sign = zoneT(mq.signature, 3);
       var conf = h('input', { type: 'checkbox', checked: mq.confidentiel });
+      var cbCSV = h('input', { type: 'checkbox', checked: mq.exportCSV });
       var casesIdentite = {}, casesSections = {};
       var blocIdentite = h('div', { class: 'cases-ligne' }, M.IDENTITE_DECOMPTE.map(function (k) {
         casesIdentite[k] = h('input', { type: 'checkbox', checked: mq.identite.indexOf(k) >= 0 });
@@ -359,7 +442,7 @@
           sections: M.SECTIONS_DECOMPTE.reduce(function (o, k) { o[k] = casesSections[k].checked; return o; }, {}),
           piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, ''),
           formatDuree: fmtDuree.value, formatCumul: fmtCumul.value,
-          miseEnEvidence: selEv.value,
+          miseEnEvidence: selEv.value, exportCSV: cbCSV.checked,
           trancheIsolement: Math.max(0, Math.min(168, +trIso.value || 0)), trancheContention: Math.max(0, Math.min(168, +trCont.value || 0)),
           fond: selFond.value, fondPages: selPages.value,
           marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
@@ -416,6 +499,7 @@
           h('label', {}, 'Sous-titre', sous),
           h('div', { class: 'grille-2' }, h('label', {}, 'En-tête (adresse, service, téléphone…)', entete), h('label', {}, 'Destinataire (affiché à droite)', dest)),
           h('label', { class: 'case' }, conf, h('span', { text: 'Bandeau « Document confidentiel — données personnelles de santé »' })),
+          h('label', { class: 'case' }, cbCSV, h('span', { text: 'Proposer aussi l’export CSV du décompte (fichier nominatif ; désactivé par défaut)' })),
           h('fieldset', {}, h('legend', { text: 'Données d’identité exportées' }), blocIdentite),
           h('fieldset', {}, h('legend', { text: 'Colonnes du tableau (cochées = exportées, dans cet ordre)' }), listeCol,
             h('div', { class: 'grille-2' }, h('label', {}, 'Format de la colonne Durée (et des pauses)', fmtDuree), h('label', {}, 'Format du cumul et des totaux', fmtCumul)),

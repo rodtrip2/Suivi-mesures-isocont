@@ -88,7 +88,8 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - **Masques** : un masque d'établissement et, si besoin, un masque propre à chaque service (héritage). Réglages : titres, sous-titre, en-tête, destinataire, bandeau confidentiel, données d'identité, colonnes (choix et ordre), sections (dont **date d'édition et auteur séparés**), pied de page, bloc signature, **papier à en-tête** (image A4, toutes les pages ou la première, marges en mm), **format des durées et du cumul** (heures, jours, ou les deux), **durée maximale d'une ligne** par type (24 h isolement, 12 h contention ; 0 = une ligne), **mise en évidence** (mesure actuelle en surbrillance et/ou mesures antérieures grisées).
 - Le **statut est celui de la mesure** (en cours sur toutes ses tranches). N° = numéro de la mesure dans le décompte, suivi du numéro de tranche (2.1, 2.2…), avec légende.
 - Pauses déduites : chaque pause **interrompt le tableau** par une ligne « PAUSE » grisée (durée « (déduite) », cumul inchangé), puis « Reprise de la mesure après levée temporaire ». Tableau des pauses précédé d'une phrase qui explique la règle de l'établissement.
-- Export impression / PDF et CSV (nominatif : à enregistrer sur le réseau de l'établissement).
+- Boutons **« Enregistrer en PDF »** (fichier produit directement par `app/js/pdf.js`, générateur PDF sans bibliothèque : Helvetica WinAnsi, tableaux, sauts de page, en-tête de tableau répété, papier à en-tête JPEG, numéros de page) et **« Imprimer »** ; **export CSV désactivable, désactivé par défaut** (`masque.exportCSV`, consigne du porteur). Fichiers nominatifs : à enregistrer sur le réseau de l'établissement.
+- Ligne d'identité « Mesure » : « Isolement - décidée le … » (tiret demandé par le porteur, pour éviter une lecture fautive de l'accord).
 
 ## 8. Statistiques et onglet Patients
 

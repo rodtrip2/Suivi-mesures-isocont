@@ -1466,7 +1466,9 @@
     // Mise en évidence : 'aucune', 'actuelle' (surbrillance de la mesure actuelle), 'anterieures' (mesures antérieures grisées), 'les-deux'
     miseEnEvidence: 'aucune',
     // Papier à en-tête : image de fond (identifiant dans config.imagesDecompte), sur toutes les pages ou la première, marges (mm).
-    fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 }
+    fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 },
+    // Export CSV du décompte (fichier nominatif) : proposé seulement si l'établissement l'active.
+    exportCSV: false
   };
 
   /**
@@ -1498,6 +1500,7 @@
     Object.keys(r.marges).forEach(function (k) { var v = +r.marges[k]; r.marges[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; });
     ['formatDuree', 'formatCumul'].forEach(function (k) { if (FORMATS_DUREE.indexOf(r[k]) < 0) r[k] = 'j'; });
     if (['aucune', 'actuelle', 'anterieures', 'les-deux'].indexOf(r.miseEnEvidence) < 0) r.miseEnEvidence = 'aucune';
+    r.exportCSV = r.exportCSV === true;
     [['trancheIsolement', 24], ['trancheContention', 12]].forEach(function (x) { var v = +r[x[0]]; r[x[0]] = isFinite(v) && v >= 0 ? Math.min(168, v) : x[1]; });
     if (r.fond && !((config && config.imagesDecompte) || {})[r.fond]) r.fond = '';
     r.propre = !!(service && service !== '*' && dec[service]);

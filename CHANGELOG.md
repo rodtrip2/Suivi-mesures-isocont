@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.33.0 — 2 novembre 2026
+
+- **Décompte JLD — « Enregistrer en PDF »** : le fichier PDF est produit directement, sans passer par la boîte d'impression (masque, papier à en-tête, marges, mise en évidence, bandeau confidentiel, numéros de page) ; bouton *Imprimer* distinct. Générateur PDF intégré, sans bibliothèque externe.
+- **Export CSV du décompte désactivable**, désactivé par défaut : case « Proposer aussi l'export CSV du décompte » dans le masque (établissement ou service).
+- Ligne d'identité « Mesure » : « Isolement - décidée le … » (et « Contention - décidée le … »).
+
 ## 1.32.2 — 1er novembre 2026
 
 - **Information du tiers** : explication de la décision n° 2024-1127 QPC réécrite en clair, sous l'extrait de loi (situation visée, ce qui a été jugé, effet sur le texte, ce qu'il faut faire en pratique, point à faire confirmer) ; rappel plus explicite pour un patient sous protection juridique.
