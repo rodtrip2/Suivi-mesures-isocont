@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.27.0 — 1er novembre 2026
+
+- **Comptes temporaires** (intérimaires, vacataires, stagiaires) : dernier jour d'accès à la création (y compris en lot) ou par *Modifier*, imprimé sur la fiche de remise ; connexion refusée après ce jour ; badges « expire le… » (7 jours) et « expiré » ; bouton *Désactiver les comptes expirés*.
+- **Correction proposée par l'IDE ou l'AS** en l'absence du cadre : la proposition n'est pas appliquée, elle est signalée (ligne de la mesure, détail, points de vigilance) jusqu'à ce que le cadre la valide ou la refuse avec un motif ; tout est tracé au journal.
+- **Patient détenu** : case dans la fiche et à la création du patient, badge dans l'onglet Patients, nouveau déclencheur d'alerte de l'établissement.
+- **Changement d'heure** : tests du passage à l'heure d'hiver et d'été (durées, tranches du décompte, échéances JLD, registre), calculés en heures réelles.
+
 ## 1.26.0 — 1er novembre 2026
 
 - **Transfert vers un autre service** (détail de la mesure) : la mesure reste unique pour le JLD et elle est répartie au registre entre les services ; mesures en cours du patient transférées ensemble ; lieux successifs dans le détail.

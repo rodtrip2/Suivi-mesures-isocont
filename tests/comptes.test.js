@@ -64,3 +64,13 @@ test('Accès au mode formation : accordé par défaut, désactivable, jamais pou
   assert.equal(M.accesFormation({ id: 'secours', roles: ['ADMIN'] }), false);
   assert.ok(!M.ROLES.FORMATEUR);
 });
+
+test('Validité d’un compte temporaire', () => {
+  const C = require('../app/js/comptes.js');
+  const t = new Date(2026, 10, 10, 15).getTime();
+  assert.deepEqual(C.validite({}, t).temporaire, false);
+  assert.equal(C.validite({ finValidite: '2026-11-10' }, t).expire, false);          // dernier jour inclus
+  assert.equal(C.validite({ finValidite: '2026-11-09' }, t).expire, true);
+  assert.equal(C.validite({ finValidite: '2026-11-15' }, t).bientot, true);
+  assert.equal(C.validite({ finValidite: '2026-12-15' }, t).bientot, false);
+});

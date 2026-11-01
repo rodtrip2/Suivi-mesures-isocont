@@ -19,6 +19,7 @@
       return h('label', { class: 'case' }, casesSv[x.code], h('span', { text: x.libelle }));
     }));
     var accesForm = h('input', { type: 'checkbox', checked: true });
+    var finLot = h('input', { type: 'date', min: M.dateLocaleISO(Date.now()) });
     var apercu = h('div', { class: 'pile' });
     var analyse = [];
 
@@ -60,6 +61,7 @@
       h('label', {}, 'ou fichier CSV', fichier),
       h('div', { class: 'grille-2' }, h('label', {}, 'Rôle par défaut', roleDefaut), h('div', {}, h('b', { text: 'Services par défaut' }), blocSv)),
       h('label', { class: 'case' }, accesForm, h('span', { text: 'Donner à ces comptes l’accès au mode formation' })),
+      h('label', {}, 'Dernier jour d’accès (comptes temporaires : intérimaires, vacataires, stagiaires — facultatif)', finLot),
       h('small', { class: 'muted', text: 'Rôles reconnus : IDE, AS (aide-soignant), Secrétaire, Cadre, Administrateur ; plusieurs rôles ou services séparés par des virgules. « tous » affecte tous les services. Chaque compte reçoit un mot de passe provisoire tiré au hasard, à changer obligatoirement à la première connexion.' }),
       apercu), [
       { texte: 'Annuler' },
@@ -68,7 +70,7 @@
         var valides = analyse.filter(function (r) { return !r.erreurs.length; });
         if (!valides.length) throw new Error('Aucun compte valide à créer.');
         if (valides.length < analyse.length && !confirm((analyse.length - valides.length) + ' ligne(s) en erreur seront ignorées. Créer les ' + valides.length + ' autres comptes ?')) return false;
-        var liste = valides.map(function (r) { return { nom: r.nom, login: r.login, roles: r.roles, services: r.roles.indexOf('ADMIN') >= 0 ? [] : r.services, motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true, formation: accesForm.checked }; });
+        var liste = valides.map(function (r) { return { nom: r.nom, login: r.login, roles: r.roles, services: r.roles.indexOf('ADMIN') >= 0 ? [] : r.services, motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true, formation: accesForm.checked, finValidite: finLot.value }; });
         U.vider(apercu).appendChild(h('div', { class: 'info', text: 'Chiffrement des mots de passe…' }));
         await session.creerComptes(liste, function (n, total) { apercu.firstChild.textContent = 'Chiffrement des mots de passe… ' + n + ' / ' + total; });
         setTimeout(function () { U.actions.fichesRemise(liste, liste.length + ' compte(s) créé(s)'); }, 0);
@@ -87,7 +89,8 @@
           h('tr', {}, h('th', { text: 'Identifiant' }), h('td', { class: 'mono', text: c.login })),
           h('tr', {}, h('th', { text: 'Mot de passe provisoire' }), h('td', { class: 'mono fort', text: c.motDePasse })),
           h('tr', {}, h('th', { text: 'Rôles' }), h('td', { text: libRoles(c.roles) })),
-          h('tr', {}, h('th', { text: 'Services' }), h('td', { text: libServices(c.roles, c.services) })))),
+          h('tr', {}, h('th', { text: 'Services' }), h('td', { text: libServices(c.roles, c.services) })),
+          c.finValidite ? h('tr', {}, h('th', { text: 'Accès jusqu’au' }), h('td', { text: c.finValidite.split('-').reverse().join('/') + ' inclus' })) : null)),
         h('p', { text: 'À votre première connexion, vous devrez remplacer ce mot de passe par un mot de passe personnel d’au moins 12 caractères. Détruisez ensuite cette fiche.' }));
     }));
   }

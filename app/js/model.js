@@ -31,10 +31,10 @@
   // Types d'événements autorisés par rôle. L'IDE dispose en permanence des
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
   var DROITS = {
-    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS'],
-    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS'],   // mêmes droits que l'IDE
+    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION'],
+    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD', 'RECOURS'],
-    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'CORRECTION', 'ANNULATION', 'STATS', 'FUSION'],
+    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'CORRECTION', 'REFUS_PROPOSITION', 'ANNULATION', 'STATS', 'FUSION'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -162,7 +162,7 @@
    */
   function reduire(evts) {
     var st = {
-      config: cloner(CONFIG_DEFAUT), fusions: {},
+      config: cloner(CONFIG_DEFAUT), fusions: {}, propositions: {},
       patients: {}, mesures: {}, professionnels: [], saisiesStats: {},
       conflits: [], annules: {}, journal: [], parId: {}, manquants: []
     };
@@ -217,7 +217,7 @@
 
       case 'PATIENT':
         var p = st.patients[d.patientId] || { id: d.patientId, modes: [] };
-        ['ipp', 'nom', 'prenom', 'naissance', 'protection', 'service'].forEach(function (k) { if (d[k] !== undefined) p[k] = d[k]; });
+        ['ipp', 'nom', 'prenom', 'naissance', 'protection', 'service', 'detenu'].forEach(function (k) { if (d[k] !== undefined) p[k] = d[k]; });
         st.patients[d.patientId] = p;
         break;
 
@@ -325,8 +325,17 @@
           else if (d.decision === 'MAINTIEN' && d.cycle === m.cycle) m.cycle += 1;
         }
         break;
+      case 'PROPOSITION':
+        st.propositions[e.id] = { id: e.id, mesureId: m.id, champs: d.champs || {}, motif: d.motif || '', by: e.by, at: e.at, statut: 'attente' };
+        break;
+      case 'REFUS_PROPOSITION':
+        var pr = st.propositions[d.proposition];
+        if (pr && pr.statut === 'attente') { pr.statut = 'refusee'; pr.decision = { by: e.by, at: e.at, motif: d.motif || '', evt: e.id }; }
+        break;
       case 'CORRECTION':
         var ch = d.champs || {};
+        var prop = d.proposition && st.propositions[d.proposition];
+        if (prop && prop.statut === 'attente') { prop.statut = 'acceptee'; prop.decision = { by: e.by, at: e.at, motif: d.motif || '', evt: e.id }; }
         ['debut', 'fin', 'lieu', 'csi', 'psychiatreDebut', 'psychiatreFin', 'modeHospi', 'exception', 'type', 'debutInitial', 'lieuInitial'].forEach(function (k) {
           if (ch[k] !== undefined) m[k] = ch[k];
         });
@@ -598,6 +607,13 @@
     return age < 18;
   }
 
+  /** Corrections proposées (par un IDE ou un AS) en attente de la décision du cadre. */
+  function propositionsEnAttente(st, filtre) {
+    return Object.keys(st.propositions || {}).map(function (k) { return st.propositions[k]; })
+      .filter(function (p) { return p.statut === 'attente' && st.mesures[p.mesureId] && (!filtre || filtre(st.mesures[p.mesureId])); })
+      .sort(function (a, b) { return a.at < b.at ? -1 : 1; });
+  }
+
   // Motifs de fin de mesure (le premier est la décision médicale ordinaire).
   var MOTIFS_FIN = ['Décision médicale', 'Suite à la mainlevée du JLD', 'Sortie du patient', 'Transfert hors de l’établissement',
     'Passage en soins somatiques ou aux urgences', 'Fugue', 'Décès', 'Autre'];
@@ -628,6 +644,7 @@
     'soins-libres': 'Patient en soins libres au début de la mesure',
     'mineur': 'Patient mineur',
     'protection': 'Patient sous protection juridique',
+    'detenu': 'Patient détenu',
     'contention-hors-csi': 'Contention hors chambre de soins intensifs',
     'isolement-hors-csi': 'Isolement hors chambre de soins intensifs',
     'contention': 'Toute contention',
@@ -646,6 +663,7 @@
     'mineur': 'Patient mineur : vigilance renforcée ; informer les titulaires de l’autorité parentale.',
     'protection': 'Patient sous mesure de protection juridique : informer la personne chargée de la mesure de protection.',
     'isolement-hors-csi': 'Isolement hors chambre de soins intensifs : situation qui doit rester très exceptionnelle, à motiver dans le dossier du patient.',
+    'detenu': 'Patient détenu (soins psychiatriques des personnes détenues, art. L. 3214-1 et suivants du code de la santé publique) : appliquer la procédure de l’établissement (information de l’établissement pénitentiaire, mesures de sécurité).',
     'contention': '', 'toute-mesure': ''
   };
   var DELAIS_ALERTE = [0, 15, 30, 60, 120, 240, 720, 1440];
@@ -669,7 +687,7 @@
     return {
       type: m.type, csi: !!m.csi, service: m.service,
       libre: !estContrainte(st.config, modeA(st, m.patientId, m.debut) || m.modeHospi),
-      mineur: estMineur(st, m.patientId, m.debut), protection: !!p.protection
+      mineur: estMineur(st, m.patientId, m.debut), protection: !!p.protection, detenu: !!p.detenu
     };
   }
 
@@ -678,6 +696,7 @@
       case 'soins-libres': return f.libre;
       case 'mineur': return f.mineur;
       case 'protection': return f.protection;
+      case 'detenu': return f.detenu;
       case 'contention-hors-csi': return f.type === 'Contention' && !f.csi;
       case 'isolement-hors-csi': return f.type === 'Isolement' && !f.csi;
       case 'contention': return f.type === 'Contention';
@@ -1377,7 +1396,7 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
-    optionsCas: optionsCas, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
+    optionsCas: optionsCas, propositionsEnAttente: propositionsEnAttente, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
     DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
     reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

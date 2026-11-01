@@ -112,5 +112,17 @@
     return res;
   }
 
-  return { analyser: analyser, identifiantDepuisNom: identifiantDepuisNom, norm: norm };
+  /**
+   * Validité d'un compte temporaire (intérimaire, vacataire, stagiaire) : `finValidite` = dernier jour
+   * d'accès (AAAA-MM-JJ, inclus). Retourne { temporaire, expire, bientot (7 jours ou moins), fin (ms), jours }.
+   */
+  function validite(compte, maintenant) {
+    var f = compte && compte.finValidite;
+    if (!f || !/^\d{4}-\d{2}-\d{2}$/.test(f)) return { temporaire: false, expire: false, bientot: false, fin: null, jours: null };
+    var x = f.split('-'), fin = new Date(+x[0], +x[1] - 1, +x[2] + 1).getTime();   // lendemain, 0 h
+    var jours = Math.ceil((fin - maintenant) / 86400000);
+    return { temporaire: true, expire: maintenant >= fin, bientot: maintenant < fin && jours <= 7, fin: fin, jours: jours };
+  }
+
+  return { analyser: analyser, identifiantDepuisNom: identifiantDepuisNom, norm: norm, validite: validite };
 });

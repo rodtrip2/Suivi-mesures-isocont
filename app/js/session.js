@@ -79,6 +79,8 @@
     await lireComptes(this);
     var u = this.comptes.filter(function (c) { return c.id === embs[0].userId; })[0];
     if (!u || !u.actif) { this.verrouiller(); throw new Error('Ce compte est désactivé.'); }
+    var val = SIC.comptes.validite(u, Date.now());
+    if (val.expire) { this.verrouiller(); throw new Error('Ce compte temporaire a expiré (dernier jour d’accès : ' + u.finValidite.split('-').reverse().join('/') + '). Demandez sa prolongation à l’administrateur.'); }
     this.utilisateur = u;
     await this.synchroniser();
   };
@@ -149,7 +151,7 @@
       var c = liste[i], id = 'u' + id8();
       var emb = await C.emballerMotDePasse(s.cle, c.motDePasse, c.aleatoire ? C.ITERATIONS_PROVISOIRE : undefined);
       emb.id = 'k' + id8(); emb.userId = id; emb.login = c.login;
-      prepares.push({ compte: { id: id, login: c.login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true, mdpProvisoire: true, formation: c.formation !== false }, emb: emb });
+      prepares.push({ compte: { id: id, login: c.login, nom: c.nom.trim(), roles: c.roles, services: c.services || [], actif: true, mdpProvisoire: true, formation: c.formation !== false, finValidite: c.finValidite || '' }, emb: emb });
       if (progres) progres(i + 1, liste.length);
     }
     await this.modifierCoffre(async function (coffre, comptes) {
@@ -158,21 +160,22 @@
       });
       prepares.forEach(function (p) { comptes.push(p.compte); coffre.emballages.push(p.emb); });
     });
-    if (prepares.length === 1) await this.tracer('CREATION', { login: prepares[0].compte.login, roles: prepares[0].compte.roles, services: prepares[0].compte.services });
+    if (prepares.length === 1) await this.tracer('CREATION', { login: prepares[0].compte.login, roles: prepares[0].compte.roles, services: prepares[0].compte.services, finValidite: prepares[0].compte.finValidite || undefined });
     else await this.tracer('CREATION_LOT', { comptes: prepares.map(function (p) { return { login: p.compte.login, roles: p.compte.roles, services: p.compte.services }; }) });
   };
 
   /** Modifie un compte. `formation` (facultatif) : accès au mode formation. */
-  Session.prototype.modifierRoles = async function (userId, roles, actif, services, formation) {
+  Session.prototype.modifierRoles = async function (userId, roles, actif, services, formation, finValidite) {
     await this.modifierCoffre(async function (coffre, comptes) {
       var c = comptes.filter(function (x) { return x.id === userId; })[0];
       if (!c) throw new Error('Compte introuvable.');
       c.roles = roles; c.actif = actif; c.services = services || [];
       if (typeof formation === 'boolean') c.formation = formation;
+      if (typeof finValidite === 'string') c.finValidite = finValidite;
       if (!actif) coffre.emballages = coffre.emballages.filter(function (e) { return e.userId !== userId; });
     });
     var c2 = this.comptes.filter(function (x) { return x.id === userId; })[0];
-    await this.tracer('ROLES', { login: c2 ? c2.login : userId, roles: roles, actif: actif, services: services || [], formation: c2 ? c2.formation !== false : undefined });
+    await this.tracer('ROLES', { login: c2 ? c2.login : userId, roles: roles, actif: actif, services: services || [], formation: c2 ? c2.formation !== false : undefined, finValidite: c2 && c2.finValidite ? c2.finValidite : undefined });
     if (userId === this.utilisateur.id && c2) this.utilisateur = c2;
   };
 

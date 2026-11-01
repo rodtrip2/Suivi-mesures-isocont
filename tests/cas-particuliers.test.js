@@ -148,3 +148,30 @@ test('Décompte : la suspension interrompt le tableau sans s’ajouter au cumul'
   assert.equal(Math.round(d.lignes[2].cumul), 24);
   assert.match(d.lignes[2].commentaire, /Retour dans le service/);
 });
+
+// ------------------------------------------------------------------ Lot 3
+test('Correction proposée par l’IDE : en attente, puis validée ou refusée par le cadre', () => {
+  const debutEvts = patient('P1').concat([mesureIso('M1', local(2026, 3, 1, 8))]);
+  const prop = evt('PROPOSITION', { mesureId: 'M1', champs: { debut: local(2026, 3, 1, 7) }, motif: 'heure mal saisie' });
+  const base = debutEvts.concat([prop]);
+  let st = M.reduire(base);
+  assert.equal(M.propositionsEnAttente(st).length, 1);
+  assert.equal(st.mesures.M1.debut, local(2026, 3, 1, 8));               // pas appliquée tant que non validée
+  st = M.reduire(base.concat([evt('CORRECTION', { mesureId: 'M1', champs: { debut: local(2026, 3, 1, 7) }, motif: 'validée', proposition: prop.id })]));
+  assert.equal(st.mesures.M1.debut, local(2026, 3, 1, 7));
+  assert.equal(st.propositions[prop.id].statut, 'acceptee');
+  assert.equal(M.propositionsEnAttente(st).length, 0);
+  st = M.reduire(base.concat([evt('REFUS_PROPOSITION', { mesureId: 'M1', proposition: prop.id, motif: 'heure exacte' })]));
+  assert.equal(st.propositions[prop.id].statut, 'refusee');
+  assert.equal(st.mesures.M1.debut, local(2026, 3, 1, 8));
+  assert.ok(M.peut(['IDE'], 'PROPOSITION') && !M.peut(['IDE'], 'CORRECTION') && M.peut(['CADRE'], 'REFUS_PROPOSITION'));
+});
+
+test('Patient détenu : déclencheur d’alerte', () => {
+  const st = M.reduire(patient('P1', 'SDRE', { detenu: true }).concat([
+    evt('CONFIG', { cle: 'alertes', valeur: [{ id: 'd', active: true, declencheur: 'detenu', nature: 'rappel' }] }),
+    mesureIso('M1', local(2026, 3, 1, 8))]));
+  assert.equal(st.patients.P1.detenu, true);
+  assert.deepEqual(M.alertesMesure(st, st.mesures.M1).map((r) => r.id), ['d']);
+  assert.match(M.alertesConfig(st.config)[0].message, /L\. 3214-1/);
+});

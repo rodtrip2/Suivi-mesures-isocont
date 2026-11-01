@@ -61,7 +61,7 @@
           var p = x.p, mode = U.modeActuel(p), depuis = p.modes.length ? p.modes[p.modes.length - 1].date : null;
           return h('tr', { class: x.enCours ? 'en-cours' : '' },
             h('td', { class: 'patient' }, h('b', { text: (p.nom || '?') + ' ' + (p.prenom || '') }), h('br'),
-              h('small', { text: 'IPP ' + (p.ipp || '—') + (p.naissance ? ' · né(e) le ' + p.naissance.split('-').reverse().join('/') : '') + (p.protection ? ' · ' + p.protection : '') })),
+              h('small', { text: 'IPP ' + (p.ipp || '—') + (p.naissance ? ' · né(e) le ' + p.naissance.split('-').reverse().join('/') : '') + (p.protection ? ' · ' + p.protection : '') }), p.detenu ? h('div', {}, h('span', { class: 'badge', text: 'détenu' })) : null),
             h('td', { text: U.libService(p.service) }),
             h('td', {}, mode ? h('span', { class: 'badge ' + (M.estContrainte(U.config(), mode) ? '' : 'warn'), text: mode }) : '—', depuis ? h('div', {}, h('small', { text: 'depuis le ' + U.date(depuis) })) : null),
             h('td', { class: 'nowrap', text: U.duree(x.c.iso48) + ' / ' + U.duree(x.c.iso15) }),
@@ -134,11 +134,13 @@
     var nom = h('input', { type: 'text', value: p.nom || '' }), prenom = h('input', { type: 'text', value: p.prenom || '' });
     var naissance = h('input', { type: 'date', value: p.naissance || '' });
     var protection = h('input', { type: 'text', value: p.protection || '', placeholder: 'ex. Curatelle renforcée' });
+    var detenu = h('input', { type: 'checkbox', checked: !!p.detenu });
     var sv = h('select', {}, U.services().map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: x.code === p.service }); }));
     U.modale('Fiche patient', h('div', { class: 'pile' },
       h('div', { class: 'grille-2' }, h('label', {}, 'IPP', ipp), h('label', {}, 'Service', sv)),
       h('div', { class: 'grille-2' }, h('label', {}, 'Nom', nom), h('label', {}, 'Prénom', prenom)),
       h('div', { class: 'grille-2' }, h('label', {}, 'Date de naissance', naissance), h('label', {}, 'Mesure de protection juridique', protection)),
+      h('label', { class: 'case' }, detenu, h('span', { text: 'Patient détenu' })),
       h('small', { class: 'muted', text: 'Une mesure garde le nom affiché au moment de sa création dans le journal ; les écrans utilisent la fiche à jour.' })), [
       { texte: 'Annuler' },
       { texte: 'Enregistrer', classe: 'primaire', action: async function () {
@@ -147,6 +149,7 @@
         [['ipp', ipp.value.trim()], ['nom', nom.value.trim().toUpperCase()], ['prenom', prenom.value.trim()], ['naissance', naissance.value], ['protection', protection.value.trim()], ['service', sv.value]].forEach(function (x) {
           if ((p[x[0]] || '') !== x[1]) { d[x[0]] = x[1]; ch++; }
         });
+        if (!!p.detenu !== detenu.checked) { d.detenu = detenu.checked; ch++; }
         if (!ch) return true;
         await U.App.session.enregistrer('PATIENT', d);
         U.toast('Fiche mise à jour.');

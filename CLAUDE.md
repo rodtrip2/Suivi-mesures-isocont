@@ -29,6 +29,8 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - Le cadre cumule pour l'instant le rôle d'administrateur, mais les deux rôles doivent rester **séparables**.
 - Chaque compte (hors administrateur) a **un ou plusieurs services** : seuls ceux-ci s'affichent à la connexion et à la création d'une mesure. L'administrateur voit tous les services.
 - Création de comptes **en lot** (liste d'agents collée ou CSV), mots de passe provisoires tirés au hasard, **changement obligatoire à la première connexion**, réinitialisation par l'administrateur (nouveau mot de passe provisoire), fiches de remise imprimables.
+- **Comptes temporaires** (intérimaires, vacataires, stagiaires) : `finValidite` = dernier jour d'accès inclus (`SIC.comptes.validite`) ; connexion refusée après, badges « expire le » (7 jours) et « expiré », désactivation groupée des comptes expirés.
+- **Correction proposée par l'IDE ou l'AS** (consigne du porteur) : saisie `PROPOSITION` (non appliquée), puis `CORRECTION` avec `proposition` (validation) ou `REFUS_PROPOSITION` (motif) par le cadre ; signalement sur la ligne, au détail et dans les points de vigilance.
 - **Mode formation** : accès accordé à tous les comptes, désactivable par l'administrateur compte par compte ; à la connexion, l'agent choisit *Données réelles* ou *Mode formation* (jeu entièrement fictif, chiffré à part, bandeau violet). Le rôle Formateur et la bascule de poste ont été abandonnés à la demande du porteur.
 
 ## 4. Règles légales et de calcul
@@ -49,7 +51,9 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
   - **Soins somatiques ou urgences** (`casParticuliers.somatique`, choix de l'établissement, enregistré avec chaque saisie) : `poursuite-service` (défaut ; période comptée au registre du service, hors CSI → B / D), `poursuite-registre` (période au registre d'un service dédié `serviceSomatique`, ex. « Hébergement somatique », « Urgences »), `suspension` (période exclue des délais JLD et du registre ; ligne « SUSPENDUE » au décompte), `arret` (fin de mesure au départ).
   - **Motif de fin** structuré (`M.MOTIFS_FIN`), rappel EIGS pour un décès (déclaration sans délai à l'ARS si décès inattendu, art. L. 1413-14, R. 1413-67 et s.).
   - **Recours** (`RECOURS` : saisine facultative du JLD, décision, appel, décision du premier président) ; une décision de levée vaut mainlevée (`leveeJLD`, règle des 48 h).
-  - Arbitrages à venir : correction proposée par l'IDE puis validée par le cadre, entretien après la mesure facultatif et nommé par l'établissement (ex. « Débriefing post-isolement »).
+  - **Patient détenu** : champ `detenu` de la fiche, déclencheur d'alerte « detenu ».
+  - Changement d'heure : toutes les durées et échéances en heures réelles (tests `tests/heure-ete.test.js`, fuseau Europe/Paris).
+  - Arbitrage à venir (lot 4) : entretien après la mesure facultatif et nommé par l'établissement (ex. « Débriefing post-isolement »).
 - Textes légaux proposés : contention « prise dans le cadre d'une mesure d'isolement » (art. L. 3222-5-1) ; seule exception, la contention mécanique ambulatoire (HAS 2017 : troubles gravissimes de longue évolution, plan de soins du psychiatre traitant, hors urgence) ; soins libres : isolement exceptionnel, en urgence, 12 h au maximum (HAS 2017).
 
 ## 5. Pauses (levées temporaires)

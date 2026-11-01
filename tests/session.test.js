@@ -26,6 +26,7 @@ class Repertoire {
 globalThis.self = globalThis;
 globalThis.SIC = { rules: require('../app/js/rules.js'), crypto: require('../app/js/crypto.js') };
 globalThis.SIC.model = require('../app/js/model.js');
+globalThis.SIC.comptes = require('../app/js/comptes.js');
 require('../app/js/store.js');
 require('../app/js/session.js');
 const { Dossier, Session } = globalThis.SIC;
@@ -60,6 +61,18 @@ test('Comptes : services affectés, connexion, refus du mauvais mot de passe, co
   // Désactivation : le mot de passe est retiré du coffre
   await admin.modifierRoles(ide.utilisateur.id, ['IDE'], false, ['B']);
   await assert.rejects(connecter(racine, 'ide', 'autre mot de passe'), /incorrect/);
+});
+
+test('Compte temporaire : connexion refusée après le dernier jour d’accès, prolongation possible', async () => {
+  const { racine, admin } = await nouveauDossier();
+  const hier = new Date(Date.now() - 86400000), demain = new Date(Date.now() + 86400000);
+  const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  await admin.creerCompte({ nom: 'Intérim (fictif)', login: 'interim', motDePasse: 'mot de passe interim', roles: ['IDE'], services: ['U1'], finValidite: iso(hier) });
+  await assert.rejects(connecter(racine, 'interim', 'mot de passe interim'), /expiré/);
+  const c = admin.comptes.find((x) => x.login === 'interim');
+  await admin.modifierRoles(c.id, ['IDE'], true, ['U1'], true, iso(demain));
+  const s = await connecter(racine, 'interim', 'mot de passe interim');
+  assert.equal(s.utilisateur.login, 'interim');
 });
 
 test('Deux postes saisissent en même temps : aucune saisie perdue, conflit détecté', async () => {
