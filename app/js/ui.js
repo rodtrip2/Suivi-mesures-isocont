@@ -70,7 +70,7 @@
     MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', PROPOSITION: 'Correction proposée', REFUS_PROPOSITION: 'Correction proposée refusée', TRANSFERT: 'Transfert entre services', SOMATIQUE: 'Soins somatiques ou urgences', SOMATIQUE_RETOUR: 'Retour dans le service', RECOURS: 'Recours ou appel (JLD)', ENTRETIEN: 'Entretien après la mesure', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
-  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
   var MOTIFS_PAUSE = ['Repas', 'Hygiène, douche', 'Visite', 'Appel téléphonique', 'Sortie accompagnée dans l’unité', 'Activité thérapeutique', 'Examen ou soin', 'Autre'];
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
@@ -158,11 +158,12 @@
   function ecranAnomalie() {
     var formation = App.anomalie === 'formation';
     return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom),
-      h('h1', { text: formation ? 'Ce dossier est un jeu de formation' : 'Coffre introuvable' }),
+      h('h1', { text: formation ? 'Ce dossier est un jeu de formation' : App.anomalie === 'coffre-illisible' ? 'Coffre illisible' : 'Coffre introuvable' }),
       h('div', { class: 'erreur', text: formation
         ? 'Vous avez ouvert le sous-dossier « formation », qui contient le jeu de données fictives. Ouvrez le dossier principal (le dossier parent) ; le mode formation se choisit ensuite à la connexion.'
-        : 'Ce dossier contient des saisies mais pas de fichier coffre.json : sans lui, les données ne peuvent pas être lues. Ne réinitialisez pas ce dossier : faites restaurer coffre.json depuis la sauvegarde par la DSI (voir les procédures de secours).' }),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: changerDossier }, 'Choisir un autre dossier'))));
+        : (App.anomalie === 'coffre-illisible' ? 'Le fichier coffre.json de ce dossier est abîmé' : 'Ce dossier contient des saisies mais pas de fichier coffre.json') + ' : sans coffre, les données ne peuvent pas être lues. Ne réinitialisez pas ce dossier. Restaurez une version précédente du coffre ci-dessous, ou la copie sous scellé ; à défaut, faites restaurer coffre.json depuis la sauvegarde par la DSI (voir les procédures de secours).' }),
+      formation ? null : SIC.ui.sauvegarde.blocRestaurationCoffre(demarrerSession),
+      h('div', { class: 'actions' }, h('button', { class: 'btn' + (formation ? ' primaire' : ''), onclick: changerDossier }, 'Choisir un autre dossier'))));
   }
 
   // ---------------------------------------------------------------- Initialisation
@@ -192,7 +193,7 @@
       h('div', { class: 'grille-2' }, h('label', {}, 'Mot de passe (12 caractères minimum)', mdp), h('label', {}, 'Confirmation', mdp2)),
       h('label', { class: 'case' }, demo, h('span', {}, 'Charger des données fictives de démonstration')),
       h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: changerDossier }, 'Changer de dossier'), bouton));
-    return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(), form));
+    return h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(), form, SIC.ui.sauvegarde.blocRestaurationCopie(demarrerSession)));
   }
 
   function afficherCodeSecours(code, premiere) {
@@ -308,6 +309,8 @@
     App.minuteurs.push(setInterval(function () {
       if (App.session && App.session.cle && document.visibilityState === 'visible') App.session.synchroniser().catch(function () {});
     }, 5000));
+    setTimeout(function () { SIC.ui.sauvegarde.controler(); }, 1500);   // contrôle d'intégrité à la connexion, puis toutes les 15 min
+    App.minuteurs.push(setInterval(function () { if (App.session && App.session.cle) SIC.ui.sauvegarde.controler(); }, 15 * 60000));
     App.minuteurs.push(setInterval(function () {   // heures relatives (« dans 3 h ») et échéances qui changent de couleur
       if (App.session && App.session.cle && document.visibilityState === 'visible' && !saisieEnCours() && App.onglet !== 'admin') rendreContenu();
     }, 60000));
@@ -489,6 +492,7 @@
     var libres = enCours.filter(function (m) { return !M.estContrainte(config(), M.modeA(st(), m.patientId, maintenant) || m.modeHospi); });
     var mineurs = enCours.filter(function (m) { return M.estMineur(st(), m.patientId, maintenant); });
     var vigilance = [];
+    SIC.ui.sauvegarde.vigilance().forEach(function (li) { vigilance.push(li); });
     var aTracer = SIC.ui.alertes.aTracer();
     SIC.ui.qualite.entretiensARenseigner(maintenant).slice(0, 6).forEach(function (m) {
       vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ' + m.type.toLowerCase() + ' terminé' + (m.type === 'Contention' ? 'e' : '') + ' le ' + court(m.fin) + ' : ' + M.optionsQualite(config()).nomEntretien.toLowerCase() + ' à renseigner. ',
@@ -746,7 +750,7 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', casParticuliers: 'Cas particuliers', qualite: 'Qualité, conservation et archivage', statsMethode: 'Méthode des statistiques', rapportsAnnuels: 'Textes du rapport annuel', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', casParticuliers: 'Cas particuliers', qualite: 'Qualité, conservation et archivage', statsMethode: 'Méthode des statistiques', sauvegarde: 'Rappel des copies de sauvegarde', rapportsAnnuels: 'Textes du rapport annuel', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
   };
   var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', debutInitial: 'début de la décision initiale (avant l’arrivée)', lieuInitial: 'lieu d’origine', type: 'type de mesure' };
 
@@ -812,6 +816,7 @@
       case 'casParticuliers': return SIC.ui.cas.resumeConfig(v);
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + ', surveillance hors CSI ' + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
+      case 'sauvegarde': return v && v.rappelJours ? 'tous les ' + v.rappelJours + ' jours' : 'aucun rappel';
       case 'rapportsAnnuels': return Object.keys(v || {}).join(', ') || 'aucun';
       case 'alertes': return M.alertesConfig({ alertes: v }).map(function (r) {
         return '« ' + r.libelle + ' » ' + (r.active ? 'active' : 'inactive') + ' (' + M.DECLENCHEURS_ALERTE[r.declencheur].toLowerCase() + ', ' +
@@ -952,7 +957,7 @@
           return h('tr', { class: annule ? 'ancienne' : '' },
             h('td', { class: 'nowrap', text: date(Date.parse(e.at)) }),
             h('td', { text: App.session.nomAuteur(e.by) }),
-            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : (LIB_EVT[e.type] || e.type)),
+            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE') ? 'Sauvegarde' : (LIB_EVT[e.type] || e.type)),
             h('td', {}, resumeEvt(e)),
             h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null));
         })))),
@@ -2029,7 +2034,7 @@
       ['registre', 'Registre et statistiques', [pDocs, pColsP, SIC.ui.methode.panneauAdmin(), SIC.ui.qualite.panneauAdmin()]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
-      ['infos', 'Informations', [infos, demo]],
+      ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), demo]],
       ['apropos', 'À propos', SIC.ui.apropos.panneau()]
     ]);
 

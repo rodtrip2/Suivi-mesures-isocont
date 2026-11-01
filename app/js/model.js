@@ -108,6 +108,7 @@
     qualite: { motifRecours: false, motifsRecours: ['Prévention d’une violence imminente envers autrui', 'Prévention d’un passage à l’acte auto-agressif imminent', 'Agitation avec mise en danger', 'Risque de fugue avec mise en danger', 'Autre'],
       entretien: false, nomEntretien: 'Entretien après la mesure', surveillanceHorsCSI: false, conservationAns: 0 },
     rapportsAnnuels: {},
+    sauvegarde: { rappelJours: 7 },   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
     // Méthode des statistiques (voir optionsStats) : tolérance de regroupement des entrées en séquences (minutes,
     // 0 = entrées qui se touchent, jusqu'à 48 h), unité principale du rapport, mentions affichées, méthode antérieure par année.
     statsMethode: { toleranceMinutes: 0, unitePrincipale: 'entrees', colonneSequences: false,

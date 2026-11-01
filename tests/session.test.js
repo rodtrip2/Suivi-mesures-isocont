@@ -212,3 +212,65 @@ test('Mode formation : accès par compte, choix à la connexion, jeu fictif sép
   assert.equal(await sous.anomalie(), 'formation');
   assert.equal(await new Dossier(racine, 'reseau').anomalie(), 'sans-coffre');
 });
+
+test('Coffre : historique des versions, refus d’un coffre incomplet, restauration après perte', async () => {
+  const { racine, admin, code } = await nouveauDossier();
+  await admin.creerCompte({ nom: 'IDE', login: 'ide', motDePasse: 'autre mot de passe', roles: ['IDE'], services: ['U1'] });
+  const versions = await admin.dossier.versionsCoffre();
+  assert.ok(versions.length >= 1 && versions[0].valide);
+  assert.equal(versions[0].rev, admin.coffre.rev);                       // la version actuelle est dans l'historique
+  await assert.rejects(admin.dossier.ecrireCoffre({ format: 'SIC-coffre', emballages: [], comptes: 'x' }, admin.coffre.rev), /incomplet/);
+  // Coffre abîmé : signalé, puis restauré depuis l'historique
+  racine.e.get('coffre.json').data = new TextEncoder().encode('{ abîmé');
+  const d = new Dossier(racine, 'reseau');
+  assert.equal(await d.lireCoffre(), null);
+  assert.equal(await d.anomalie(), 'coffre-illisible');
+  await assert.rejects(d.ecrireCoffre(versions[0].coffre, versions[0].rev), /illisible/);
+  racine.e.delete('coffre.json');
+  await d.restaurerCoffre((await d.versionsCoffre())[0].coffre);
+  const s = await connecter(racine, 'admin', 'mot de passe solide');
+  assert.equal(s.utilisateur.login, 'admin');
+  // Copie sous scellé : sans mots de passe, ouvre avec le code de secours
+  const scelle = await s.copieSousScelle();
+  assert.ok(!scelle.emballages.some((e) => e.methode === 'mdp'));
+  assert.deepEqual(s.etatScelle().aJour, true);
+  racine.e.delete('coffre.json');
+  await new Dossier(racine, 'reseau').restaurerCoffre(scelle);
+  const sec = new Session(new Dossier(racine, 'reseau'));
+  await sec.chargerCoffre();
+  await sec.connexionCodeSecours(code);
+  assert.equal(sec.utilisateur.id, 'secours');
+  await assert.rejects(connecter(racine, 'admin', 'mot de passe solide'), /incorrect/);   // mots de passe à réinitialiser
+});
+
+test('Copie de sauvegarde complète restaurée dans un dossier vide', async () => {
+  const { admin } = await nouveauDossier();
+  await admin.enregistrer('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
+  const copie = await admin.copieComplete();
+  assert.ok(admin.derniereCopie());
+  const vide = new Repertoire('Restauration');
+  const d = new Dossier(vide, 'reseau');
+  assert.equal(await d.restaurerCopie(JSON.parse(JSON.stringify(copie))), copie.fichiers.length);
+  await assert.rejects(d.restaurerCopie(copie), /pas vide/);
+  const s = await connecter(vide, 'admin', 'mot de passe solide');
+  assert.ok(s.etat.mesures.M1);
+});
+
+test('Intégrité : disparition des dernières saisies d’un agent et des fichiers chargés', async () => {
+  const { racine, admin } = await nouveauDossier();
+  const e1 = await admin.enregistrer('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
+  const e2 = await admin.enregistrer('MESURE_FIN', { mesureId: 'M1', fin: Date.now() });
+  let r = await admin.verifierIntegrite();
+  assert.deepEqual([r.reperes.length, r.disparus.length], [0, 0]);
+  // Suppression de la dernière saisie : le chaînage ne la voit pas, le repère si
+  const mois = e2.at.slice(0, 7).split('-');
+  const dir = racine.e.get('evenements').e.get(mois[0]).e.get(mois[1]);
+  dir.e.delete(e2.id + '.enc');
+  r = await admin.verifierIntegrite();
+  assert.deepEqual(r.disparus, [e2.id + '.enc']);                       // poste ouvert : fichier disparu
+  const autre = await connecter(racine, 'admin', 'mot de passe solide');
+  r = await autre.verifierIntegrite();
+  assert.equal(r.reperes.length, 1);
+  assert.equal(r.reperes[0].dernierManquant, true);
+  assert.ok(autre.etat.mesures[e1.data.mesureId]);
+});

@@ -6,6 +6,8 @@
  *   coffre.json                       copies emballées de la clé + comptes chiffrés
  *   evenements/AAAA/MM/<nom>.enc      une saisie = un fichier chiffré, jamais modifié
  *   instantanes/AAAA-MM.enc           copie consolidée des saisies d'un mois clos
+ *   coffre-historique/rev-N.json      versions du coffre, la dernière comprise (les 30 dernières)
+ *   reperes/<agent>.enc               repère d'intégrité : nombre et dernière saisie de chaque agent
  *
  * Instantanés : les saisies sont rangées par mois de saisie. Un mois clos
  * (antérieur au mois précédent) ne reçoit plus de fichiers ; ses saisies sont
@@ -88,9 +90,10 @@
   Dossier.lireReglage = relire;
   Dossier.ecrireReglage = memoriser;
 
-  /** Signale un dossier sans coffre qui contient pourtant des saisies (jeu de formation, coffre perdu). */
+  /** Signale un dossier sans coffre qui contient pourtant des saisies (jeu de formation, coffre perdu ou illisible). */
   Dossier.prototype.anomalie = async function () {
     try { await this.handle.getFileHandle('FORMATION-LISEZMOI.txt'); return 'formation'; } catch (e) { /* absent */ }
+    if (this.coffreIllisible) return 'coffre-illisible';
     try { await this.handle.getDirectoryHandle('evenements'); return 'sans-coffre'; } catch (e) { return null; }
   };
 
@@ -120,18 +123,159 @@
   };
 
   // ------------------------------------------------------------- Coffre
+  /** Vrai si l'objet a la forme d'un coffre utilisable (au moins un moyen de déblocage et les comptes). */
+  function coffreValide(c) {
+    return !!(c && c.format === 'SIC-coffre' && Array.isArray(c.emballages) && c.emballages.length && typeof c.comptes === 'string');
+  }
+
+  /** Lit le coffre ; un coffre abîmé est signalé (coffreIllisible) et vaut absence de coffre. */
   Dossier.prototype.lireCoffre = async function () {
     var o = await this.lireFichier(this.handle, 'coffre.json');
-    return o ? JSON.parse(new TextDecoder().decode(o)) : null;
+    this.coffreIllisible = false;
+    if (!o) return null;
+    try {
+      var c = JSON.parse(new TextDecoder().decode(o));
+      if (!coffreValide(c)) throw new Error('forme inattendue');
+      return c;
+    } catch (e) { this.coffreIllisible = true; return null; }
   };
 
-  /** Écrit le coffre si personne ne l'a modifié depuis la lecture (contrôle de révision). */
+  var HISTORIQUE_COFFRE = 30;
+
+  /**
+   * Écrit le coffre si personne ne l'a modifié depuis la lecture (contrôle de révision). La version
+   * remplacée est d'abord copiée dans coffre-historique ; le nouveau coffre est vérifié avant et
+   * relu après l'écriture, et l'ancienne version est remise en place si la relecture échoue.
+   */
   Dossier.prototype.ecrireCoffre = async function (coffre, revAttendue) {
     var actuel = await this.lireCoffre();
+    if (this.coffreIllisible) throw new Error('Le coffre actuel est illisible : restaurez une version précédente avant toute modification.');
     if (actuel && actuel.rev !== revAttendue) throw new Error('Le coffre a été modifié sur un autre poste. Rechargez puis recommencez.');
     coffre.rev = (revAttendue || 0) + 1;
-    await this.ecrireFichier(this.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(coffre, null, 1)));
+    if (!coffreValide(coffre)) throw new Error('Coffre incomplet : écriture refusée.');
+    var octets = new TextEncoder().encode(JSON.stringify(coffre, null, 1));
+    if (actuel) await this.archiverCoffre(actuel);
+    await this.ecrireFichier(this.handle, 'coffre.json', octets);
+    var relu = await this.lireCoffre();
+    if (!relu || relu.rev !== coffre.rev) {
+      if (actuel) await this.ecrireFichier(this.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(actuel, null, 1)));
+      throw new Error('L’écriture du coffre n’a pas pu être vérifiée : la version précédente a été remise en place.');
+    }
+    // La version qui vient d'être écrite est aussi copiée : l'historique contient toujours la dernière version valide.
+    try { await this.archiverCoffre(coffre); } catch (e) { /* sans conséquence sur l'écriture */ }
     return coffre;
+  };
+
+  /** Copie une version du coffre dans coffre-historique (les plus anciennes au-delà de 30 sont retirées). */
+  Dossier.prototype.archiverCoffre = async function (coffre) {
+    var dir = await this.sousDossier(['coffre-historique'], true);
+    var nom = 'rev-' + String(coffre.rev || 0).padStart(6, '0') + '.json';
+    await this.ecrireFichier(dir, nom, new TextEncoder().encode(JSON.stringify(Object.assign({}, coffre, { archiveLe: new Date().toISOString() }), null, 1)));
+    var noms = [];
+    for await (var f of dir.values()) if (f.kind === 'file' && /^rev-\d+\.json$/.test(f.name)) noms.push(f.name);
+    noms.sort();
+    for (var i = 0; i < noms.length - HISTORIQUE_COFFRE; i++) { try { await dir.removeEntry(noms[i]); } catch (e) { /* sans conséquence */ } }
+  };
+
+  /** Versions précédentes du coffre : [{ nom, rev, archiveLe, valide }], la plus récente d'abord. */
+  Dossier.prototype.versionsCoffre = async function () {
+    var res = [], dir;
+    try { dir = await this.sousDossier(['coffre-historique'], false); } catch (e) { return res; }
+    for await (var f of dir.values()) {
+      if (f.kind !== 'file' || !/^rev-\d+\.json$/.test(f.name)) continue;
+      var c = null;
+      try { c = JSON.parse(new TextDecoder().decode(await this.lireFichier(dir, f.name))); } catch (e) { c = null; }
+      res.push({ nom: f.name, rev: c ? c.rev : null, archiveLe: c ? c.archiveLe : null, valide: coffreValide(c), coffre: c });
+    }
+    return res.sort(function (a, b) { return a.nom < b.nom ? 1 : -1; });
+  };
+
+  /**
+   * Remet en place un coffre (version de l'historique ou copie sous scellé), sans contrôle de révision :
+   * réservé au cas où le coffre actuel est absent ou illisible. La révision repart au-dessus de toutes
+   * les versions connues.
+   */
+  Dossier.prototype.restaurerCoffre = async function (coffre) {
+    if (!coffreValide(coffre)) throw new Error('Ce fichier n’est pas un coffre utilisable.');
+    var actuel = await this.lireCoffre();
+    if (actuel) throw new Error('Le dossier contient déjà un coffre lisible : restauration inutile.');
+    var versions = await this.versionsCoffre();
+    var max = versions.reduce(function (m, v) { return Math.max(m, v.rev || 0); }, coffre.rev || 0);
+    var c = Object.assign({}, coffre, { rev: max + 1, restaureLe: new Date().toISOString() });
+    delete c.archiveLe;
+    await this.ecrireFichier(this.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(c, null, 1)));
+    var relu = await this.lireCoffre();
+    if (!relu) throw new Error('La restauration du coffre a échoué.');
+    return relu;
+  };
+
+  // ------------------------------------------------- Copie de sauvegarde complète
+  /** Fichiers d'un sous-dossier, récursivement : [{ chemin, octets }]. */
+  async function fichiers(dir, prefixe, res) {
+    for await (var x of dir.values()) {
+      if (x.kind === 'directory') await fichiers(x, prefixe + x.name + '/', res);
+      else res.push({ chemin: prefixe + x.name, octets: new Uint8Array(await (await x.getFile()).arrayBuffer()) });
+    }
+    return res;
+  }
+
+  /**
+   * Copie de sauvegarde complète : coffre et fichiers de saisie (toujours chiffrés, copiés tels quels).
+   * Les instantanés (reconstruits automatiquement) et le jeu de formation (fictif) n'y figurent pas.
+   */
+  Dossier.prototype.copieComplete = async function () {
+    var coffre = await this.lireCoffre();
+    if (!coffre) throw new Error('Coffre absent ou illisible : copie impossible.');
+    var liste = [];
+    try { await fichiers(await this.sousDossier(['evenements'], false), 'evenements/', liste); } catch (e) { /* aucun */ }
+    return { format: 'SIC-sauvegarde', version: 1, creeLe: new Date().toISOString(), coffre: coffre,
+      fichiers: liste.map(function (f) { return { chemin: f.chemin, contenu: C.b64(f.octets) }; }) };
+  };
+
+  /** Restaure une copie complète dans un dossier vide. */
+  Dossier.prototype.restaurerCopie = async function (copie) {
+    if (!copie || copie.format !== 'SIC-sauvegarde' || !coffreValide(copie.coffre) || !Array.isArray(copie.fichiers)) throw new Error('Ce fichier n’est pas une copie de sauvegarde de l’outil.');
+    for await (var k of this.handle.keys()) { if (k) throw new Error('Le dossier n’est pas vide : choisissez un dossier vide pour restaurer la copie.'); }
+    for (var i = 0; i < copie.fichiers.length; i++) {
+      var f = copie.fichiers[i], parties = f.chemin.split('/');
+      if (parties[0] !== 'evenements' || parties.some(function (p) { return !p || p === '..'; })) continue;
+      var dir = await this.sousDossier(parties.slice(0, -1), true);
+      await this.ecrireFichier(dir, parties[parties.length - 1], C.deb64(f.contenu));
+    }
+    await this.ecrireFichier(this.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(copie.coffre, null, 1)));
+    return copie.fichiers.length;
+  };
+
+  /** Noms des fichiers de saisie présents sur le partage. */
+  Dossier.prototype.nomsEvenements = async function () {
+    var noms = new Set(), racine;
+    try { racine = await this.sousDossier(['evenements'], false); } catch (e) { return noms; }
+    for await (var an of racine.values()) {
+      if (an.kind !== 'directory') continue;
+      for await (var mois of an.values()) {
+        if (mois.kind !== 'directory') continue;
+        for await (var f of mois.values()) if (f.kind === 'file' && /\.enc$/.test(f.name)) noms.add(f.name);
+      }
+    }
+    return noms;
+  };
+
+  // ------------------------------------------------------ Repères d'intégrité
+  /** Repère d'un agent : nombre de ses saisies et identifiant de la dernière (chiffré). */
+  Dossier.prototype.ecrireRepere = async function (cle, agent, repere) {
+    var dir = await this.sousDossier(['reperes'], true), nom = agent.replace(/[^a-zA-Z0-9_-]/g, '_') + '.enc';
+    await this.ecrireFichier(dir, nom, await C.chiffrerJSON(cle, Object.assign({ agent: agent }, repere), 'repere:' + nom));
+  };
+
+  Dossier.prototype.lireReperes = async function (cle) {
+    var res = [], dir;
+    try { dir = await this.sousDossier(['reperes'], false); } catch (e) { return res; }
+    for await (var f of dir.values()) {
+      if (f.kind !== 'file' || !/\.enc$/.test(f.name)) continue;
+      try { res.push(await C.dechiffrerJSON(cle, await this.lireFichier(dir, f.name), 'repere:' + f.name)); }
+      catch (e) { res.push({ agent: f.name.replace(/\.enc$/, ''), illisible: true }); }
+    }
+    return res;
   };
 
   // ---------------------------------------------------------- Événements

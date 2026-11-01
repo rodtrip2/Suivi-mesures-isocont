@@ -20,6 +20,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - Saisie simultanée sans perte : versions de base, détection des conflits (la saisie concurrente n'est pas appliquée et reste à arbitrer), chaînage des saisies (détection des fichiers manquants).
 - Les mots de passe ne sont jamais écrits dans le journal.
 - Le registre communiqué à un tiers (CADA) est toujours occulté (voir § 6).
+- **Robustesse** (`store.js`, `session.js`, `app/js/ui-sauvegarde.js`) : coffre vérifié avant et après chaque écriture (ancienne version remise en place si la relecture échoue), **historique des 30 dernières versions** (`coffre-historique/`, la version actuelle comprise), restauration depuis l'historique ou la **copie sous scellé** (sans les mots de passe ; code de secours et clés de sécurité ; état « à refaire » après un nouveau code) ; **copie de sauvegarde complète** (coffre + saisies chiffrées, un fichier) restaurable dans un dossier vide, rappel réglable (`config.sauvegarde.rappelJours`, 7 j) ; **repères d'intégrité** par agent (`reperes/`) et contrôle à la connexion puis toutes les 15 min (saisies disparues, fichiers illisibles, chaînage) ; exigences de sauvegarde à poser à la DSI dans le kit.
 
 ## 3. Utilisateurs, rôles, services
 

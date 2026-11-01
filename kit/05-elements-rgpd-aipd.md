@@ -30,7 +30,7 @@ La liste de la CNIL des traitements pour lesquels une analyse d'impact est requi
 | --- | --- | --- | --- |
 | **Accès illégitime** aux données | Copie du dossier, poste laissé ouvert, agent hors de son périmètre | Chiffrement ; mots de passe ou clés matérielles ; verrouillage automatique ; services affectés par compte ; droits NTFS ; journal nominatif | |
 | **Modification non désirée** | Erreur de saisie, saisies concurrentes, manipulation | Journal en ajout seul ; corrections et annulations tracées avec motif ; détection des conflits ; chiffrement authentifié (un fichier modifié est rejeté) | |
-| **Disparition** des données | Suppression de fichiers, panne, perte des moyens de déverrouillage | Sauvegardes du partage ; détection des saisies manquantes ; deux clés d'administration et code de secours au coffre ; procédure dégradée papier | |
+| **Disparition** des données | Suppression de fichiers, panne, rançongiciel, coffre abîmé, perte des moyens de déverrouillage | Sauvegardes du partage (quotidiennes, 30 jours, copie hors ligne) ; historique vérifié du coffre (30 versions) ; copie du coffre sous scellé avec le code de secours ; copie de sauvegarde complète chiffrée sur un autre support, avec rappel ; contrôle d'intégrité (repères des agents, fichiers disparus ou illisibles, chaînage) à la connexion et toutes les 15 minutes ; deux clés d'administration ; procédure dégradée papier | |
 
 ### Points d'attention pour l'analyse
 

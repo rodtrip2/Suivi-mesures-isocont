@@ -18,7 +18,12 @@
 
 1. Créer un dossier vide sur un partage sauvegardé, par exemple `\\serveur\donnees\SuiviIsoCont`.
 2. Droits NTFS : **Modifier** pour le groupe des utilisateurs de l'outil (IDE, secrétariat, cadres des unités concernées) ; retirer l'héritage des groupes plus larges.
-3. Vérifier que le dossier est inclus dans les sauvegardes.
+3. Vérifier que le dossier est inclus dans les sauvegardes, avec ces exigences minimales à demander à la DSI :
+   - sauvegarde **au moins quotidienne** du dossier, versions conservées **30 jours ou plus** ;
+   - **une copie hors ligne ou non modifiable** (protection contre un rançongiciel) ;
+   - droits du dossier limités aux comptes des agents habilités (pas de suppression possible par d'autres utilisateurs) ;
+   - test de restauration annuel (voir les procédures de secours).
+   Après l'initialisation, l'administrateur télécharge la **copie du coffre sous scellé** (*Administration → Informations*) et la range au coffre avec le code de secours.
 4. Rendre le dossier accessible depuis les postes : lecteur réseau mappé ou chemin UNC.
 
 ## 3. Publier l'application (DSI)

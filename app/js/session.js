@@ -269,8 +269,69 @@
     await dossierActif(this).ecrireEvenement(cleActive(this), evt);
     this.connus.add(evt.id + '.enc');
     this.evts.push(evt);
+    // Repère d'intégrité de l'agent : permet de détecter la disparition de ses dernières saisies.
+    try { await dossierActif(this).ecrireRepere(cleActive(this), by, { n: mesUns.length + 1, dernier: evt.id, at: at }); } catch (e) { /* sans conséquence sur la saisie */ }
     this.recalculer();
     return evt;
+  };
+
+  // ---------------------------------------------------------- Intégrité et copies
+  /**
+   * Contrôle d'intégrité du jeu de données actif : repères des agents (nombre de saisies et dernière
+   * saisie attendus), saisies chargées qui ne sont plus sur le partage, fichiers illisibles, maillons
+   * manquants du chaînage. Retourne { verifieLe, reperes: [], disparus: [], illisibles, manquants }.
+   */
+  Session.prototype.verifierIntegrite = async function () {
+    var s = this, d = dossierActif(this), res = { verifieLe: Date.now(), reperes: [], disparus: [], illisibles: this.rejetes.length, manquants: (this.etat && this.etat.manquants.length) || 0 };
+    var ids = {};
+    this.evts.forEach(function (e) { ids[e.id] = e.by; });
+    (await d.lireReperes(cleActive(this))).forEach(function (r) {
+      if (r.illisible) { res.reperes.push({ agent: r.agent, illisible: true }); return; }
+      var n = s.evts.filter(function (e) { return e.by === r.agent; }).length;
+      if (!ids[r.dernier] || n < r.n) res.reperes.push({ agent: r.agent, attendu: r.n, present: n, dernierManquant: !ids[r.dernier], dernierLe: r.at });
+    });
+    var surPartage = await d.nomsEvenements();
+    this.connus.forEach(function (nom) { if (!surPartage.has(nom)) res.disparus.push(nom); });
+    this.integrite = res;
+    return res;
+  };
+
+  /**
+   * Copie du coffre à conserver sous scellé avec le code de secours : sans les mots de passe des agents
+   * (ils seraient à réinitialiser après une restauration), avec le code de secours et les clés de sécurité.
+   * La date et le code de secours couverts sont notés dans le coffre.
+   */
+  Session.prototype.copieSousScelle = async function () {
+    var secours = this.coffre.emballages.filter(function (e) { return e.methode === 'secours'; })[0];
+    if (!secours) throw new Error('Aucun code de secours enregistré.');
+    var creeLe = new Date().toISOString();
+    await this.modifierCoffre(async function (coffre) { coffre.scelle = { creeLe: creeLe, secours: secours.id }; });
+    var copie = JSON.parse(JSON.stringify(this.coffre));
+    copie.emballages = copie.emballages.filter(function (e) { return e.methode !== 'mdp'; });
+    copie.copieSousScelle = creeLe;
+    await this.tracer('SCELLE', { libelle: 'copie du coffre sous scellé' });
+    return copie;
+  };
+
+  /** État de la copie sous scellé : { creeLe, aJour } (à refaire si le code de secours a été renouvelé). */
+  Session.prototype.etatScelle = function () {
+    var sc = this.coffre && this.coffre.scelle, secours = this.coffre && this.coffre.emballages.filter(function (e) { return e.methode === 'secours'; })[0];
+    if (!sc) return null;
+    return { creeLe: sc.creeLe, aJour: !!secours && sc.secours === secours.id };
+  };
+
+  /** Copie de sauvegarde complète (coffre et saisies chiffrées), tracée au journal. */
+  Session.prototype.copieComplete = async function () {
+    var copie = await this.dossier.copieComplete();
+    await this.tracer('SAUVEGARDE', { libelle: copie.fichiers.length + ' fichiers de saisie' });
+    return copie;
+  };
+
+  /** Date de la dernière copie de sauvegarde complète (journal), ou null. */
+  Session.prototype.derniereCopie = function () {
+    var t = null;
+    this.evts.forEach(function (e) { if (e.type === 'COMPTE' && e.data && e.data.action === 'SAUVEGARDE' && (!t || e.at > t)) t = e.at; });
+    return t ? Date.parse(t) : null;
   };
 
   /** Enregistre plusieurs saisies dans un seul fichier (import, données de démonstration). */

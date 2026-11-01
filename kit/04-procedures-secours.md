@@ -63,10 +63,30 @@
 
 Un bandeau violet indique en permanence le mode formation. **Aucune information réelle ne doit y être saisie.** Si cela arrive : *Passer aux données réelles* (bouton du bandeau), ressaisir l'information avec les heures réelles, puis demander à l'administrateur de régénérer le jeu de formation (*Administration → Comptes et sécurité → Mode formation*), ce qui efface son contenu.
 
+## Coffre introuvable ou abîmé
+
+Le fichier `coffre.json` contient les copies protégées de la clé des données : sans lui, rien n'est lisible. L'outil le vérifie avant et après chaque écriture et en garde les 30 dernières versions (dossier `coffre-historique`).
+
+1. À l'ouverture du dossier, l'outil affiche « Coffre introuvable » ou « Coffre illisible ». **Ne jamais réinitialiser le dossier.**
+2. Choisir *Restaurer cette version* (la plus récente est proposée), puis se connecter normalement.
+3. Si le dossier `coffre-historique` est lui aussi perdu : *Restaurer depuis la copie sous scellé* (fichier conservé au coffre), puis se connecter avec le **code de secours** (ou une clé de sécurité) et réinitialiser les mots de passe des agents (*Administration → Comptes et sécurité*), car la copie sous scellé ne contient pas les mots de passe.
+4. À défaut, demander à la DSI de restaurer `coffre.json` depuis la sauvegarde du partage.
+5. Ensuite : *Administration → Informations → Vérifier maintenant*, puis télécharger une nouvelle copie sous scellé.
+
+## Perte du dossier entier
+
+1. Créer un dossier vide sur le partage (droits limités aux agents habilités) et l'ouvrir dans l'outil.
+2. Sur l'écran d'initialisation, *Restaurer une copie de sauvegarde dans ce dossier* : choisir la dernière copie de sauvegarde complète téléchargée par l'administrateur.
+3. Se connecter, vérifier l'état des données, puis ressaisir ce qui a été fait depuis la date de la copie (procédure papier).
+
+## Alerte d'intégrité
+
+Le tableau de bord signale « Intégrité des données » quand des saisies ont disparu (repère d'un agent non retrouvé, fichier chargé qui n'est plus sur le partage), quand des fichiers sont illisibles ou quand le chaînage des saisies présente un trou. Prévenir l'administrateur et la DSI : restaurer les fichiers manquants depuis la sauvegarde (étapes ci-dessous), puis *Vérifier maintenant*. Ne pas ressaisir avant d'avoir tenté la restauration, pour ne pas créer de doublons.
+
 ## Restauration après incident sur le dossier
 
 1. DSI : restaurer le dossier (ou les fichiers manquants) depuis la sauvegarde.
-2. Les fichiers de saisie sont indépendants : une restauration partielle est sans danger. Le dossier `instantanes` peut être supprimé : il est reconstruit automatiquement.
+2. Les fichiers de saisie sont indépendants : une restauration partielle est sans danger. Le dossier `instantanes` peut être supprimé : il est reconstruit automatiquement. Les dossiers `coffre-historique` et `reperes` doivent être restaurés avec le reste.
 3. Ouvrir l'onglet *Journal* : l'application signale les fichiers illisibles ou les saisies manquantes.
 4. Ressaisir ce qui a été fait depuis la sauvegarde, avec les heures réelles.
 
@@ -76,4 +96,4 @@ Deux agents ont modifié la même donnée en même temps (par exemple deux heure
 
 ## Test annuel
 
-Une fois par an, avec la DSI : restaurer une sauvegarde dans un dossier de test, la déverrouiller avec la clé du coffre puis avec le code de secours, et consigner le résultat. Renouveler ensuite le code de secours.
+Une fois par an, avec la DSI : restaurer une sauvegarde dans un dossier de test, la déverrouiller avec la clé du coffre puis avec le code de secours, et consigner le résultat. Restaurer aussi la dernière copie de sauvegarde complète dans un dossier vide, et la copie sous scellé. Renouveler ensuite le code de secours, puis refaire la copie sous scellé.

@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 1.31.0 — 1er novembre 2026
+
+- **Coffre protégé** : vérifié avant et après chaque écriture (la version précédente est remise en place si la relecture échoue) ; **30 dernières versions conservées** dans le dossier, la version actuelle comprise ; un coffre abîmé ou manquant est signalé et se restaure depuis l'écran d'ouverture (version de l'historique ou copie sous scellé).
+- **Copie du coffre sous scellé** à conserver avec le code de secours : avec elle, le code de secours suffit à rouvrir les données même si le coffre et ses versions sont perdus (mots de passe à réinitialiser ensuite) ; signalée « à refaire » après un nouveau code de secours.
+- **Copie de sauvegarde complète** (coffre et saisies, chiffrés, en un fichier) à enregistrer sur un autre support ; restauration dans un dossier vide depuis l'écran d'initialisation ; rappel au tableau de bord (tous les 7 jours par défaut, réglable).
+- **Contrôle d'intégrité** à la connexion puis toutes les 15 minutes : repère de chaque agent (nombre et dernière saisie), fichiers chargés disparus du partage, fichiers illisibles, trous du chaînage ; alerte au tableau de bord.
+- **État des données et sauvegardes** dans *Administration → Informations*.
+- Kit : exigences de sauvegarde à demander à la DSI, procédures de restauration (coffre, dossier entier, alerte d'intégrité), test annuel complété, analyse de risques mise à jour.
+
 ## 1.30.0 — 1er novembre 2026
 
 - **Séquences** : entrées du registre d'un même patient qui se suivent (tous services), regroupées selon une tolérance réglable de « continu » à 48 h. Indicateurs dans les statistiques, le rapport annuel et l'export : nombre, patients, entrées par séquence, durées moyenne, médiane, maximale et cumulée, composition (isolement seul, avec contention, contention seule). Colonne « Séquences » de l'onglet Patients (option).
