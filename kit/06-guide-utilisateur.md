@@ -98,6 +98,8 @@ L'onglet *Administration* est organisé en **sous-onglets** : *Comptes et sécur
 
 **Droit d'accès d'un patient** (onglet *Patients* → *Mesures* → *Exporter ses données (droit d'accès)*, cadre ou administrateur) : fichier CSV réunissant la fiche, les modes d'hospitalisation, les mesures (lieux, pauses, JLD, recours, tiers, motifs, entretien) et les entrées du registre ; les noms des professionnels n'y figurent pas. L'export est tracé au journal.
 
+**À propos** (bouton *À propos* en haut de l'écran, pour tous les agents ; aussi *Administration → À propos*) : version, licence EUPL 1.2, crédits, lien vers la page du projet sur GitHub et boutons *Signaler un problème* / *Demander une amélioration* (formulaires publics : jamais de donnée réelle ; accès à Internet nécessaire, souvent depuis un autre poste que ceux du réseau de l'hôpital).
+
 **Comptes temporaires** (*Administration → Comptes et sécurité*) : pour un intérimaire, un vacataire ou un stagiaire, indiquez le dernier jour d'accès à la création du compte (ou en lot, pour toute la liste), ou plus tard avec *Modifier*. La date figure sur la fiche de remise. La connexion est refusée après ce jour ; un badge signale les comptes qui expirent dans les 7 jours et ceux qui ont expiré, et un bouton *Désactiver les comptes expirés* retire leur mot de passe du coffre. Pour prolonger un accès, modifiez la date.
 
 **Cas particuliers** (*Administration → Cas particuliers*) :

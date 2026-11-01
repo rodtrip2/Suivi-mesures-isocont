@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.29.0 — 1er novembre 2026
+
+- **À propos** (sous-onglet de l'administration et bouton de l'en-tête, pour tous les agents) : version, licence EUPL 1.2 expliquée, crédits, lien vers la page du projet sur GitHub, boutons *Signaler un problème* et *Demander une amélioration* (formulaires GitHub en français, version préremplie, rappel de ne jamais y mettre de donnée réelle), copie de la version et du navigateur.
+- Mention des droits d'auteur en termes français (« © 2026 Roddy Ricart et les contributeurs du projet — droits d'auteur »), dans l'application et le fichier NOTICE.
+
 ## 1.28.0 — 1er novembre 2026
 
 - **Motif du recours** (option) : liste paramétrable proposée dans la nouvelle mesure, facultative pour l'agent ; statistiques et rapport annuel.

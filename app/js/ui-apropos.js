@@ -29,7 +29,7 @@
         h('p', {}, 'Logiciel libre distribué sous la ', h('b', { text: 'Licence publique de l’Union européenne (EUPL) version 1.2' }),
           '. Vous pouvez l’utiliser, l’étudier, le modifier et le redistribuer, y compris dans un autre établissement ; une version modifiée et redistribuée doit rester sous la même licence (ou une licence compatible) et son code source rester accessible.'),
         h('p', { class: 'muted', text: 'Le logiciel est fourni « en l’état », sans garantie ni responsabilité de ses auteurs (articles 7 et 8 de l’EUPL). Chaque établissement reste responsable de son déploiement, de son paramétrage et de la validation des règles par sa direction, sa DSI et son DPO.' }),
-        h('p', {}, 'Copyright © 2026 Roddy Ricart et les contributeurs du projet. ', lien(EUPL_FR, 'Texte officiel de l’EUPL 1.2 en français'), ' — fichiers LICENSE et NOTICE du dépôt.')),
+        h('p', {}, '© 2026 Roddy Ricart et les contributeurs du projet — droits d’auteur, logiciel distribué sous licence EUPL 1.2. ', lien(EUPL_FR, 'Texte officiel de l’EUPL 1.2 en français'), ' — fichiers LICENSE et NOTICE du dépôt.')),
 
       h('section', { class: 'panneau' }, h('h2', { text: 'Crédits' }),
         h('ul', { class: 'liste-credits' },
@@ -51,5 +51,10 @@
     ];
   }
 
-  U.apropos = { panneau: panneau, DEPOT: DEPOT };
+  /** Fenêtre « À propos », accessible à tous les agents depuis l'en-tête. */
+  function modale() {
+    U.modale('À propos', h('div', { class: 'pile' }, panneau()), [{ texte: 'Fermer' }], { large: true });
+  }
+
+  U.apropos = { panneau: panneau, modale: modale, DEPOT: DEPOT };
 })();
