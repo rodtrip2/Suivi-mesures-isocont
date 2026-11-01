@@ -107,7 +107,11 @@
     // la mesure, facultatifs ; traces de surveillance aussi pour les mesures hors CSI ; durée de conservation (années).
     qualite: { motifRecours: false, motifsRecours: ['Prévention d’une violence imminente envers autrui', 'Prévention d’un passage à l’acte auto-agressif imminent', 'Agitation avec mise en danger', 'Risque de fugue avec mise en danger', 'Autre'],
       entretien: false, nomEntretien: 'Entretien après la mesure', surveillanceHorsCSI: false, conservationAns: 0 },
-    rapportsAnnuels: {},      // { 2026: { politique, evaluation, actions, avisCDU, avisCS } } : textes de la trame du rapport annuel
+    rapportsAnnuels: {},
+    // Méthode des statistiques (voir optionsStats) : tolérance de regroupement des entrées en séquences (minutes,
+    // 0 = entrées qui se touchent, jusqu'à 48 h), unité principale du rapport, mentions affichées, méthode antérieure par année.
+    statsMethode: { toleranceMinutes: 0, unitePrincipale: 'entrees', colonneSequences: false,
+      mentions: { regles: true, changements: true, comparaison: false, methodeAnterieure: true }, methodesAnterieures: {} },      // { 2026: { politique, evaluation, actions, avisCDU, avisCS } } : textes de la trame du rapport annuel
     // Alertes de l'établissement (voir alertesConfig) : 'rappel' affiché à la saisie, ou 'information' d'une personne
     // à tracer dans un délai (0 = sans délai). services [] = tous. depuis : mesures saisies à partir de cette date.
     alertes: [
@@ -1105,7 +1109,10 @@
       var l = ligne(m.patientId);
       if (m.type === 'Isolement') l.isolements++; else l.contentions++;
     });
-    return { colonnes: cols, parPatient: res };
+    if (optionsStats(st.config).colonneSequences) {
+      sequences(st, services, annee, maintenant).forEach(function (q) { var l = ligne(q.patientId); l.sequences = (l.sequences || 0) + 1; l.heuresSequences = (l.heuresSequences || 0) + q.dureeHeures; });
+    }
+    return { colonnes: cols, parPatient: res, sequences: optionsStats(st.config).colonneSequences };
   }
 
   // ------------------------------------------ Registre pour communication (CADA)
@@ -1206,6 +1213,134 @@
     return { n: v.length, total: total, moyenne: total / v.length, min: v[0], max: v[v.length - 1], mediane: v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2 };
   }
 
+  // ------------------------------------------------ Méthode des statistiques
+  var UNITES_STATS = { entrees: 'Entrées du registre', sequences: 'Séquences', mesures: 'Mesures au sens du juge (isolement et contention séparés)' };
+  var TOLERANCES_SEQUENCE = [0, 15, 60, 360, 720, 1440, 2880];
+
+  function optionsStats(config) {
+    var d = CONFIG_DEFAUT.statsMethode, o = Object.assign({}, d, (config && config.statsMethode) || {});
+    o.toleranceMinutes = Math.max(0, Math.min(2880, Math.round(+o.toleranceMinutes || 0)));
+    if (!UNITES_STATS[o.unitePrincipale]) o.unitePrincipale = 'entrees';
+    o.colonneSequences = !!o.colonneSequences;
+    o.mentions = Object.assign({}, d.mentions, o.mentions || {});
+    o.methodesAnterieures = o.methodesAnterieures && typeof o.methodesAnterieures === 'object' ? o.methodesAnterieures : {};
+    return o;
+  }
+
+  /**
+   * Séquences : entrées du registre d'un même patient (tous services confondus) qui se suivent avec un écart
+   * au plus égal à la tolérance réglée (0 = elles se touchent). Une séquence est comptée l'année de son début ;
+   * sa durée est la somme des durées de ses entrées (les écarts tolérés ne sont pas comptés).
+   */
+  function sequences(st, services, annee, maintenant, filtrePatient) {
+    var tol = optionsStats(st.config).toleranceMinutes * 60000, entrees = [];
+    services.forEach(function (sv) { [annee - 1, annee].forEach(function (an) { entrees = entrees.concat(registre(st, sv, an, maintenant)); }); });
+    if (filtrePatient) entrees = entrees.filter(function (e) { return e.patientId === filtrePatient; });
+    var parPatient = {};
+    entrees.forEach(function (e) { (parPatient[e.patientId] = parPatient[e.patientId] || []).push(e); });
+    var res = [];
+    Object.keys(parPatient).forEach(function (pid) {
+      var l = parPatient[pid].sort(function (a, b) { return a.debut - b.debut; }), cour = null;
+      l.forEach(function (e) {
+        var fin = e.fin === null ? maintenant : e.fin;
+        if (cour && e.debut - cour.finMax <= tol) {
+          cour.entrees.push(e); cour.finMax = Math.max(cour.finMax, fin); cour.enCours = cour.enCours || e.fin === null;
+        } else {
+          cour = { patientId: pid, debut: e.debut, finMax: fin, entrees: [e], enCours: e.fin === null };
+          res.push(cour);
+        }
+      });
+    });
+    var debutAn = new Date(annee, 0, 1).getTime(), finAn = new Date(annee + 1, 0, 1).getTime();
+    return res.filter(function (q) { return q.debut >= debutAn && q.debut < finAn; }).map(function (q) {
+      var cats = {}; q.entrees.forEach(function (e) { cats[e.categorie] = 1; });
+      var iso = cats.A || cats.B, cont = cats.C || cats.D || cats.E;
+      return { patientId: q.patientId, debut: q.debut, fin: q.enCours ? null : q.finMax, enCours: q.enCours, entrees: q.entrees.length,
+        dureeHeures: q.entrees.reduce(function (s, e) { return s + e.dureeHeures; }, 0),
+        composition: cats.C || (iso && cont) ? 'Isolement avec contention' : iso ? 'Isolement seul' : 'Contention seule hors espace d’isolement' };
+    });
+  }
+
+  function indicateursSequences(liste) {
+    var term = liste.filter(function (q) { return !q.enCours; }), patients = {}, comp = {};
+    term.forEach(function (q) { patients[q.patientId] = 1; comp[q.composition] = (comp[q.composition] || 0) + 1; });
+    return {
+      n: term.length, enCours: liste.length - term.length, patients: Object.keys(patients).length,
+      duree: stat(term.map(function (q) { return q.dureeHeures; })),
+      entreesParSequence: term.length ? term.reduce(function (s, q) { return s + q.entrees; }, 0) / term.length : null,
+      composition: comp
+    };
+  }
+
+  /** Réglages en vigueur qui influencent les statistiques, en phrases. */
+  function reglesCalcul(config) {
+    var op = optionsPauses(config), oc = optionsCas(config), os = optionsStats(config);
+    var r = [];
+    r.push(op.retrancher ? 'Levées temporaires (pauses) déduites ' + (op.portee === 'partout' ? 'des durées du registre et des statistiques' : 'des seuls délais JLD (registre et statistiques en durée réelle)') : 'Levées temporaires (pauses) comptées dans les durées');
+    if (op.deduireRegistre) r.push(op.contentionSeule === 'contention' ? 'Pause de la contention seule pendant un isolement : laissée dans l’entrée C' : 'Pause de la contention seule pendant un isolement : comptée en isolement seul (entrée A)');
+    r.push('Passage en soins somatiques ou aux urgences : ' + { 'poursuite-service': 'mesure poursuivie, comptée au registre du service', 'poursuite-registre': 'mesure poursuivie, comptée au registre dédié', suspension: 'mesure suspendue, période non comptée', arret: 'fin de la mesure' }[oc.somatique] + ' (règle enregistrée à chaque départ)');
+    r.push('Mode d’hospitalisation retenu : le nouveau mode s’il passe des soins libres à la contrainte dans les ' + (config.delaiModeHospiHeures || 12) + ' h suivant le début');
+    r.push('Séquences : entrées regroupées si l’écart ' + (os.toleranceMinutes ? 'ne dépasse pas ' + libDuree(os.toleranceMinutes) : 'est nul (entrées qui se touchent)'));
+    var fige = config.registreFige || {}, ans = [];
+    Object.keys(fige).forEach(function (sv) { Object.keys(fige[sv]).forEach(function (an) { if (fige[sv][an]) ans.push(an + ' (' + sv + ')'); }); });
+    if (ans.length) r.push('Années importées gardant les entrées du document d’origine : ' + ans.join(', '));
+    return r;
+  }
+  function libDuree(min) { return !min ? 'continu' : min < 60 ? min + ' min' : (min / 60) + ' h'; }
+
+  var CLES_METHODE = ['pauses', 'casParticuliers', 'delaiModeHospiHeures', 'registreFige', 'registreFigeMesures', 'statsMethode'];
+
+  /** Ce qui change entre deux valeurs d'un réglage de méthode (phrases), ou []. */
+  function diffMethode(cle, avant, apres) {
+    function cfg(v) { var c = {}; c[cle] = v; return c; }
+    var a = cfg(avant), b = cfg(apres), res = [];
+    if (cle === 'pauses') {
+      var pa = optionsPauses(a), pb = optionsPauses(b);
+      if (pa.retrancher !== pb.retrancher || (pb.retrancher && pa.portee !== pb.portee)) res.push('pauses ' + (pa.retrancher ? 'déduites (' + (pa.portee === 'partout' ? 'partout' : 'délais JLD') + ')' : 'comptées') + ' → ' + (pb.retrancher ? 'déduites (' + (pb.portee === 'partout' ? 'partout' : 'délais JLD') + ')' : 'comptées'));
+      if (pb.deduireRegistre && pa.contentionSeule !== pb.contentionSeule) res.push('pause de la contention seule : ' + (pb.contentionSeule === 'contention' ? 'laissée dans l’entrée C' : 'comptée en isolement seul (A)'));
+    } else if (cle === 'casParticuliers') {
+      var ca = optionsCas(a), cb = optionsCas(b);
+      if (ca.somatique !== cb.somatique || ca.serviceSomatique !== cb.serviceSomatique) res.push('règle des soins somatiques : ' + ca.somatique + ' → ' + cb.somatique + ' (départs suivants seulement)');
+    } else if (cle === 'delaiModeHospiHeures') {
+      if ((avant || 12) !== (apres || 12)) res.push('délai de bascule du mode d’hospitalisation : ' + (avant || 12) + ' h → ' + (apres || 12) + ' h');
+    } else if (cle === 'statsMethode') {
+      var sa = optionsStats(a), sb = optionsStats(b);
+      if (sa.toleranceMinutes !== sb.toleranceMinutes) res.push('tolérance des séquences : ' + libDuree(sa.toleranceMinutes) + ' → ' + libDuree(sb.toleranceMinutes));
+    } else if (JSON.stringify(avant || {}) !== JSON.stringify(apres || {})) {
+      res.push(cle === 'registreFige' ? 'numérotation conservée des années importées modifiée' : 'numérotation conservée de mesures importées modifiée');
+    }
+    return res;
+  }
+
+  /**
+   * Changements des réglages de méthode, relus au journal : [{ date, by, cle, textes, avant }] entre `debut` et `fin`.
+   * Toutes les années sont recalculées avec les réglages actuels (sauf la règle des soins somatiques, enregistrée
+   * avec chaque départ) : ces changements rendent les chiffres non comparables à ceux publiés avant eux.
+   */
+  function changementsMethode(st, debut, fin) {
+    var valeurs = {}, res = [];
+    CLES_METHODE.forEach(function (k) { valeurs[k] = cloner(CONFIG_DEFAUT[k] === undefined ? null : CONFIG_DEFAUT[k]); });
+    function voir(e, d, at) {
+      if (CLES_METHODE.indexOf(d.cle) < 0) return;
+      var avant = valeurs[d.cle], textes = diffMethode(d.cle, avant, d.valeur);
+      valeurs[d.cle] = cloner(d.valeur);
+      var t = Date.parse(at);
+      if (textes.length && t >= debut && t < fin) res.push({ date: t, by: e.by, cle: d.cle, textes: textes, avant: avant });
+    }
+    st.journal.forEach(function (e) {
+      if (st.annules[e.id]) return;
+      if (e.type === 'CONFIG') voir(e, e.data, e.at);
+      if (e.type === 'LOT') (e.data.evenements || []).forEach(function (x) { if (x.type === 'CONFIG') voir(e, x.data, x.at || e.at); });
+    });
+    return res;
+  }
+
+  /** Statistiques recalculées avec d'autres valeurs de réglages (comparaison avant / après un changement). */
+  function statistiquesAvec(st, surcharge, services, annee, maintenant) {
+    var config = Object.assign({}, st.config, surcharge);
+    return statistiquesAnnee(Object.assign({}, st, { config: config }), services, annee, maintenant);
+  }
+
   /**
    * Indicateurs annuels (rapport « L'isolement et la contention en chiffres »).
    * Une mesure = une entrée du registre terminée, comptée l'année de son début.
@@ -1282,6 +1417,7 @@
       partPatientsHC: hcOk && hc ? nPat / hc : null,
       partPatientsSSC: sscOk && ssc ? Object.keys(pSSC).length / ssc : null,
       categories: cat, soinsLibres: soinsLibres, patientsMineurs: Object.keys(pMineurs).length,
+      sequences: indicateursSequences(sequences(st, services, annee, maintenant)),
       tiers: tiers, jld: jld, mois: mois, motifsRecours: motifs, entretiens: entretiens, motifsFin: motifsFin,
       mesuresIsolement: mesures.filter(function (m) { return m.type === 'Isolement'; }).length, mesuresContention: mesures.filter(function (m) { return m.type === 'Contention'; }).length
     };
@@ -1458,7 +1594,8 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
-    optionsCas: optionsCas, optionsQualite: optionsQualite, donneesPatient: donneesPatient, auDelaConservation: auDelaConservation, propositionsEnAttente: propositionsEnAttente, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
+    optionsCas: optionsCas, optionsStats: optionsStats, UNITES_STATS: UNITES_STATS, TOLERANCES_SEQUENCE: TOLERANCES_SEQUENCE, sequences: sequences, indicateursSequences: indicateursSequences,
+    reglesCalcul: reglesCalcul, changementsMethode: changementsMethode, statistiquesAvec: statistiquesAvec, CLES_METHODE: CLES_METHODE, optionsQualite: optionsQualite, donneesPatient: donneesPatient, auDelaConservation: auDelaConservation, propositionsEnAttente: propositionsEnAttente, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
     DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
     reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

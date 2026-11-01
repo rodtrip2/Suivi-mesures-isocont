@@ -95,7 +95,9 @@
     lignesRapport(a, b).forEach(function (l) { lignes.push([l[0], l[3](l[1]), l[3](l[2]), evolution(l[1], l[2])]); });
     Object.keys(b.categories).forEach(function (k) { lignes.push(['Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k], a.categories[k], b.categories[k], evolution(a.categories[k], b.categories[k])]); });
     lignesConformite(a, b).forEach(function (l) { lignes.push([l[0], l[1], l[2], evolution(l[1], l[2])]); });
+    U.methode.lignesSequences(a, b).forEach(function (l) { lignes.push(['Séquences — ' + l[0], l[3](l[1]), l[3](l[2]), evolution(l[1], l[2])]); });
     b.mois.forEach(function (m, i) { lignes.push(['Mesures — ' + MOIS[i], a.mois[i].mesures, m.mesures, '']); });
+    U.methode.lignesCSV(b.annee).forEach(function (l) { lignes.push(l); });
     // Détail pseudonymisé
     lignes.push([]); lignes.push(['Détail des entrées ' + b.annee + ' (pseudonymisé)']);
  lignes.push(['N°', 'Catégorie', 'Service', 'Début', 'Fin', M.optionsPauses(U.config()).deduireRegistre ? 'Durée hors pauses (h)' : 'Durée (h)', "Mode d'hospitalisation", 'Patient', 'Mineur']);
@@ -162,7 +164,9 @@
           tableau(['Catégorie', String(a.annee), String(b.annee)], Object.keys(b.categories).map(function (k) { return [k + ' — ' + M.LIB_CATEGORIES[k], String(a.categories[k]), String(b.categories[k])]; }))),
         h('section', { class: 'panneau' }, h('h2', { text: 'Suivi réglementaire' }),
           tableau(['', String(a.annee), String(b.annee)], lignesConformite(a, b).map(function (l) { return [l[0], String(l[1]), String(l[2])]; })))),
+      U.methode.sectionSequences(a, b),
       U.qualite.sectionsStats(a, b),
+      U.methode.sectionMethode(svs, annee, b, false),
       h('section', { class: 'panneau' }, h('h2', { text: 'Répartition mensuelle' }), graphique(a, b)));
   };
 })();

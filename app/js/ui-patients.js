@@ -56,7 +56,8 @@
       liste.length ? h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Patient', 'Service', "Mode d'hospitalisation", 'Isolement 48 h / 15 j', 'Contention 48 h / 15 j', 'Vigilance', 'Mesures'].map(function (t) { return h('th', { text: t }); }),
            stats.colonnes.map(function (c) { return h('th', { class: 'col-annuelle', title: 'Entrées du registre ' + annee + ' en catégorie ' + c.categories.join(', ') + ' : nombre et durée cumulée' }, c.libelle, h('br'), h('small', { text: annee + ' · ' + c.categories.join(', ') })); }),
-           h('th', { class: 'col-annuelle', title: 'Mesures débutées en ' + annee + ', comptées séparément comme le fait le juge' }, 'Mesures (JLD)', h('br'), h('small', { text: annee + ' · isolement / contention' })), h('th'))),
+           h('th', { class: 'col-annuelle', title: 'Mesures débutées en ' + annee + ', comptées séparément comme le fait le juge' }, 'Mesures (JLD)', h('br'), h('small', { text: annee + ' · isolement / contention' })),
+           stats.sequences ? h('th', { class: 'col-annuelle', title: 'Séquences débutées en ' + annee + ' : entrées du registre qui se suivent (' + U.methode.libTol(M.optionsStats(U.config()).toleranceMinutes) + ')' }, 'Séquences', h('br'), h('small', { text: annee })) : null, h('th'))),
         h('tbody', {}, liste.map(function (x) {
           var p = x.p, mode = U.modeActuel(p), depuis = p.modes.length ? p.modes[p.modes.length - 1].date : null;
           return h('tr', { class: x.enCours ? 'en-cours' : '' },
@@ -70,6 +71,7 @@
             h('td', { text: x.enCours ? x.enCours + ' en cours / ' + x.total : String(x.total) }),
             stats.colonnes.map(function (c, i) { var s = stats.parPatient[p.id]; return celluleAnnuelle(c, s && s.colonnes[i]); }),
             (function () { var s = stats.parPatient[p.id]; return h('td', { class: 'nowrap col-annuelle' }, s ? s.isolements + ' / ' + s.contentions : '0 / 0'); })(),
+            stats.sequences ? (function () { var s = stats.parPatient[p.id]; return s && s.sequences ? h('td', { class: 'col-annuelle' }, h('b', { text: String(s.sequences) }), h('br'), h('small', { class: 'nowrap', text: U.duree(s.heuresSequences) })) : h('td', { class: 'col-annuelle muted', text: '0' }); })() : null,
             h('td', { class: 'actions-ligne' },
               x.total ? h('button', { class: 'btn petit', onclick: function () { modaleMesures(p); } }, 'Mesures') : null, ' ',
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleMode(p); } }, 'Mode') : null, ' ',

@@ -175,14 +175,22 @@
         h('h2', { text: '1. Pratiques d’isolement et de contention' }),
         h('table', { class: 'stats' }, h('thead', {}, h('tr', {}, h('th', { text: 'Indicateur' }), h('th', { class: 'num', text: String(annee - 1) }), h('th', { class: 'num', text: String(annee) }))),
           h('tbody', {},
-            ligne('Mesures (entrées du registre terminées)', a.mesures, b.mesures),
-            ligne('Mesures d’isolement débutées', a.mesuresIsolement, b.mesuresIsolement),
-            ligne('Mesures de contention débutées', a.mesuresContention, b.mesuresContention),
+            (function () {
+              // Unités de compte : l'unité principale choisie par l'établissement en tête
+              var unites = {
+                entrees: [ligne('Entrées du registre terminées', a.mesures, b.mesures), ligne('Durée moyenne d’une entrée', a.duree.moyenne, b.duree.moyenne, ' h')],
+                sequences: [ligne('Séquences terminées', a.sequences.n, b.sequences.n), ligne('Durée moyenne d’une séquence', a.sequences.duree.moyenne, b.sequences.duree.moyenne, ' h'), ligne('Entrées du registre par séquence', a.sequences.entreesParSequence, b.sequences.entreesParSequence)],
+                mesures: [ligne('Mesures d’isolement débutées (décompte du juge)', a.mesuresIsolement, b.mesuresIsolement), ligne('Mesures de contention débutées (décompte du juge)', a.mesuresContention, b.mesuresContention)]
+              };
+              var pr = M.optionsStats(U.config()).unitePrincipale;
+              unites[pr][0].firstChild.appendChild(h('b', { text: ' (unité principale)' }));
+              return [pr].concat(Object.keys(unites).filter(function (k) { return k !== pr; })).map(function (k) { return unites[k]; });
+            })(),
             ligne('Patients distincts', a.patients, b.patients),
             ligne('Patients en hospitalisation complète (saisis)', a.patientsHC, b.patientsHC),
             ligne('Part des patients HC concernés', a.partPatientsHC == null ? null : a.partPatientsHC * 100, b.partPatientsHC == null ? null : b.partPatientsHC * 100, ' %'),
-            ligne('Durée moyenne d’une mesure', a.duree.moyenne, b.duree.moyenne, ' h'),
-            ligne('Durée médiane', a.duree.mediane, b.duree.mediane, ' h'),
+            ligne('Durée médiane d’une entrée', a.duree.mediane, b.duree.mediane, ' h'),
+            ligne('Durée cumulée', a.duree.total, b.duree.total, ' h'),
             ligne('Heures d’utilisation des CSI', a.heuresCSI, b.heuresCSI, ' h'),
             ligne('Patients mineurs', a.patientsMineurs, b.patientsMineurs),
             ligne('Entrées concernant un patient en soins libres', a.soinsLibres, b.soinsLibres),
@@ -191,6 +199,7 @@
             Object.keys(b.categories).map(function (k) { return ligne('Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k], a.categories[k], b.categories[k]); }))),
         Object.keys(b.motifsRecours).some(function (k) { return k !== 'Non renseigné'; }) ? h('div', {}, h('h3', { text: 'Motifs du recours (' + annee + ')' }), h('ul', {}, Object.keys(b.motifsRecours).map(function (k) { return h('li', { text: k + ' : ' + b.motifsRecours[k] }); }))) : null,
         M.optionsQualite(U.config()).entretien ? h('p', { text: M.optionsQualite(U.config()).nomEntretien + ' (' + annee + ') : réalisé ' + b.entretiens.realises + ', non réalisé ' + b.entretiens.nonRealises + ', non renseigné ' + b.entretiens.nonRenseignes + '.' }) : null,
+        U.methode.sectionMethode(svs, annee, b, true),
         CHAMPS_RAPPORT.map(function (c, i) { return h('div', {}, h('h2', { text: (i + 2) + '. ' + c[1] }), h('p', { class: 'texte-rapport', text: zones[c[0]].value.trim() || '(à compléter)' })); }));
     }
     var boutons = [{ texte: 'Fermer' },

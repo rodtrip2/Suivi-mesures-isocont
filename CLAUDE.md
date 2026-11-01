@@ -92,6 +92,8 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 ## 8. Statistiques et onglet Patients
 
 - Statistiques annuelles N / N-1 (rapport « L'isolement et la contention en chiffres »), export CSV pseudonymisé.
+- **Unités de compte** (consigne du porteur : le découpage du registre augmente le nombre de mesures par rapport aux pratiques antérieures) : entrées du registre (unité principale par défaut, réglable), mesures au sens du juge, **séquences** (`M.sequences` : entrées d'un même patient, tous services, écart ≤ tolérance réglable de 0 à 48 h ; durée = somme des entrées ; composition). `config.statsMethode`, `M.optionsStats`, `app/js/ui-methode.js`.
+- **Traçabilité des règles de calcul** : règles en vigueur (`M.reglesCalcul`), changements datés relus au journal (`M.changementsMethode` : pauses, soins somatiques, délai de bascule, numérotation importée, tolérance), comparaison avec la règle antérieure (`M.statistiquesAvec`), méthode antérieure par année ; chaque mention s'affiche au choix de l'établissement (statistiques, rapport annuel, export).
 - Onglet Patients : cumuls 48 h / 15 jours, vigilance, mode d'hospitalisation ; **statistiques par année** en colonnes **paramétrables** regroupant des catégories A à E (par défaut : isolement seul A–B, contention seule D–E signalée si non nulle, isolement + contention C) ; colonne **« Mesures (JLD) »** qui compte isolements et contentions séparément, comme le juge ; bouton **Mesures** ouvrant la liste détaillée des mesures du patient et ses entrées du registre.
 
 ## 9. Reprise de l'historique

@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.30.0 — 1er novembre 2026
+
+- **Séquences** : entrées du registre d'un même patient qui se suivent (tous services), regroupées selon une tolérance réglable de « continu » à 48 h. Indicateurs dans les statistiques, le rapport annuel et l'export : nombre, patients, entrées par séquence, durées moyenne, médiane, maximale et cumulée, composition (isolement seul, avec contention, contention seule). Colonne « Séquences » de l'onglet Patients (option).
+- **Unités de compte** expliquées (entrées du registre, mesures au sens du juge, séquences) ; unité principale du rapport annuel réglable (entrées du registre par défaut), placée en tête.
+- **Méthode de calcul** sous les statistiques, dans le rapport et l'export, selon les mentions choisies par l'établissement : règles en vigueur, changements de règles datés relus au journal (pauses, soins somatiques, délai de bascule du mode, numérotation importée, tolérance des séquences), comparaison chiffrée avec la règle antérieure au dernier changement, méthode de comptage utilisée avant l'outil (texte par année).
+
 ## 1.29.0 — 1er novembre 2026
 
 - **À propos** (sous-onglet de l'administration et bouton de l'en-tête, pour tous les agents) : version, licence EUPL 1.2 expliquée, crédits, lien vers la page du projet sur GitHub, boutons *Signaler un problème* et *Demander une amélioration* (formulaires GitHub en français, version préremplie, rappel de ne jamais y mettre de donnée réelle), copie de la version et du navigateur.
