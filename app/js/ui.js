@@ -1442,6 +1442,16 @@
   }
 
   // ---------------------------------------------------------------- Tiers
+  /** Extrait de l'article L. 3222-5-1 (II) sur l'information de l'entourage, avec la décision QPC qui le concerne. */
+  function extraitLoiTiers(ouvert) {
+    return h('details', { class: 'extrait-loi', open: !!ouvert },
+      h('summary', { text: 'Texte de loi : article L. 3222-5-1, II du code de la santé publique' }),
+      h('blockquote', {},
+        h('p', { text: '« Le médecin informe du renouvellement de ces mesures au moins un membre de la famille du patient, en priorité son conjoint, le partenaire lié à lui par un pacte civil de solidarité ou son concubin, ou une personne susceptible d’agir dans son intérêt dès lors qu’une telle personne est identifiée, dans le respect de la volonté du patient et du secret médical. »' }),
+        h('p', { text: '« Le médecin réitère l’information susmentionnée lors de chaque saisine du juge des libertés et de la détention. »' })),
+      h('small', { class: 'muted', text: 'Version en vigueur depuis le 1er septembre 2024. Les mots « ou une personne susceptible d’agir dans son intérêt dès lors qu’une telle personne est identifiée » ont été déclarés contraires à la Constitution (Conseil constitutionnel, décision n° 2024-1127 QPC du 5 mars 2025, rendue sur la rédaction issue de la loi du 22 janvier 2022), au motif que la loi n’imposait pas d’informer la personne chargée d’une mesure de protection juridique. Pour un majeur protégé, informer aussi, par prudence, son tuteur ou son curateur.' }));
+  }
+
   function modaleTiers(m) {
     var base = m.version;
     var statut = h('select', {}, Object.keys(LIB_TIERS).map(function (k) { return h('option', { value: k, text: LIB_TIERS[k] }); }));
@@ -1460,6 +1470,8 @@
     })) : null;
     modale('Information du tiers — cycle ' + m.cycle, h('div', { class: 'pile' }, recapMesure(m), historique,
       h('p', { class: 'muted' }, h('small', { text: 'L’article L. 3222-5-1 confie cette information au médecin ; l’établissement précise qui la réalise selon son organisation. Elle doit être renouvelée à chaque cycle, en même temps que l’information ou la saisine du juge.' })),
+      patient(m.patientId).protection ? h('div', { class: 'alerte-etab information' }, h('b', { text: 'Patient sous ' + patient(m.patientId).protection.toLowerCase() + ' : informer aussi la personne chargée de la mesure de protection (voir le texte de loi).' })) : null,
+      extraitLoiTiers(false),
       h('div', { class: 'grille-2' }, h('label', {}, 'Résultat', statut), h('label', {}, 'Tiers (qualité)', personne)),
       h('div', { class: 'grille-2' }, h('label', {}, 'Information faite par', informateur), h('label', {}, 'Date et heure', quand)),
       blocPsy, blocNom, h('label', {}, 'Précision', motif)), [
@@ -1784,6 +1796,7 @@
     var tTiers = h('textarea', { rows: 4 }, infoTiers.map(function (f) { return f.libelle; }).join('\n'));
     var pTiers = h('section', { class: 'panneau' }, h('h2', { text: 'Information du tiers : qui peut la réaliser' }),
       h('p', { class: 'muted', text: 'L’article L. 3222-5-1 confie l’information de la famille ou du proche au médecin. « Le psychiatre » est donc toujours proposé en premier ; ajoutez ici les autres fonctions qui peuvent la réaliser dans votre établissement (une par ligne), par exemple : IDE, cadre de santé, médecin de garde, assistant de service social. Le nom de la personne peut être précisé à chaque saisie.' }),
+      extraitLoiTiers(true),
       h('label', {}, 'Autres fonctions proposées (une par ligne)', tTiers),
       boutonEnregistrer(async function () {
         var vus = {}, v = [];

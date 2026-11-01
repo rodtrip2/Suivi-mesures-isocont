@@ -370,3 +370,8 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 
 details.restauration { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
 details.restauration summary { cursor: pointer; color: var(--accent); }
+
+details.extrait-loi { border-left: 4px solid var(--line); padding: 4px 12px; font-size: .9rem; }
+details.extrait-loi summary { cursor: pointer; color: var(--accent); }
+details.extrait-loi blockquote { margin: 8px 0; font-style: italic; }
+details.extrait-loi blockquote p { margin: 0 0 6px; }

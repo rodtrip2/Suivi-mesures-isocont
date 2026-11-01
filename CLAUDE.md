@@ -26,7 +26,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 
 - Comptes nominatifs, rôles cumulables : **IDE**, **AS** (mêmes droits que l'IDE), **Secrétaire**, **Cadre de santé**, **Administrateur**.
 - La secrétaire fait les envois et le suivi JLD en semaine ; l'IDE le fait le week-end et en son absence : **droit JLD permanent pour l'IDE**.
-- Information du tiers : **le psychiatre** (toujours en tête : la loi confie cette information au médecin) ou **une autre fonction de la liste de l'établissement** (`config.informateursTiers`, par défaut IDE ; *Administration → Établissement et services*), nom facultatif. Pratique du CHHA : psychiatre ou IDE. Ne pas écrire « en dernier recours » dans l'interface ni le kit (consigne du porteur : propre au CHHA).
+- Information du tiers : **le psychiatre** (toujours en tête : la loi confie cette information au médecin) ou **une autre fonction de la liste de l'établissement** (`config.informateursTiers`, par défaut IDE ; *Administration → Établissement et services*), nom facultatif. Pratique du CHHA : psychiatre ou IDE. Ne pas écrire « en dernier recours » dans l'interface ni le kit (consigne du porteur : propre au CHHA). Extrait de l'art. L. 3222-5-1, II affiché (fenêtre *Tiers* et réglage), avec la décision n° 2024-1127 QPC du 5 mars 2025 (mots « ou une personne susceptible d'agir dans son intérêt… » déclarés contraires à la Constitution, rédaction 2022) et rappel d'informer la personne chargée d'une mesure de protection.
 - Le cadre cumule pour l'instant le rôle d'administrateur, mais les deux rôles doivent rester **séparables**.
 - Chaque compte (hors administrateur) a **un ou plusieurs services** : seuls ceux-ci s'affichent à la connexion et à la création d'une mesure. L'administrateur voit tous les services.
 - Création de comptes **en lot** (liste d'agents collée ou CSV), mots de passe provisoires tirés au hasard, **changement obligatoire à la première connexion**, réinitialisation par l'administrateur (nouveau mot de passe provisoire), fiches de remise imprimables.
@@ -145,4 +145,5 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - Version du registre communiquée au titre du CRPA.
 - Acceptation du CSV du décompte par le greffe du JLD.
 - Test physique de la clé YubiKey sur un poste de l'établissement.
+- Portée pratique de la décision n° 2024-1127 QPC pour l'information des proches (majeurs protégés : tuteur ou curateur), à confirmer avec la direction des affaires juridiques.
 - Règle de l'établissement pour le passage en soins somatiques ou aux urgences pendant une mesure, et catégorie au registre de cette période.

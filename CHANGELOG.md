@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.32.1 — 1er novembre 2026
+
+- **Information du tiers** : extrait de l'article L. 3222-5-1, II (« Le médecin informe du renouvellement de ces mesures… », « Le médecin réitère… ») dans la fenêtre *Tiers* et dans le réglage des fonctions, avec la mention de la décision du Conseil constitutionnel n° 2024-1127 QPC du 5 mars 2025. Rappel, pour un patient sous protection juridique, d'informer aussi la personne chargée de la mesure de protection.
+
 ## 1.32.0 — 1er novembre 2026
 
 - **Information du tiers** : la mention « (en dernier recours) », propre à l'organisation d'un établissement, est retirée. La liste des fonctions pouvant informer le tiers se règle dans *Administration → Établissement et services* (IDE par défaut ; ajout possible de cadre de santé, médecin de garde, assistant de service social…) ; le psychiatre reste toujours proposé en premier, l'article L. 3222-5-1 confiant cette information au médecin. Le nom de la personne ayant informé peut être précisé pour toutes les fonctions ; il apparaît dans le journal, le détail et le décompte JLD.
