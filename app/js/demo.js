@@ -27,7 +27,7 @@
     var periodes = [['M', 7], ['AM', 14], ['N', 21]];
     if (reel) {
       // Jeu de formation : mêmes services, CSI et postes que les données réelles, contenu fictif.
-      ['services', 'lieuxCSI', 'periodes', 'periodesService', 'modesHospitalisation', 'parametres', 'delaiModeHospiHeures', 'decompte', 'inactiviteMinutes', 'pauses', 'imagesDecompte', 'colonnesPatients'].forEach(function (k) {
+      ['services', 'lieuxCSI', 'periodes', 'periodesService', 'modesHospitalisation', 'parametres', 'delaiModeHospiHeures', 'decompte', 'inactiviteMinutes', 'pauses', 'imagesDecompte', 'colonnesPatients', 'casParticuliers'].forEach(function (k) {
         if (reel[k] !== undefined) cfg(k, reel[k]);
       });
       // Alertes : seules les mesures saisies pendant la formation les déclenchent.

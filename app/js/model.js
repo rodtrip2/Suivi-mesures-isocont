@@ -34,7 +34,7 @@
     IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION'],
     AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD'],
-    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'CORRECTION', 'ANNULATION', 'STATS'],
+    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'CORRECTION', 'ANNULATION', 'STATS', 'FUSION'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -94,6 +94,11 @@
     // 'isolement' : ce temps devient de l'isolement seul (entrée A) ; 'contention' : il reste dans l'entrée C, non déduit.
     // verrouContention : interdit la pause de l'isolement seul pendant une contention (pause commune ou fin de la contention).
     pauses: { active: true, retrancher: false, portee: 'jld', contentionSeule: 'isolement', verrouContention: false, colonneRegistre: true, repriseAuto: false, alerteHeures: 12, refusHeures: 48 },
+    // Cas particuliers (Administration → Cas particuliers), voir optionsCas :
+    // mainleveeType : 'tout' (toute nouvelle mesure) ou 'meme' (même type) dans les 48 h suivant une mainlevée du JLD ;
+    // mainleveeInfoSansDelai : l'information du JLD de cette nouvelle mesure est due sans délai (art. L. 3222-5-1, II) ;
+    // debutAilleurs : saisie d'une mesure débutée avant l'arrivée dans le service (urgences, autre établissement).
+    casParticuliers: { mainleveeType: 'tout', mainleveeInfoSansDelai: true, debutAilleurs: true },
     // Alertes de l'établissement (voir alertesConfig) : 'rappel' affiché à la saisie, ou 'information' d'une personne
     // à tracer dans un délai (0 = sans délai). services [] = tous. depuis : mesures saisies à partir de cette date.
     alertes: [
@@ -153,7 +158,7 @@
    */
   function reduire(evts) {
     var st = {
-      config: cloner(CONFIG_DEFAUT),
+      config: cloner(CONFIG_DEFAUT), fusions: {},
       patients: {}, mesures: {}, professionnels: [], saisiesStats: {},
       conflits: [], annules: {}, journal: [], parId: {}, manquants: []
     };
@@ -179,9 +184,29 @@
     return st;
   }
 
+  /** Fiche qui porte aujourd'hui un patient (après fusions éventuelles). */
+  function ciblePatient(st, id) {
+    var n = 0;
+    while (id && st.fusions[id] && n++ < 50) id = st.fusions[id];
+    return id;
+  }
+
   function appliquer(st, e) {
     var d = e.data || {}, m;
+    if (d.patientId && st.fusions[d.patientId]) d = Object.assign({}, d, { patientId: ciblePatient(st, d.patientId) });
     switch (e.type) {
+      case 'FUSION':
+        var g = ciblePatient(st, d.garde), a = ciblePatient(st, d.absorbe);
+        var pg = st.patients[g], pa = st.patients[a];
+        if (!pg || !pa || g === a) break;
+        ['ipp', 'nom', 'prenom', 'naissance', 'protection', 'service'].forEach(function (k) { if (!pg[k] && pa[k]) pg[k] = pa[k]; });
+        pg.modes = pg.modes.concat(pa.modes).sort(function (x, y) { return x.date - y.date; });
+        pg.fusionnes = (pg.fusionnes || []).concat([{ id: a, ipp: pa.ipp || '', nom: pa.nom || '', prenom: pa.prenom || '', naissance: pa.naissance || '', evt: e.id, motif: d.motif || '' }], pa.fusionnes || []);
+        Object.keys(st.mesures).forEach(function (k) { if (st.mesures[k].patientId === a) st.mesures[k].patientId = g; });
+        delete st.patients[a];
+        st.fusions[a] = g;
+        break;
+
       case 'CONFIG':
         st.config[d.cle] = cloner(d.valeur);
         break;
@@ -206,6 +231,8 @@
         st.mesures[d.mesureId] = {
           id: d.mesureId, patientId: d.patientId, service: d.service, type: d.typeMesure,
           debut: d.debut, fin: null, lieu: d.lieu || '', csi: !!d.csi, exception: !!d.exception,
+          // Mesure débutée avant l'arrivée dans le service : début de la décision initiale et lieu d'origine
+          debutInitial: typeof d.debutInitial === 'number' && d.debutInitial < d.debut ? d.debutInitial : null, lieuInitial: d.lieuInitial || '',
           psychiatreDebut: d.psychiatre || '', psychiatreFin: '', modeHospi: d.modeHospi || '',
           cycle: 1, jld: {}, leveeJLD: false, tiers: [], pauses: [], creePar: e.by, creeLe: e.at,
           origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', correctionImport: d.correctionImport || '', suite: d.suiteDe || '',
@@ -271,7 +298,7 @@
         break;
       case 'CORRECTION':
         var ch = d.champs || {};
-        ['debut', 'fin', 'lieu', 'csi', 'psychiatreDebut', 'psychiatreFin', 'modeHospi', 'exception', 'type'].forEach(function (k) {
+        ['debut', 'fin', 'lieu', 'csi', 'psychiatreDebut', 'psychiatreFin', 'modeHospi', 'exception', 'type', 'debutInitial', 'lieuInitial'].forEach(function (k) {
           if (ch[k] !== undefined) m[k] = ch[k];
         });
         break;
@@ -303,8 +330,11 @@
       if (termine && (s === 'depasse' || s === 'proche' || s === 'ok')) return ech > m.fin ? 'na' : s;
       return s;
     }
+    // Nouvelle mesure dans les 48 h suivant une mainlevée : information du juge sans délai.
+    var ml = apresMainlevee(st, m);
+    if (ml && cycle === 1 && optionsCas(st.config).mainleveeInfoSansDelai) e.info = Math.min(e.info, m.debut);
     return {
-      cycle: cycle, rythmeLong: e.rythmeLong,
+      cycle: cycle, rythmeLong: e.rythmeLong, apresMainlevee: ml, debutService: m.debutService || null,
       info: { echeance: e.info, effective: eff('INFO'), statut: statut(e.info, 'INFO') },
       saisine: { echeance: e.saisine, effective: eff('SAISINE'), statut: statut(e.saisine, 'SAISINE') },
       decision: { echeance: e.decision, effective: eff('DECISION'), statut: statut(e.decision, 'DECISION') },
@@ -376,10 +406,60 @@
   }
 
   /** Mesures prêtes pour le moteur de règles : copies portant leurs plages retranchées si l'option est active. */
+  /**
+   * Mesures telles que comptées pour les délais légaux (JLD, cumuls, décompte) : pauses retranchées si l'option
+   * est active, et début ramené à la décision initiale pour une mesure débutée avant l'arrivée dans le service
+   * (`debutService` garde l'heure d'arrivée ; le registre du service, lui, part de l'arrivée).
+   */
   function mesuresCalcul(st, maintenant) {
-    var ms = listeMesures(st);
-    if (!optionsPauses(st.config).retrancher) return ms;
-    return ms.map(function (m) { return Object.assign({}, m, { exclusions: exclusions(m, maintenant, st.config) }); });
+    var ms = listeMesures(st), retr = optionsPauses(st.config).retrancher;
+    return ms.map(function (m) {
+      var ailleurs = typeof m.debutInitial === 'number' && m.debutInitial < m.debut;
+      if (!retr && !ailleurs) return m;
+      var x = Object.assign({}, m);
+      if (ailleurs) { x.debutService = m.debut; x.debut = m.debutInitial; }
+      if (retr) x.exclusions = exclusions(m, maintenant, st.config);
+      return x;
+    });
+  }
+
+  // ------------------------------------------------- Cas particuliers
+  function optionsCas(config) {
+    var o = Object.assign({}, CONFIG_DEFAUT.casParticuliers, (config && config.casParticuliers) || {});
+    o.mainleveeType = o.mainleveeType === 'meme' ? 'meme' : 'tout';
+    o.mainleveeInfoSansDelai = o.mainleveeInfoSansDelai !== false;
+    o.debutAilleurs = o.debutAilleurs !== false;
+    return o;
+  }
+
+  /** Mainlevées ordonnées par le JLD : [{ date, mesure, type, patientId }]. */
+  function mainlevees(st, patientId) {
+    var res = [];
+    listeMesures(st).forEach(function (m) {
+      if (m.patientId !== patientId) return;
+      Object.keys(m.jld || {}).forEach(function (c) {
+        var dec = m.jld[c].DECISION;
+        if (dec && dec.decision === 'LEVEE' && typeof dec.date === 'number') res.push({ date: dec.date, mesure: m, type: m.type, patientId: patientId });
+      });
+    });
+    return res.sort(function (a, b) { return a.date - b.date; });
+  }
+
+  /**
+   * Mainlevée intervenue dans les 48 h précédant `instant` (art. L. 3222-5-1, II : aucune nouvelle mesure avant 48 h,
+   * sauf éléments nouveaux ; le directeur en informe le juge sans délai). `exclure` : identifiant de la mesure étudiée.
+   */
+  function mainleveeRecente(st, patientId, type, instant, exclure) {
+    var o = optionsCas(st.config);
+    return mainlevees(st, patientId).filter(function (x) {
+      return x.mesure.id !== exclure && x.date <= instant && instant < x.date + 48 * H && (o.mainleveeType === 'tout' || x.type === type);
+    }).pop() || null;
+  }
+
+  /** Mainlevée précédant une mesure enregistrée (début initial si la mesure a débuté ailleurs). */
+  function apresMainlevee(st, m) {
+    var debut = typeof m.debutInitial === 'number' && m.debutInitial < m.debut ? m.debutInitial : m.debut;
+    return mainleveeRecente(st, m.patientId, m.type, debut, m.id);
   }
 
   /** Plages de pause d'une mesure entre `d` et `f`, telles que comptées par l'établissement (déduites ou réelles). */
@@ -445,6 +525,27 @@
     var n = new Date(p.naissance + 'T00:00:00'), d = new Date(date);
     var age = d.getFullYear() - n.getFullYear() - ((d.getMonth() < n.getMonth() || (d.getMonth() === n.getMonth() && d.getDate() < n.getDate())) ? 1 : 0);
     return age < 18;
+  }
+
+  // ------------------------------------------------------- Fiches en double
+  function normaliserNom(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\(fictif\)/gi, '').replace(/[^a-z]/gi, '').toLowerCase();
+  }
+
+  /**
+   * Fiches qui pourraient désigner le même patient que `fiche` ({ nom, prenom, naissance, ipp }) :
+   * même IPP, même nom et prénom, ou même nom (ou prénom) et même date de naissance. `exclure` : id de la fiche elle-même.
+   */
+  function doublonsPossibles(st, fiche, exclure) {
+    var n = normaliserNom(fiche.nom), pr = normaliserNom(fiche.prenom), ipp = String(fiche.ipp || '').trim();
+    return Object.keys(st.patients).map(function (k) { return st.patients[k]; }).filter(function (p) { return p.id !== exclure; }).map(function (p) {
+      var raisons = [];
+      if (ipp && p.ipp && String(p.ipp).trim() === ipp) raisons.push('même IPP');
+      var pn = normaliserNom(p.nom), pp = normaliserNom(p.prenom);
+      if (n && pn === n && pr && pp === pr) raisons.push('même nom et prénom');
+      else if (fiche.naissance && p.naissance === fiche.naissance && ((n && pn === n) || (pr && pp === pr))) raisons.push('même date de naissance et même ' + (n && pn === n ? 'nom' : 'prénom'));
+      return raisons.length ? { patient: p, raisons: raisons } : null;
+    }).filter(Boolean);
   }
 
   // ------------------------------------------------------- Alertes de l'établissement
@@ -1129,6 +1230,7 @@
     /** Découpe [d, f] d'une mesure aux bornes `grille` et aux pauses déduites ; appelle `ligne(d, f, apresPause, premiere)`. */
     function parcourir(x, d, f, grille, ligne) {
       var plages = deduire ? plagesPauses(x, reference).filter(function (q) { return q.debut < f && q.fin > d; }) : [];
+      var coupe = x.debutService && x.debutService > d && x.debutService < f ? x.debutService : null;   // arrivée dans le service
       var t = d, apresPause = false, premiere = true, k = 0;
       while (t < f || (premiere && t === f)) {
         var q = plages.filter(function (z) { return z.debut <= t && z.fin > t; })[0];
@@ -1136,6 +1238,7 @@
         while (grille && grille(k) <= t) k++;
         var suivante = Math.min(f, grille ? grille(k) : f);
         plages.forEach(function (z) { if (z.debut > t && z.debut < suivante) suivante = z.debut; });
+        if (coupe && coupe > t && coupe < suivante) suivante = coupe;
         ligne(t, suivante, apresPause, premiere);
         if (suivante === t) break;
         t = suivante; apresPause = false; premiere = false;
@@ -1159,7 +1262,8 @@
     parcourir(m, m.debut, fin, grille, function (a, b, apres, premiere) {
       nTranche++;
       // Le statut est celui de la mesure (et non de la tranche) : une mesure en cours l'est sur toutes ses lignes.
-      ligneMesure(m, a, b, premiere ? 'Début de la mesure' : apres ? 'Reprise de la mesure après levée temporaire' + (pas ? ' (tranche ' + nTranche + ')' : '') : 'Suite de la même mesure (tranche ' + nTranche + ')', mesureFinie ? 'TERMINÉE' : 'EN COURS');
+      var lieuAvant = m.debutService && a < m.debutService ? ' — ' + (m.lieuInitial || 'avant l’arrivée dans le service') + ' (avant l’arrivée dans le service)' : '';
+      ligneMesure(m, a, b, (m.debutService && a === m.debutService ? 'Arrivée dans le service, suite de la même mesure' : premiere ? 'Début de la mesure' + lieuAvant : apres ? 'Reprise de la mesure après levée temporaire' + (pas ? ' (tranche ' + nTranche + ')' : '') : 'Suite de la même mesure (tranche ' + nTranche + ')'), mesureFinie ? 'TERMINÉE' : 'EN COURS');
     });
     // N° : numéro de la mesure dans le décompte, suivi du numéro de tranche si elle occupe plusieurs lignes (2.1, 2.2…).
     var parMesure = {}, rang = {};
@@ -1174,7 +1278,7 @@
     if (dernier && dernier.type === 'pause' && !mesureFinie) dernier.statut = 'PAUSE EN COURS';
     return {
       lignes: lignes, cumulAvant: cumulAvant, total: rules.heuresFusionnees(intervalles), enCours: !mesureFinie, reference: fin, fenetreDebut: borne,
-      tranches: lignes.some(function (l) { return /\./.test(l.n); }), tranche: tranche,
+      tranches: lignes.some(function (l) { return /\./.test(l.n); }), tranche: tranche, debutService: m.debutService || null, lieuInitial: m.lieuInitial || '', apresMainlevee: apresMainlevee(st, m),
       pausesRetranchees: deduire, pauses: plagesPauses(m, fin)
     };
   }
@@ -1189,6 +1293,7 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
+    optionsCas: optionsCas, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
     DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
     reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

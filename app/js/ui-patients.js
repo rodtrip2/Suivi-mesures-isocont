@@ -43,6 +43,16 @@
     var champAn = h('input', { type: 'number', min: 2000, max: 2100, value: annee, class: 'champ-court', 'aria-label': 'Année des statistiques', onchange: function () { annee = +champAn.value || annee; U.rendreContenu(); } });
     return h('div', {},
       h('div', { class: 'barre' }, h('h1', { text: 'Patients' }), h('div', { class: 'espace' }), h('label', { class: 'en-ligne' }, 'Statistiques de l’année', champAn), champ),
+      (function () {
+        var paires = U.cas.pairesProches(patientsVisibles());
+        if (!paires.length) return null;
+        return h('section', { class: 'panneau' }, h('h2', { text: 'Fiches peut-être en double' }),
+          h('ul', { class: 'vigilance' }, paires.map(function (x) {
+            return h('li', {}, h('b', { text: U.cas.libFiche(x.a) }), ' et ', h('b', { text: U.cas.libFiche(x.b) }), ' (' + x.raisons.join(', ') + ') ',
+              U.App.session.peut('FUSION') ? h('button', { class: 'btn petit', onclick: function () { U.cas.modaleFusion(x.a); } }, 'Fusionner…') : null);
+          })),
+          h('small', { class: 'muted', text: 'Deux fiches pour un même patient faussent les cumuls des 15 jours et les échéances JLD. La fusion est réservée au cadre de santé.' }));
+      })(),
       liste.length ? h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Patient', 'Service', "Mode d'hospitalisation", 'Isolement 48 h / 15 j', 'Contention 48 h / 15 j', 'Vigilance', 'Mesures'].map(function (t) { return h('th', { text: t }); }),
            stats.colonnes.map(function (c) { return h('th', { class: 'col-annuelle', title: 'Entrées du registre ' + annee + ' en catégorie ' + c.categories.join(', ') + ' : nombre et durée cumulée' }, c.libelle, h('br'), h('small', { text: annee + ' · ' + c.categories.join(', ') })); }),
@@ -63,7 +73,8 @@
             h('td', { class: 'actions-ligne' },
               x.total ? h('button', { class: 'btn petit', onclick: function () { modaleMesures(p); } }, 'Mesures') : null, ' ',
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleMode(p); } }, 'Mode') : null, ' ',
-              peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleFiche(p); } }, 'Fiche') : null));
+              peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleFiche(p); } }, 'Fiche') : null, ' ',
+              U.App.session.peut('FUSION') ? h('button', { class: 'btn petit', title: 'Fusionner avec une autre fiche du même patient', onclick: function () { U.cas.modaleFusion(p); } }, 'Fusionner') : null));
         })))) : h('div', { class: 'panneau vide', text: 'Aucun patient.' }),
       h('p', { class: 'muted' }, h('small', { text: 'Colonnes de l’année : entrées du registre (une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C), comptées l’année de leur début, avec leur durée cumulée ; la dernière colonne compte les mesures comme le juge, l’isolement et la contention séparément. Colonnes paramétrables par l’administrateur.' })),
       h('p', { class: 'muted' }, h('small', { text: 'Cumuls glissants calculés à l’instant, périodes qui se chevauchent comptées une seule fois, remis à zéro après une mainlevée du JLD. Indicateur de charge, non clinique.' })));

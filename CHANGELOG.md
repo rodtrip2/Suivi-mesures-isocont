@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.25.0 — 1er novembre 2026
+
+- **Sous-onglet *Cas particuliers*** dans l'administration, pour les arbitrages des situations moins fréquentes.
+- **Nouvelle mesure dans les 48 h suivant une mainlevée du JLD** (art. L. 3222-5-1, II) : alerte rouge à la saisie (date de la mainlevée, fin du délai, exception des éléments nouveaux décrits dans le certificat), information du JLD due sans délai (échéance « Info avant » ramenée au début de la mesure), point de vigilance au tableau de bord, mention dans le détail. Réglages : toute nouvelle mesure ou même type seulement ; échéance avancée ou non.
+- **Mesure débutée avant l'arrivée dans le service** (urgences, autre établissement) : décision initiale et lieu d'origine saisis avec la mesure ; délais JLD, cumuls et décompte depuis la décision initiale (partie antérieure sur une ligne distincte), registre et statistiques depuis l'arrivée. Durée totale affichée dans la liste des mesures.
+- **Fiches patient en double** : alerte à la création d'un patient proche d'une fiche existante ; liste des fiches peut-être en double dans l'onglet Patients ; **fusion** par le cadre avec aperçu de l'effet (cumuls, échéances JLD, informations différentes, mesures qui se chevauchent), motif obligatoire, tracée et annulable.
+
 ## 1.24.0 — 31 octobre 2026
 
 - **Sous-onglet *Alertes* dans l'administration** : alertes propres à l'établissement, par service. Chacune se déclenche pour une situation (patient en soins libres au début de la mesure, patient mineur, protection juridique, contention ou isolement hors CSI, toute contention, toute mesure) et est soit un **rappel** affiché dans le formulaire de la nouvelle mesure, soit une **personne à informer** dans un délai (sans délai à 24 h).

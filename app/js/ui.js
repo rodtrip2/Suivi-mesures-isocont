@@ -67,7 +67,7 @@
   var LIB_NATURE = { INFO: 'Information du JLD', SAISINE: 'Saisine du JLD', DECISION: 'Décision reçue du JLD' };
   var LIB_EVT = {
     CONFIG: 'Paramétrage', PATIENT: 'Patient', MODE_HOSPI: "Mode d'hospitalisation", MESURE_DEBUT: 'Début de mesure',
-    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
+    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
   var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
@@ -89,7 +89,7 @@
     return tousServices().filter(function (x) { return miens.indexOf(x.code) >= 0; });
   }
   function libService(code) { var s = tousServices().filter(function (x) { return x.code === code; })[0]; return s ? s.libelle : code; }
-  function patient(id) { return st().patients[id] || { id: id, nom: '?', prenom: '', modes: [] }; }
+  function patient(id) { return st().patients[M.ciblePatient(st(), id)] || { id: id, nom: '?', prenom: '', modes: [] }; }
   function nomPatient(id) { var p = patient(id); return (p.nom || '?') + ' ' + (p.prenom || ''); }
   function modeActuel(p) { return p.modes && p.modes.length ? p.modes[p.modes.length - 1].mode : ''; }
   function dansService(m) {
@@ -489,6 +489,10 @@
     var mineurs = enCours.filter(function (m) { return M.estMineur(st(), m.patientId, maintenant); });
     var vigilance = [];
     var aTracer = SIC.ui.alertes.aTracer();
+    enCours.forEach(function (m) {
+      var j = M.suiviJLD(st(), m, maintenant);
+      if (j.apresMainlevee && !j.info.effective) vigilance.push(h('li', { class: 'urgent' }, h('b', { text: nomPatient(m.patientId) }), ' — ' + m.type.toLowerCase() + ' décidé' + (m.type === 'Contention' ? 'e' : '') + ' moins de 48 h après la mainlevée ordonnée par le JLD le ' + court(j.apresMainlevee.date) + ' : informer le JLD sans délai (éléments nouveaux décrits dans le certificat du psychiatre).'));
+    });
     aTracer.forEach(function (x) {
       vigilance.push(h('li', { class: x.retard ? 'urgent' : '' }, h('b', { text: nomPatient(x.mesure.patientId) }), ' — ' + x.regle.libelle.toLowerCase() + ' : informer ' + x.regle.destinataires + ' ' + SIC.ui.alertes.delaiTexte(x.regle.delaiMinutes) +
         ' (' + x.mesure.type.toLowerCase() + ' du ' + court(x.mesure.debut) + ')' + (x.retard && x.regle.delaiMinutes ? ', délai dépassé' : '') + ' : information non tracée. ',
@@ -587,9 +591,9 @@
       tbody.appendChild(h('tr', { class: etat + (pause ? ' en-pause' : '') },
         h('td', { class: 'patient' }, h('b', { text: nomPatient(m.patientId) }), h('br'), h('small', { text: 'IPP ' + (patient(m.patientId).ipp || '—') + ' · ' + libService(m.service) })),
         h('td', {}, badgeType(m.type), infos.length ? h('div', {}, h('span', { class: 'badge bad', title: infos.map(function (x) { return x.regle.libelle + ' : informer ' + x.regle.destinataires; }).join(' ; '), text: 'Information à tracer' })) : null, m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
-        h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
+        h('td', {}, m.lieu || (m.csi ? 'CSI' : 'Hors CSI'), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Mesure débutée avant l’arrivée dans le service : les délais JLD partent de la décision initiale', text: 'débutée le ' + court(m.debutInitial) + (m.lieuInitial ? ' — ' + m.lieuInitial : '') })) : null),
         h('td', { class: 'nowrap', text: court(m.debut) }),
-        h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
+        h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Depuis la décision initiale, avant l’arrivée dans le service', text: duree(((typeof m.fin === 'number' ? m.fin : maintenant) - m.debutInitial) / H) + ' au total' })) : null, enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
           hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: M.optionsPauses(config()).retrancher ? 'Levées temporaires, déduites de la durée' : 'Levées temporaires, comptées dans la durée', text: (M.optionsPauses(config()).retrancher ? 'pauses déduites ' : 'dont pauses comptées ') + duree(hPauses) })) : null),
         h('td', { text: String(j.cycle) }),
         h('td', {}, cellEcheance(j.info)), h('td', {}, cellEcheance(j.saisine)), h('td', {}, cellEcheance(j.decision)),
@@ -730,9 +734,9 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', casParticuliers: 'Cas particuliers', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
   };
-  var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', type: 'type de mesure' };
+  var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', debutInitial: 'début de la décision initiale (avant l’arrivée)', lieuInitial: 'lieu d’origine', type: 'type de mesure' };
 
   var indexJournal = { etat: null, debuts: {}, patients: {} };
   /** Index des débuts de mesure et des fiches patient (y compris annulés), pour décrire une saisie hors de son contexte. */
@@ -756,6 +760,7 @@
   }
   function valeurChamp(k, v) {
     if (k === 'debut' || k === 'fin') return v == null ? 'aucune (mesure en cours)' : date(v);
+    if (k === 'debutInitial') return v == null ? 'aucun (mesure débutée dans le service)' : date(v);
     if (k === 'csi' || k === 'exception') return v ? 'oui' : 'non';
     return v === '' || v == null ? '—' : String(v);
   }
@@ -792,6 +797,7 @@
       case 'services': return (v || []).map(function (x) { return x.libelle + ' (' + x.code + ')'; }).join(', ');
       case 'lieuxCSI': return Object.keys(v || {}).map(function (k) { return k + ' : ' + (v[k] || []).join(', '); }).join(' ; ');
       case 'pauses': return resumePauses(v);
+      case 'casParticuliers': return SIC.ui.cas.resumeConfig(v);
       case 'alertes': return M.alertesConfig({ alertes: v }).map(function (r) {
         return '« ' + r.libelle + ' » ' + (r.active ? 'active' : 'inactive') + ' (' + M.DECLENCHEURS_ALERTE[r.declencheur].toLowerCase() + ', ' +
           (r.nature === 'information' ? 'informer ' + r.destinataires + ' ' + SIC.ui.alertes.delaiTexte(r.delaiMinutes) : 'rappel à la saisie') + ', ' + SIC.ui.alertes.servicesTexte(r) + ')';
@@ -836,10 +842,14 @@
     switch (e.type) {
       case 'MESURE_DEBUT':
         var fem = d.typeMesure === 'Contention' ? 'e' : '';
+        if (typeof d.debutInitial === 'number') return nomPatient(d.patientId).trim() + ' — ' + (d.typeMesure || '').toLowerCase() + ' débuté' + fem + ' le ' + date(d.debutInitial) + ' (' + (d.lieuInitial || 'hors du service') + '), arrivée dans le service le ' + date(d.debut) + ', décidé' + fem + ' par ' + (d.psychiatre || '?') + ', ' + (d.lieu || 'lieu non précisé');
         return nomPatient(d.patientId).trim() + ' — ' + (d.typeMesure || '').toLowerCase() + ' débuté' + fem + ' le ' + date(d.debut) + ', décidé' + fem + ' par ' + (d.psychiatre || '?') + ', ' + (d.lieu || 'lieu non précisé') + (d.suiteDe ? ' (suite d’un changement de lieu)' : '') + (d.origine ? ' — ' + d.origine + (d.numeroOrigine ? ', n° ' + d.numeroOrigine : '') : '') + (d.correctionImport ? ' — ' + d.correctionImport : '');
       case 'MESURE_FIN': return sur + 'fin le ' + date(d.fin) + ', décidée par ' + (d.psychiatre || '?') + (d.motif ? ' (' + d.motif.toLowerCase() + ')' : '');
       case 'PAUSE': return sur + 'pause à partir du ' + date(d.debut) + ', reprise prévue le ' + date(d.reprisePrevue) + (d.motif ? ' — motif : ' + d.motif : '') + (d.psychiatre ? ' — décidée par ' + d.psychiatre : '');
       case 'REPRISE': return sur + 'reprise après pause le ' + date(d.date);
+      case 'FUSION':
+        var fg = st().patients[M.ciblePatient(st(), d.garde)] || {}, fa = ((fg.fusionnes || []).filter(function (x) { return x.id === d.absorbe; })[0]) || {};
+        return 'Fiches fusionnées : ' + ((fa.nom || '?') + ' ' + (fa.prenom || '')).trim() + (fa.ipp ? ' (IPP ' + fa.ipp + ')' : '') + ' rattachée à ' + nomPatient(d.garde).trim() + (fg.ipp ? ' (IPP ' + fg.ipp + ')' : '') + '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'INFORMATION': return sur + 'information tracée (' + (d.libelle || d.regle) + ') — ' + d.personne + ' informé(e) le ' + date(d.date) + ' (' + String(d.moyen || '').toLowerCase() + ')' + (d.commentaire ? ' — ' + d.commentaire : '');
       case 'TIERS': return sur + 'information du tiers (cycle ' + d.cycle + ') le ' + date(d.date) + ' — ' + (LIB_TIERS[d.statut] || d.statut).toLowerCase() + (d.personne ? ' (' + d.personne + ')' : '') + ', par ' + (d.informateur === 'IDE' ? 'l’IDE (dernier recours)' : (d.nomInformateur || 'le psychiatre'));
       case 'JLD': return sur + LIB_NATURE[d.nature].toLowerCase() + ' — cycle ' + d.cycle + ' — le ' + date(d.date) + (d.decision ? ' — décision : ' + (d.decision === 'LEVEE' ? 'mainlevée' : 'maintien') : '');
@@ -997,6 +1007,14 @@
     var infoMode = h('small', { class: 'muted' });
     var type = h('select', {}, h('option', { value: 'Isolement', text: 'Isolement' }), h('option', { value: 'Contention', text: 'Contention' }));
     var debut = h('input', { type: 'datetime-local', value: versSaisie(maintenant) });
+    var ailleurs = h('input', { type: 'checkbox' });
+    var debutInitial = h('input', { type: 'datetime-local' });
+    var lieuInitial = h('input', { type: 'text', placeholder: 'Ex. : urgences, CHU (fictif), UMD…' });
+    var blocAilleurs = h('div', { class: 'pile', hidden: true },
+      h('div', { class: 'grille-2' }, h('label', {}, 'Date et heure de la décision initiale', debutInitial), h('label', {}, 'Lieu ou établissement d’origine', lieuInitial)),
+      h('small', { class: 'muted', text: 'Les délais JLD et les cumuls partent de la décision initiale ; le registre du service, de l’arrivée. Saisissez ensuite les étapes JLD déjà faites (bouton JLD), à leur date.' }));
+    var caseAilleurs = h('label', { class: 'case', hidden: !M.optionsCas(config()).debutAilleurs }, ailleurs, h('span', { text: 'La mesure a débuté avant l’arrivée dans le service (urgences, autre établissement…)' }));
+    var labelDebut = h('span', { text: 'Date et heure de la décision de début' });
     var psy = selectPsychiatre();
     var selLieu = h('select');
     var chambre = h('input', { type: 'text', placeholder: 'N° de chambre', hidden: true });
@@ -1007,11 +1025,13 @@
 
     // Alertes sous les champs
     var aPatient = alerteChamp(), aIpp = alerteChamp(), aNaissance = alerteChamp(), aMode = alerteChamp(), aType = alerteChamp(), aDebut = alerteChamp(), aLieu = alerteChamp();
-    var aEtab = h('div', { class: 'pile' });   // alertes de l'établissement (rappels, personnes à informer)
+    var aEtab = h('div', { class: 'pile' });
+    var aNom = alerteChamp();   // alertes de l'établissement (rappels, personnes à informer)
     var labelNaissance = h('label', {}, 'Date de naissance (obligatoire)', naissance, aNaissance);
 
     blocNouveau.appendChild(h('div', { class: 'grille-2' }, h('label', {}, 'IPP', ipp, aIpp), h('label', {}, 'Protection juridique', protection)));
     blocNouveau.appendChild(h('div', { class: 'grille-2' }, h('label', {}, 'Nom', nom), h('label', {}, 'Prénom', prenom)));
+    blocNouveau.appendChild(aNom);
     var zoneNaissance = h('div', { class: 'grille-2' }, labelNaissance, h('div'));
 
     function patientChoisi() { return selPatient.value === '__nouveau' ? null : patient(selPatient.value); }
@@ -1082,6 +1102,7 @@
       // IPP déjà utilisé (nouveau patient)
       var dup = !p && ipp.value.trim() && Object.keys(st().patients).map(function (k) { return st().patients[k]; }).filter(function (x) { return x.ipp === ipp.value.trim(); })[0];
       aIpp.afficher(dup ? ['IPP déjà attribué à ' + (dup.nom || '') + ' ' + (dup.prenom || '') + ' : sa fiche sera proposée à l’enregistrement.'] : []);
+      aNom.afficher(p || dup ? [] : SIC.ui.cas.alerteDoublons({ nom: nom.value.trim(), prenom: prenom.value.trim(), naissance: naissance.value }));
 
       // Mode d'hospitalisation
       var am = [];
@@ -1098,10 +1119,19 @@
             at.push(m.type + ' déjà en cours pour ce patient depuis le ' + date(m.debut) + ' (' + (m.lieu || '') + ') : vérifiez qu’il ne s’agit pas d’un doublon.');
         });
       }
+      var tRef = ailleurs.checked && debutInitial.value ? new Date(debutInitial.value).getTime() : tDebut;
+      var aml = p && SIC.ui.cas.alerteMainlevee(p.id, type.value, tRef);
+      if (aml) at.push(aml);
       aType.afficher(at);
 
       // Début
       var ad = [];
+      if (ailleurs.checked) {
+        var tIni = new Date(debutInitial.value).getTime();
+        if (!debutInitial.value) ad.push('Indiquez la date et l’heure de la décision initiale.');
+        else if (tIni >= tDebut) ad.push('La décision initiale doit précéder l’arrivée dans le service.');
+        else if (tDebut - tIni > 15 * 24 * H) ad.push('Décision initiale il y a plus de 15 jours : vérifiez la saisie.');
+      }
       if (tDebut > Date.now() + 10 * 60000) ad.push('Date de début dans le futur.');
       else if (Date.now() - tDebut > 24 * H) ad.push('Saisie tardive : début il y a ' + duree((Date.now() - tDebut) / H) + '. Les échéances JLD sont calculées depuis ce début et peuvent être proches ou dépassées.');
       aDebut.afficher(ad);
@@ -1128,7 +1158,8 @@
     selPatient.addEventListener('change', majPatient);
     type.addEventListener('change', majLieu);
     selLieu.addEventListener('change', majLieu);
-    [naissance, ipp, debut, chambre].forEach(function (x) { x.addEventListener('input', alertes); });
+    [naissance, ipp, debut, chambre, nom, prenom, debutInitial].forEach(function (x) { x.addEventListener('input', alertes); });
+    ailleurs.addEventListener('change', function () { blocAilleurs.hidden = !ailleurs.checked; labelDebut.textContent = ailleurs.checked ? 'Date et heure de l’arrivée dans le service (sous la mesure)' : 'Date et heure de la décision de début'; alertes(); });
     [selMode, exception, avecIso, protection].forEach(function (x) { x.addEventListener('change', alertes); });
     remplirPatients();
 
@@ -1136,7 +1167,8 @@
       h('div', { class: 'grille-2' }, h('label', {}, 'Service', selSv), h('label', {}, 'Patient', selPatient, aPatient)),
       blocNouveau, zoneNaissance,
       h('label', {}, "Mode d'hospitalisation", selMode, infoMode, aMode),
-      h('div', { class: 'grille-2' }, h('label', {}, 'Type de mesure', type, aType), h('label', {}, 'Date et heure de la décision de début', debut, aDebut)),
+      h('div', { class: 'grille-2' }, h('label', {}, 'Type de mesure', type, aType), h('label', {}, labelDebut, debut, aDebut)),
+      caseAilleurs, blocAilleurs,
       h('label', {}, 'Psychiatre décisionnaire', psy),
       h('label', {}, 'Lieu', selLieu, chambre, aLieu), blocException, blocIso, aEtab,
       h('p', { class: 'muted' }, h('small', { text: 'Vous reportez la décision médicale prise par le psychiatre ; la prescription reste dans le DPI.' })));
@@ -1175,7 +1207,13 @@
           if (modeActuel(patient(patientId)) !== selMode.value) await s.enregistrer('MODE_HOSPI', { patientId: patientId, mode: selMode.value, date: tDebut });
         }
         var crees = [];
-        var commun = { patientId: patientId, service: selSv.value, debut: tDebut, lieu: hors ? 'Chambre ' + chambre.value.trim() : selLieu.value, csi: !hors, psychiatre: psyNom, modeHospi: selMode.value };
+        var tInitial = null;
+        if (ailleurs.checked) {
+          tInitial = depuisSaisie(debutInitial.value);
+          if (!debutInitial.value || !isFinite(tInitial)) throw new Error('Indiquez la date et l’heure de la décision initiale.');
+          if (tInitial >= tDebut) throw new Error('La décision initiale doit précéder l’arrivée dans le service.');
+        }
+        var commun = { patientId: patientId, service: selSv.value, debut: tDebut, debutInitial: tInitial == null ? undefined : tInitial, lieuInitial: tInitial == null ? undefined : lieuInitial.value.trim(), lieu: hors ? 'Chambre ' + chambre.value.trim() : selLieu.value, csi: !hors, psychiatre: psyNom, modeHospi: selMode.value };
         if (!blocIso.hidden && avecIso.checked) { crees.push(idMesure()); await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: crees[crees.length - 1], typeMesure: 'Isolement' }, commun)); }
         crees.push(idMesure());
         await s.enregistrer('MESURE_DEBUT', Object.assign({ mesureId: crees[crees.length - 1], typeMesure: type.value, exception: hors && type.value === 'Contention' && exception.checked }, commun));
@@ -1391,7 +1429,7 @@
     var quand = h('input', { type: 'datetime-local', value: versSaisie(maintenant) });
     var decision = h('select', {}, h('option', { value: 'MAINTIEN', text: 'Maintien de la mesure' }), h('option', { value: 'LEVEE', text: 'Levée de la mesure' }));
     var blocDecision = h('label', {}, 'Décision du juge', decision);
-    var infoLevee = h('div', { class: 'info', hidden: true, text: 'La levée est un indicateur légal : la mesure reste en cours jusqu’au report de la décision médicale de fin.' });
+    var infoLevee = h('div', { class: 'info', hidden: true, text: 'La levée est un indicateur légal : la mesure reste en cours jusqu’au report de la décision médicale de fin. Aucune nouvelle mesure ne pourra être prise pendant 48 h, sauf éléments nouveaux (le JLD est alors informé sans délai).' });
     function maj() { blocDecision.hidden = nature.value !== 'DECISION'; infoLevee.hidden = blocDecision.hidden || decision.value !== 'LEVEE'; }
     nature.addEventListener('change', maj); decision.addEventListener('change', maj); maj();
     var tiers = M.tiersCycle(m);
@@ -1424,6 +1462,8 @@
       h('div', { class: 'recap' },
         h('div', { text: 'Cycle JLD en cours : ' + j.cycle + (j.rythmeLong ? ' (rythme des mesures longues)' : '') + ' · cumul des 15 jours avant la mesure : ' + duree(j.cumulAvant) }),
         h('div', { text: 'Mode d’hospitalisation retenu : ' + (M.modeRetenu(st(), m).mode || '—') }),
+        m.debutInitial ? h('div', { text: 'Mesure débutée le ' + date(m.debutInitial) + (m.lieuInitial ? ' (' + m.lieuInitial + ')' : '') + ', arrivée dans le service le ' + date(m.debut) + ' : délais JLD et cumuls depuis la décision initiale, registre depuis l’arrivée.' }) : null,
+        j.apresMainlevee ? h('div', { class: 'texte-bad', text: 'Mesure décidée moins de 48 h après la mainlevée ordonnée par le JLD le ' + date(j.apresMainlevee.date) + (M.optionsCas(config()).mainleveeInfoSansDelai ? ' : information du JLD due sans délai.' : '.') }) : null,
         m.fin ? h('div', { text: 'Fin : ' + date(m.fin) + ' (' + (m.psychiatreFin || '?') + ')' }) : null),
       (m.pauses || []).length ? h('div', { class: 'recap' },
         h('b', { text: 'Levées temporaires (' + m.pauses.length + ', total ' + duree(M.dureePausesHeures(m, maintenant, config())) + (M.optionsPauses(config()).retrancher ? ', déduites du cumul, échéances reportées d’autant' : ', comptées dans le cumul') + ')' }),
@@ -1877,6 +1917,7 @@
         ['services', 'Établissement et services', [note, pServices, pSurv]],
         ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
         ['alertes', 'Alertes', [note, SIC.ui.alertes.panneauAdmin()]],
+        ['cas', 'Cas particuliers', [note, SIC.ui.cas.panneauAdmin()]],
         ['registre', 'Registre et statistiques', [note, pDocs, pColsP]],
         ['decompte', 'Décompte JLD', [note, pMasques]],
         ['infos', 'Informations', [note, infos]]
@@ -1887,6 +1928,7 @@
       ['services', 'Établissement et services', [pServices, pSurv]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
+      ['cas', 'Cas particuliers', [SIC.ui.cas.panneauAdmin()]],
       ['registre', 'Registre et statistiques', [pDocs, pColsP]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
