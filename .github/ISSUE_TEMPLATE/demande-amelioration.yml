@@ -1,0 +1,31 @@
+name: Demander une amélioration
+description: Une fonctionnalité manque, ou un cas concret n'est pas pris en compte.
+title: "[Amélioration] "
+labels: ["amélioration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Aucune donnée réelle.** Cette demande est publique : décrivez la situation de façon générale, sans élément permettant d'identifier un patient ou un agent.
+  - type: input
+    id: version
+    attributes:
+      label: Version de l'outil
+      placeholder: "1.28.0"
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Quel est le besoin ?
+      description: La situation rencontrée dans votre établissement et ce qui manque aujourd'hui.
+    validations:
+      required: true
+  - type: textarea
+    id: proposition
+    attributes:
+      label: Ce que vous proposez
+      description: Comment l'outil pourrait y répondre (facultatif).
+  - type: textarea
+    id: textes
+    attributes:
+      label: Références réglementaires ou recommandations
+      description: Article de loi, instruction, recommandation de la HAS… (facultatif).

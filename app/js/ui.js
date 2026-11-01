@@ -2014,7 +2014,8 @@
         ['cas', 'Cas particuliers', [note, SIC.ui.cas.panneauAdmin()]],
         ['registre', 'Registre et statistiques', [note, pDocs, pColsP, SIC.ui.qualite.panneauAdmin()]],
         ['decompte', 'Décompte JLD', [note, pMasques]],
-        ['infos', 'Informations', [note, infos]]
+        ['infos', 'Informations', [note, infos]],
+        ['apropos', 'À propos', SIC.ui.apropos.panneau()]
       ]);
     }
     return sousOngletsAdmin([
@@ -2026,7 +2027,8 @@
       ['registre', 'Registre et statistiques', [pDocs, pColsP, SIC.ui.qualite.panneauAdmin()]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
-      ['infos', 'Informations', [infos, demo]]
+      ['infos', 'Informations', [infos, demo]],
+      ['apropos', 'À propos', SIC.ui.apropos.panneau()]
     ]);
 
     /** Sous-onglets de l'administration : seul le contenu du sous-onglet choisi est affiché. */

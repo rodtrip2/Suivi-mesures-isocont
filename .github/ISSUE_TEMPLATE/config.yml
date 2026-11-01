@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation et kit de déploiement
+    url: https://github.com/rodtrip2/Suivi-mesures-isocont/tree/main/kit
+    about: Guide utilisateur, guide d'installation, procédures de secours, éléments RGPD.

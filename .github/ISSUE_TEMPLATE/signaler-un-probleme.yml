@@ -1,0 +1,50 @@
+name: Signaler un problème
+description: Un calcul, un écran ou un document ne fonctionne pas comme prévu.
+title: "[Problème] "
+labels: ["problème"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Aucune donnée réelle.** Ce signalement est public : n'y mettez jamais de nom, d'IPP, de date de naissance, de capture d'écran de données réelles ni de nom d'agent. Reproduisez le problème en mode démonstration ou formation, avec des données fictives.
+  - type: input
+    id: version
+    attributes:
+      label: Version de l'outil
+      description: Administration → À propos (préremplie si vous venez de l'outil).
+      placeholder: "1.28.0"
+    validations:
+      required: true
+  - type: textarea
+    id: probleme
+    attributes:
+      label: Que se passe-t-il ?
+      description: Ce que vous avez constaté, et ce que vous attendiez.
+    validations:
+      required: true
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Comment le reproduire ?
+      description: Les étapes, avec des données fictives (mode démonstration ou formation).
+      placeholder: |
+        1. Onglet Mesures, nouvelle mesure…
+        2. …
+  - type: dropdown
+    id: domaine
+    attributes:
+      label: Domaine concerné
+      options:
+        - Délais et communications au JLD
+        - Registre
+        - Décompte JLD
+        - Statistiques ou rapport annuel
+        - Pauses, transferts, cas particuliers
+        - Comptes, connexion, sécurité
+        - Import de l'historique
+        - Autre
+  - type: input
+    id: navigateur
+    attributes:
+      label: Navigateur et poste
+      description: Bouton « Copier la version et le navigateur » dans l'outil.
