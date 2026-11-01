@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.32.0 — 1er novembre 2026
+
+- **Information du tiers** : la mention « (en dernier recours) », propre à l'organisation d'un établissement, est retirée. La liste des fonctions pouvant informer le tiers se règle dans *Administration → Établissement et services* (IDE par défaut ; ajout possible de cadre de santé, médecin de garde, assistant de service social…) ; le psychiatre reste toujours proposé en premier, l'article L. 3222-5-1 confiant cette information au médecin. Le nom de la personne ayant informé peut être précisé pour toutes les fonctions ; il apparaît dans le journal, le détail et le décompte JLD.
+
 ## 1.31.0 — 1er novembre 2026
 
 - **Coffre protégé** : vérifié avant et après chaque écriture (la version précédente est remise en place si la relecture échoue) ; **30 dernières versions conservées** dans le dossier, la version actuelle comprise ; un coffre abîmé ou manquant est signalé et se restaure depuis l'écran d'ouverture (version de l'historique ou copie sous scellé).

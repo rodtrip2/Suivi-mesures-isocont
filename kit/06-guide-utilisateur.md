@@ -42,7 +42,7 @@ IDE et AS disposent des mêmes droits.
 
 **Changement de lieu** (de CSI vers une chambre, par exemple) : *Détail → Changer de lieu…*. Pour une simple erreur de saisie, demandez une correction à votre cadre.
 
-**Information du tiers** : bouton *Tiers*. Indiquez le résultat (informé, tentative sans succès, pas de tiers, refus du patient…), la qualité du tiers et qui l'a informé : le psychiatre, ou vous-même en dernier recours. À renouveler à chaque nouveau cycle JLD.
+**Information du tiers** : bouton *Tiers*. Indiquez le résultat (informé, tentative sans succès, pas de tiers, refus du patient…), la qualité du tiers et qui l'a informé : le psychiatre (choisi dans la liste) ou une autre fonction prévue par l'établissement (IDE, cadre de santé…), avec le nom de la personne si besoin. À renouveler à chaque nouveau cycle JLD. La liste des fonctions se règle dans *Administration → Établissement et services* ; le psychiatre y figure toujours en premier, l'article L. 3222-5-1 confiant cette information au médecin.
 
 **Surveillance en CSI** : onglet *Surveillance CSI*. Deux emplacements par poste ; complétez les noms et fonctions des professionnels présents. Ces informations alimentent le registre.
 

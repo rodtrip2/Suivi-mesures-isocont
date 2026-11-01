@@ -108,7 +108,10 @@
     qualite: { motifRecours: false, motifsRecours: ['Prévention d’une violence imminente envers autrui', 'Prévention d’un passage à l’acte auto-agressif imminent', 'Agitation avec mise en danger', 'Risque de fugue avec mise en danger', 'Autre'],
       entretien: false, nomEntretien: 'Entretien après la mesure', surveillanceHorsCSI: false, conservationAns: 0 },
     rapportsAnnuels: {},
-    sauvegarde: { rappelJours: 7 },   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
+    sauvegarde: { rappelJours: 7 },
+    // Information du tiers : fonctions proposées en plus du psychiatre (toujours en tête, la loi confiant cette
+    // information au médecin). Chaque établissement complète la liste selon son organisation.
+    informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
     // Méthode des statistiques (voir optionsStats) : tolérance de regroupement des entrées en séquences (minutes,
     // 0 = entrées qui se touchent, jusqu'à 48 h), unité principale du rapport, mentions affichées, méthode antérieure par année.
     statsMethode: { toleranceMinutes: 0, unitePrincipale: 'entrees', colonneSequences: false,
@@ -660,6 +663,20 @@
     });
     return Object.keys(derniere).filter(function (id) { return derniere[id] < limite.getTime() && st.patients[id]; })
       .map(function (id) { return { patient: st.patients[id], derniereFin: derniere[id] }; });
+  }
+
+  /** Fonctions proposées pour l'information du tiers : le psychiatre, puis la liste de l'établissement. */
+  function informateursTiers(config) {
+    var autres = Array.isArray(config && config.informateursTiers) ? config.informateursTiers : CONFIG_DEFAUT.informateursTiers;
+    return [{ code: 'PSYCHIATRE', libelle: 'Psychiatre', psychiatre: true }].concat(autres.filter(function (x) { return x && x.code && x.code !== 'PSYCHIATRE' && String(x.libelle || '').trim(); })
+      .map(function (x) { return { code: String(x.code), libelle: String(x.libelle).trim() }; }));
+  }
+
+  /** « le psychiatre (Dr X) », « IDE (Mme Y) »… pour une information du tiers enregistrée. */
+  function libInformateur(config, t) {
+    var f = informateursTiers(config).filter(function (x) { return x.code === t.informateur; })[0];
+    var lib = f ? (f.psychiatre ? 'le psychiatre' : f.libelle) : (t.informateur === 'IDE' ? 'IDE' : String(t.informateur || '').replace(/^F:/, '') || 'non précisé');
+    return lib + (t.nomInformateur ? ' (' + t.nomInformateur + ')' : '');
   }
 
   /** Corrections proposées (par un IDE ou un AS) en attente de la décision du cadre. */
@@ -1595,7 +1612,7 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
-    optionsCas: optionsCas, optionsStats: optionsStats, UNITES_STATS: UNITES_STATS, TOLERANCES_SEQUENCE: TOLERANCES_SEQUENCE, sequences: sequences, indicateursSequences: indicateursSequences,
+    optionsCas: optionsCas, informateursTiers: informateursTiers, libInformateur: libInformateur, optionsStats: optionsStats, UNITES_STATS: UNITES_STATS, TOLERANCES_SEQUENCE: TOLERANCES_SEQUENCE, sequences: sequences, indicateursSequences: indicateursSequences,
     reglesCalcul: reglesCalcul, changementsMethode: changementsMethode, statistiquesAvec: statistiquesAvec, CLES_METHODE: CLES_METHODE, optionsQualite: optionsQualite, donneesPatient: donneesPatient, auDelaConservation: auDelaConservation, propositionsEnAttente: propositionsEnAttente, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
     DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
     reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,

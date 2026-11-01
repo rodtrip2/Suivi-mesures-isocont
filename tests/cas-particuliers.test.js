@@ -221,3 +221,13 @@ test('Droit d’accès et conservation', () => {
   assert.deepEqual(M.auDelaConservation(st, 5, local(2026, 4, 1)).map((x) => x.patient.id), ['P1']);
   assert.deepEqual(M.auDelaConservation(st, 0, local(2026, 4, 1)), []);
 });
+
+test('Information du tiers : psychiatre en tête, autres fonctions paramétrables', () => {
+  assert.deepEqual(M.informateursTiers({}).map((f) => f.code), ['PSYCHIATRE', 'IDE']);
+  const cfg = { informateursTiers: [{ code: 'IDE', libelle: 'IDE' }, { code: 'F:Cadre de santé', libelle: 'Cadre de santé' }] };
+  assert.deepEqual(M.informateursTiers(cfg).map((f) => f.libelle), ['Psychiatre', 'IDE', 'Cadre de santé']);
+  assert.equal(M.libInformateur(cfg, { informateur: 'PSYCHIATRE', nomInformateur: 'Dr X (fictif)' }), 'le psychiatre (Dr X (fictif))');
+  assert.equal(M.libInformateur(cfg, { informateur: 'F:Cadre de santé', nomInformateur: 'Mme Y (fictif)' }), 'Cadre de santé (Mme Y (fictif))');
+  assert.equal(M.libInformateur({ informateursTiers: [] }, { informateur: 'F:Médecin de garde' }), 'Médecin de garde');   // fonction retirée depuis
+  assert.equal(M.libInformateur({}, { informateur: 'IDE' }), 'IDE');
+});

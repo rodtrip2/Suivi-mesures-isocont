@@ -68,7 +68,7 @@
     });
     (m.recours || []).forEach(function (r) { if (r.date <= d.reference) envois.push(U.parcours.libRecours(r)); });
     var tiers = m.tiers.filter(function (t) { return t.date <= d.reference; }).map(function (t) {
-      return 'Cycle ' + t.cycle + ' — ' + (U.LIB_TIERS[t.statut] || t.statut) + (t.personne ? ' (' + t.personne + ')' : '') + ' le ' + U.date(t.date) + ', par ' + (t.informateur === 'IDE' ? 'l’IDE' : (t.nomInformateur || 'le psychiatre'));
+      return 'Cycle ' + t.cycle + ' — ' + (U.LIB_TIERS[t.statut] || t.statut) + (t.personne ? ' (' + t.personne + ')' : '') + ' le ' + U.date(t.date) + ', par ' + M.libInformateur(U.config(), t);
     });
     var deduire = d.pausesRetranchees;
     var pauses = (m.pauses || []).filter(function (x) { return x.debut <= d.reference; }).map(function (x) {

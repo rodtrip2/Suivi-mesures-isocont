@@ -26,7 +26,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 
 - Comptes nominatifs, rôles cumulables : **IDE**, **AS** (mêmes droits que l'IDE), **Secrétaire**, **Cadre de santé**, **Administrateur**.
 - La secrétaire fait les envois et le suivi JLD en semaine ; l'IDE le fait le week-end et en son absence : **droit JLD permanent pour l'IDE**.
-- L'information du tiers est faite par le psychiatre, **en dernier recours par l'IDE**.
+- Information du tiers : **le psychiatre** (toujours en tête : la loi confie cette information au médecin) ou **une autre fonction de la liste de l'établissement** (`config.informateursTiers`, par défaut IDE ; *Administration → Établissement et services*), nom facultatif. Pratique du CHHA : psychiatre ou IDE. Ne pas écrire « en dernier recours » dans l'interface ni le kit (consigne du porteur : propre au CHHA).
 - Le cadre cumule pour l'instant le rôle d'administrateur, mais les deux rôles doivent rester **séparables**.
 - Chaque compte (hors administrateur) a **un ou plusieurs services** : seuls ceux-ci s'affichent à la connexion et à la création d'une mesure. L'administrateur voit tous les services.
 - Création de comptes **en lot** (liste d'agents collée ou CSV), mots de passe provisoires tirés au hasard, **changement obligatoire à la première connexion**, réinitialisation par l'administrateur (nouveau mot de passe provisoire), fiches de remise imprimables.

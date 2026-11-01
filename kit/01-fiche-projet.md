@@ -30,7 +30,7 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | Échéances JLD | Calcul automatique des dates limites d'information, de saisine et de décision, cycle par cycle, avec alertes visuelles. Calculs vérifiés par des tests automatiques. |
 | Envois JLD | Secrétariat (et IDE le week-end) : enregistrement des informations, saisines et décisions reçues ; repérage des envois hors délai. |
 | Décompte JLD | Document imprimable, PDF ou CSV détaillant la durée cumulée, à joindre à la saisine. Présentation et données exportées réglées par un masque d'établissement ou propre à chaque service. |
-| Information des tiers | Traçabilité par cycle : qui a informé (psychiatre ou, en dernier recours, IDE), quel tiers, ou pourquoi aucun tiers n'a pu l'être. |
+| Information des tiers | Traçabilité par cycle : qui a informé (psychiatre ou autre fonction prévue par l'établissement, liste paramétrable), quel tiers, ou pourquoi aucun tiers n'a pu l'être. |
 | Surveillance en CSI | Professionnels présents par poste, nécessaires au registre. |
 | Reprise de l'historique | À partir du registre du service, quel que soit l'outil utilisé jusque-là (export CSV ou Excel, colonnes à faire correspondre). Mesures reconstituées, numérotation conservée ou recalculée, contrôle et aperçu de l'impact avant import. |
 | Registre | Conforme à l'article L. 3222-5-1 (IPP, âge, mode d'hospitalisation, début, durée, psychiatre, soignants), catégories A à E, numérotation annuelle, impression et export. Version occultée pour les demandes de communication (CADA). |

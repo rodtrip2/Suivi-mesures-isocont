@@ -453,7 +453,7 @@
     var t = M.tiersCycle(m);
     if (!t) return h('span', { class: 'badge warn', text: 'À renseigner' });
     var cls = t.statut === 'INFORME' ? 'ok' : '';
-    return h('span', { class: 'badge ' + cls, title: (t.personne ? t.personne + ' — ' : '') + 'par ' + (t.informateur === 'IDE' ? 'IDE (dernier recours)' : (t.nomInformateur || 'psychiatre')), text: LIB_TIERS[t.statut] || t.statut });
+    return h('span', { class: 'badge ' + cls, title: (t.personne ? t.personne + ' — ' : '') + 'par ' + M.libInformateur(config(), t), text: LIB_TIERS[t.statut] || t.statut });
   }
 
   /** Badge de pause d'une mesure en cours (ou null). */
@@ -750,7 +750,7 @@
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
-    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', casParticuliers: 'Cas particuliers', qualite: 'Qualité, conservation et archivage', statsMethode: 'Méthode des statistiques', sauvegarde: 'Rappel des copies de sauvegarde', rapportsAnnuels: 'Textes du rapport annuel', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
+    inactiviteMinutes: 'Verrouillage après inactivité', pauses: 'Pauses (levées temporaires)', alertes: 'Alertes de l’établissement', casParticuliers: 'Cas particuliers', qualite: 'Qualité, conservation et archivage', statsMethode: 'Méthode des statistiques', sauvegarde: 'Rappel des copies de sauvegarde', informateursTiers: 'Fonctions pouvant informer le tiers', rapportsAnnuels: 'Textes du rapport annuel', colonnesPatients: 'Statistiques annuelles de l’onglet Patients', derniersClasseur: 'Derniers numéros du document importé', registreFige: 'Années gardant la numérotation du classeur', registreFigeMesures: 'Numérotation décidée mesure par mesure'
   };
   var LIB_CHAMPS = { debut: 'début', fin: 'fin', lieu: 'lieu', csi: 'en CSI', psychiatreDebut: 'psychiatre (début)', psychiatreFin: 'psychiatre (fin)', modeHospi: 'mode d’hospitalisation', exception: 'exception (contention hors espace d’isolement)', debutInitial: 'début de la décision initiale (avant l’arrivée)', lieuInitial: 'lieu d’origine', type: 'type de mesure' };
 
@@ -816,6 +816,7 @@
       case 'casParticuliers': return SIC.ui.cas.resumeConfig(v);
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + ', surveillance hors CSI ' + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
+      case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
       case 'sauvegarde': return v && v.rappelJours ? 'tous les ' + v.rappelJours + ' jours' : 'aucun rappel';
       case 'rapportsAnnuels': return Object.keys(v || {}).join(', ') || 'aucun';
       case 'alertes': return M.alertesConfig({ alertes: v }).map(function (r) {
@@ -876,7 +877,7 @@
         var fg = st().patients[M.ciblePatient(st(), d.garde)] || {}, fa = ((fg.fusionnes || []).filter(function (x) { return x.id === d.absorbe; })[0]) || {};
         return 'Fiches fusionnées : ' + ((fa.nom || '?') + ' ' + (fa.prenom || '')).trim() + (fa.ipp ? ' (IPP ' + fa.ipp + ')' : '') + ' rattachée à ' + nomPatient(d.garde).trim() + (fg.ipp ? ' (IPP ' + fg.ipp + ')' : '') + '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'INFORMATION': return sur + 'information tracée (' + (d.libelle || d.regle) + ') — ' + d.personne + ' informé(e) le ' + date(d.date) + ' (' + String(d.moyen || '').toLowerCase() + ')' + (d.commentaire ? ' — ' + d.commentaire : '');
-      case 'TIERS': return sur + 'information du tiers (cycle ' + d.cycle + ') le ' + date(d.date) + ' — ' + (LIB_TIERS[d.statut] || d.statut).toLowerCase() + (d.personne ? ' (' + d.personne + ')' : '') + ', par ' + (d.informateur === 'IDE' ? 'l’IDE (dernier recours)' : (d.nomInformateur || 'le psychiatre'));
+      case 'TIERS': return sur + 'information du tiers (cycle ' + d.cycle + ') le ' + date(d.date) + ' — ' + (LIB_TIERS[d.statut] || d.statut).toLowerCase() + (d.personne ? ' (' + d.personne + ')' : '') + ', par ' + M.libInformateur(config(), d) + (d.motif ? ' — ' + d.motif : '');
       case 'JLD': return sur + LIB_NATURE[d.nature].toLowerCase() + ' — cycle ' + d.cycle + ' — le ' + date(d.date) + (d.decision ? ' — décision : ' + (d.decision === 'LEVEE' ? 'mainlevée' : 'maintien') : '');
       case 'PROFESSIONNEL':
         var per = M.periodesDe(config(), d.service).filter(function (q) { return q.code === d.periode; })[0];
@@ -1446,23 +1447,26 @@
     var statut = h('select', {}, Object.keys(LIB_TIERS).map(function (k) { return h('option', { value: k, text: LIB_TIERS[k] }); }));
     var personne = h('input', { type: 'text', placeholder: 'ex. Mère, personne de confiance, curateur' });
     var motif = h('input', { type: 'text', placeholder: 'Précision (facultatif)' });
-    var informateur = h('select', {}, h('option', { value: 'PSYCHIATRE', text: 'Le psychiatre' }), h('option', { value: 'IDE', text: 'L’IDE (en dernier recours)' }));
+    var fonctions = M.informateursTiers(config());
+    var informateur = h('select', {}, fonctions.map(function (f) { return h('option', { value: f.code, text: f.psychiatre ? 'Le psychiatre' : f.libelle }); }));
     var psy = selectPsychiatre(m.psychiatreDebut);
     var blocPsy = h('label', {}, 'Psychiatre ayant informé', psy);
-    informateur.addEventListener('change', function () { blocPsy.hidden = informateur.value !== 'PSYCHIATRE'; });
+    var nomAutre = h('input', { type: 'text', placeholder: 'Facultatif' });
+    var blocNom = h('label', { hidden: true }, 'Nom de la personne ayant informé', nomAutre);
+    informateur.addEventListener('change', function () { blocPsy.hidden = informateur.value !== 'PSYCHIATRE'; blocNom.hidden = !blocPsy.hidden; });
     var quand = h('input', { type: 'datetime-local', value: versSaisie(Date.now()) });
     var historique = m.tiers.length ? h('div', { class: 'recap' }, h('b', { text: 'Déjà saisi' }), m.tiers.map(function (t) {
-      return h('div', { text: 'Cycle ' + t.cycle + ' — ' + (LIB_TIERS[t.statut] || t.statut) + (t.personne ? ' (' + t.personne + ')' : '') + ' le ' + date(t.date) + ', par ' + (t.informateur === 'IDE' ? 'l’IDE' : (t.nomInformateur || 'le psychiatre')) });
+      return h('div', { text: 'Cycle ' + t.cycle + ' — ' + (LIB_TIERS[t.statut] || t.statut) + (t.personne ? ' (' + t.personne + ')' : '') + ' le ' + date(t.date) + ', par ' + M.libInformateur(config(), t) });
     })) : null;
     modale('Information du tiers — cycle ' + m.cycle, h('div', { class: 'pile' }, recapMesure(m), historique,
-      h('p', { class: 'muted' }, h('small', { text: 'L’information est faite par le psychiatre, en dernier recours par l’IDE. Elle doit être renouvelée à chaque cycle, en même temps que l’information ou la saisine du juge.' })),
+      h('p', { class: 'muted' }, h('small', { text: 'L’article L. 3222-5-1 confie cette information au médecin ; l’établissement précise qui la réalise selon son organisation. Elle doit être renouvelée à chaque cycle, en même temps que l’information ou la saisine du juge.' })),
       h('div', { class: 'grille-2' }, h('label', {}, 'Résultat', statut), h('label', {}, 'Tiers (qualité)', personne)),
       h('div', { class: 'grille-2' }, h('label', {}, 'Information faite par', informateur), h('label', {}, 'Date et heure', quand)),
-      blocPsy, h('label', {}, 'Précision', motif)), [
+      blocPsy, blocNom, h('label', {}, 'Précision', motif)), [
       { texte: 'Annuler' },
       { texte: 'Enregistrer', classe: 'primaire', action: async function () {
         var parPsy = informateur.value === 'PSYCHIATRE';
-        await App.session.enregistrer('TIERS', { mesureId: m.id, cycle: m.cycle, statut: statut.value, personne: personne.value.trim(), informateur: informateur.value, nomInformateur: parPsy ? psy.valeur() : '', date: depuisSaisie(quand.value), motif: motif.value.trim() }, base);
+        await App.session.enregistrer('TIERS', { mesureId: m.id, cycle: m.cycle, statut: statut.value, personne: personne.value.trim(), informateur: informateur.value, nomInformateur: parPsy ? psy.valeur() : nomAutre.value.trim(), date: depuisSaisie(quand.value), motif: motif.value.trim() }, base);
         toast('Information du tiers enregistrée.');
       } }]);
   }
@@ -1775,6 +1779,23 @@
 
     // -- Surveillance
     var tPer = zoneTexte((cfg.periodes || []).map(function (p) { return p.code + ' ; ' + p.libelle + ' ; ' + p.debut + ' ; ' + p.fin; }).join('\n'), 3);
+    // -- Information du tiers : fonctions proposées (le psychiatre est toujours en tête)
+    var infoTiers = M.informateursTiers(cfg).filter(function (f) { return !f.psychiatre; });
+    var tTiers = h('textarea', { rows: 4 }, infoTiers.map(function (f) { return f.libelle; }).join('\n'));
+    var pTiers = h('section', { class: 'panneau' }, h('h2', { text: 'Information du tiers : qui peut la réaliser' }),
+      h('p', { class: 'muted', text: 'L’article L. 3222-5-1 confie l’information de la famille ou du proche au médecin. « Le psychiatre » est donc toujours proposé en premier ; ajoutez ici les autres fonctions qui peuvent la réaliser dans votre établissement (une par ligne), par exemple : IDE, cadre de santé, médecin de garde, assistant de service social. Le nom de la personne peut être précisé à chaque saisie.' }),
+      h('label', {}, 'Autres fonctions proposées (une par ligne)', tTiers),
+      boutonEnregistrer(async function () {
+        var vus = {}, v = [];
+        lignesDe(tTiers).forEach(function (l) {
+          var cle = l.toLowerCase();
+          if (vus[cle] || /^(le )?psychiatre$/i.test(l)) return; vus[cle] = 1;
+          var ancien = infoTiers.filter(function (f) { return f.libelle.toLowerCase() === cle; })[0];
+          v.push({ code: ancien ? ancien.code : 'F:' + l, libelle: l });
+        });
+        await enregistrerConfig([['informateursTiers', v]]);
+      }));
+
     var lignesPS = [];
     Object.keys(cfg.periodesService || {}).forEach(function (sv) { (cfg.periodesService[sv] || []).forEach(function (p) { lignesPS.push(sv + ' ; ' + p.code + ' ; ' + p.libelle + ' ; ' + p.debut + ' ; ' + p.fin); }); });
     var tPerSv = zoneTexte(lignesPS.join('\n'), 3);
@@ -2015,7 +2036,7 @@
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
       return sousOngletsAdmin([
-        ['services', 'Établissement et services', [note, pServices, pSurv]],
+        ['services', 'Établissement et services', [note, pServices, pSurv, pTiers]],
         ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
         ['alertes', 'Alertes', [note, SIC.ui.alertes.panneauAdmin()]],
         ['cas', 'Cas particuliers', [note, SIC.ui.cas.panneauAdmin()]],
@@ -2027,7 +2048,7 @@
     }
     return sousOngletsAdmin([
       ['comptes', 'Comptes et sécurité', [comptes, deblocage, SIC.ui.formation.sectionAdmin()]],
-      ['services', 'Établissement et services', [pServices, pSurv]],
+      ['services', 'Établissement et services', [pServices, pSurv, pTiers]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
       ['cas', 'Cas particuliers', [SIC.ui.cas.panneauAdmin()]],
