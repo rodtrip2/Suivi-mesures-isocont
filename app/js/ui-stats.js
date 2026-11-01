@@ -146,6 +146,7 @@
       h('div', { class: 'barre' }, h('h1', { text: 'Statistiques' }), h('div', { class: 'espace' }),
         h('label', {}, 'Année du rapport', champAn),
         U.App.session.peut('STATS') ? h('button', { class: 'btn', onclick: function () { modaleSaisie(svs); } }, 'Saisir patients HC / SSC') : null,
+        h('button', { class: 'btn', onclick: function () { U.qualite.modaleRapport(svs, annee); } }, 'Rapport annuel (trame)…'),
         h('button', { class: 'btn', onclick: function () { exporterCSV(a, b, svs); } }, 'Exporter (CSV)'),
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),
       h('div', { class: 'seulement-impression' }, h('h2', { text: (U.etablissement() ? U.etablissement() + ' — ' : '') + 'L’isolement et la contention en chiffres — ' + titreSv + ' — ' + annee })),
@@ -161,6 +162,7 @@
           tableau(['Catégorie', String(a.annee), String(b.annee)], Object.keys(b.categories).map(function (k) { return [k + ' — ' + M.LIB_CATEGORIES[k], String(a.categories[k]), String(b.categories[k])]; }))),
         h('section', { class: 'panneau' }, h('h2', { text: 'Suivi réglementaire' }),
           tableau(['', String(a.annee), String(b.annee)], lignesConformite(a, b).map(function (l) { return [l[0], String(l[1]), String(l[2])]; })))),
+      U.qualite.sectionsStats(a, b),
       h('section', { class: 'panneau' }, h('h2', { text: 'Répartition mensuelle' }), graphique(a, b)));
   };
 })();

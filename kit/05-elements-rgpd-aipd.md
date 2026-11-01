@@ -16,9 +16,9 @@
 | Destinataires | Agents habilités des unités concernées, selon leur rôle et leurs services ; registre (IPP, âge, psychiatre, soignants) : instances prévues par la loi (CDSP, CGLPL, parlementaires) ; demandeurs au titre du CRPA (CADA) : version occultée seulement ; JLD : décompte joint aux communications |
 | Transferts hors UE | Aucun. Les données ne quittent pas l'infrastructure de l'établissement. Si l'application est servie par GitHub Pages, seul le code est fourni par ce service, sans aucune donnée |
 | Sous-traitants | Aucun pour les données (pas d'hébergeur externe) |
-| Durée de conservation (à valider) | À fixer par l'établissement, en cohérence avec les règles applicables au registre et au dossier médical. L'outil conserve tout l'historique ; l'archivage d'une année close se fait en archivant une copie du dossier |
+| Durée de conservation (à valider) | À fixer par l'établissement, en cohérence avec les règles applicables au registre et au dossier médical. L'outil conserve tout l'historique (journal jamais modifié) ; la durée choisie se saisit dans *Administration → Registre et statistiques* et l'outil signale les patients dont la dernière mesure la dépasse, à traiter selon la procédure validée par le DPO. Archive d'une année close : registres et statistiques en CSV (téléchargement tracé), plus une copie du dossier |
 | Mesures de sécurité | Chiffrement AES-256 côté poste, comptes nominatifs et rôles, services affectés par compte, verrouillage après inactivité, journal inaltérable et chaîné, droits NTFS sur le dossier, sauvegardes, absence de flux sortant (voir la fiche technique) |
-| Droits des personnes | Accès et rectification : consultation de la fiche patient et du détail des mesures, corrections tracées. Opposition et effacement : limités par l'obligation légale de tenue du registre (à valider) |
+| Droits des personnes | Accès : export de toutes les données d'un patient (onglet Patients → Mesures → *Exporter ses données*, cadre ou administrateur, tracé au journal ; les noms des professionnels n'y figurent pas). Rectification : corrections tracées. Opposition et effacement : limités par l'obligation légale de tenue du registre (à valider) |
 
 ## 2. Analyse d'impact (AIPD)
 

@@ -175,3 +175,49 @@ test('Patient détenu : déclencheur d’alerte', () => {
   assert.deepEqual(M.alertesMesure(st, st.mesures.M1).map((r) => r.id), ['d']);
   assert.match(M.alertesConfig(st.config)[0].message, /L\. 3214-1/);
 });
+
+// ------------------------------------------------------------------ Lot 4
+test('Qualité : motif du recours, entretien après la mesure, motifs de fin dans les statistiques', () => {
+  const evts = patient('P1').concat([
+    mesureIso('M1', local(2026, 3, 1, 8), { motifRecours: 'Agitation avec mise en danger' }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 1, 20), motif: 'Décision médicale' }),
+    evt('ENTRETIEN', { mesureId: 'M1', date: local(2026, 3, 2, 10), realise: true }),
+    mesureIso('M2', local(2026, 3, 5, 8)),
+    evt('MESURE_FIN', { mesureId: 'M2', fin: local(2026, 3, 5, 20), motif: 'Fugue (fictif)' })
+  ]);
+  const st = M.reduire(evts);
+  assert.equal(st.mesures.M1.entretien.realise, true);
+  const s = M.statistiquesAnnee(st, ['U1'], 2026, local(2026, 6, 1));
+  assert.equal(s.motifsRecours['Agitation avec mise en danger'], 1);
+  assert.equal(s.motifsRecours['Non renseigné'], 1);
+  assert.deepEqual(s.entretiens, { realises: 1, nonRealises: 0, nonRenseignes: 1 });
+  assert.equal(s.motifsFin.Fugue, 1);
+  assert.equal(M.optionsQualite({}).nomEntretien, 'Entretien après la mesure');
+  assert.equal(M.optionsQualite({ qualite: { nomEntretien: 'Débriefing post-isolement' } }).nomEntretien, 'Débriefing post-isolement');
+});
+
+test('Surveillance hors CSI : postes à compléter et professionnels au registre (option)', () => {
+  const evts = patient('P1').concat([
+    evt('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut: local(2026, 3, 1, 8), csi: false, lieu: 'Chambre 4' }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 1, 12) }),
+    evt('PROFESSIONNEL', { service: 'U1', date: '2026-03-01', periode: 'M', nom: 'Agent X (fictif)', fonction: 'IDE' })
+  ]);
+  let st = M.reduire(evts);
+  assert.equal(M.postesSurveillance(st, 'U1', local(2026, 3, 1, 13), 2).length, 0);
+  assert.equal(M.registre(st, 'U1', 2026, local(2026, 4, 1))[0].professionnels.length, 0);
+  st = M.reduire(evts.concat([evt('CONFIG', { cle: 'qualite', valeur: { surveillanceHorsCSI: true } })]));
+  assert.equal(M.postesSurveillance(st, 'U1', local(2026, 3, 1, 13), 2).length, 1);
+  assert.deepEqual(M.registre(st, 'U1', 2026, local(2026, 4, 1))[0].professionnels, ['Agent X (fictif) (IDE)']);
+});
+
+test('Droit d’accès et conservation', () => {
+  const evts = patient('P1').concat(patient('P2'), [
+    mesureIso('M1', local(2020, 3, 1, 8)), evt('MESURE_FIN', { mesureId: 'M1', fin: local(2020, 3, 1, 20) }),
+    evt('MESURE_DEBUT', { mesureId: 'M2', patientId: 'P2', service: 'U1', typeMesure: 'Isolement', debut: local(2026, 3, 1, 8), csi: true })
+  ]);
+  const st = M.reduire(evts);
+  const d = M.donneesPatient(st, 'P1', local(2026, 4, 1));
+  assert.equal(d.mesures.length, 1); assert.equal(d.registre.length, 1);
+  assert.deepEqual(M.auDelaConservation(st, 5, local(2026, 4, 1)).map((x) => x.patient.id), ['P1']);
+  assert.deepEqual(M.auDelaConservation(st, 0, local(2026, 4, 1)), []);
+});

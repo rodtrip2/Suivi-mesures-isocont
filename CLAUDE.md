@@ -53,7 +53,9 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
   - **Recours** (`RECOURS` : saisine facultative du JLD, décision, appel, décision du premier président) ; une décision de levée vaut mainlevée (`leveeJLD`, règle des 48 h).
   - **Patient détenu** : champ `detenu` de la fiche, déclencheur d'alerte « detenu ».
   - Changement d'heure : toutes les durées et échéances en heures réelles (tests `tests/heure-ete.test.js`, fuseau Europe/Paris).
-  - Arbitrage à venir (lot 4) : entretien après la mesure facultatif et nommé par l'établissement (ex. « Débriefing post-isolement »).
+  - **Qualité** (`config.qualite`, `M.optionsQualite`, `app/js/ui-qualite.js`, sous-onglet *Registre et statistiques*) : motif du recours (liste paramétrable, facultatif, `motifRecours` de la mesure) ; **entretien après la mesure** facultatif, nommé par l'établissement (ex. « Débriefing post-isolement », consigne du porteur ; saisie `ENTRETIEN` : réalisé ou non, date — le contenu reste dans le dossier) ; traces de surveillance des mesures hors CSI (option) ; durée de conservation (signalement seulement, aucune suppression) ; archive annuelle CSV.
+  - **Rapport annuel** (art. L. 3222-5-1, III) : trame dans l'onglet Statistiques, chiffres N / N-1 de l'outil, textes rédigés par l'établissement (`config.rapportsAnnuels`).
+  - **Droit d'accès** : export CSV de toutes les données d'un patient (`M.donneesPatient`), sans les noms des professionnels, tracé au journal (`EXPORT_PATIENT`).
 - Textes légaux proposés : contention « prise dans le cadre d'une mesure d'isolement » (art. L. 3222-5-1) ; seule exception, la contention mécanique ambulatoire (HAS 2017 : troubles gravissimes de longue évolution, plan de soins du psychiatre traitant, hors urgence) ; soins libres : isolement exceptionnel, en urgence, 12 h au maximum (HAS 2017).
 
 ## 5. Pauses (levées temporaires)

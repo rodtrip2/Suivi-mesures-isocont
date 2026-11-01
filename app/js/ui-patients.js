@@ -126,7 +126,8 @@
       tableMesures,
       h('h3', { text: 'Entrées du registre' }),
       h('p', { class: 'muted' }, h('small', { text: 'Une contention en CSI et l’isolement qui l’accompagne forment une seule entrée C ; les portions d’isolement avant et après la contention forment des entrées A.' + (op.deduireRegistre ? (op.contentionSeule === 'isolement' ? ' Pauses déduites : une pause de la contention pendant laquelle l’isolement continue forme une entrée A.' : ' Pauses déduites : une pause de la contention seule reste dans l’entrée C.') : '') })),
-      tableRegistre), [{ texte: 'Fermer' }], { large: true });
+      tableRegistre), [{ texte: 'Fermer' },
+      U.App.session.peut('CORRECTION') || U.App.session.peut('CONFIG') ? { texte: 'Exporter ses données (droit d’accès)', action: function () { U.qualite.exporterPatient(p); return false; } } : null].filter(Boolean), { large: true });
   }
 
   function modaleFiche(p) {

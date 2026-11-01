@@ -31,10 +31,10 @@
   // Types d'événements autorisés par rôle. L'IDE dispose en permanence des
   // actions JLD (usage prévu le week-end et en l'absence de la secrétaire).
   var DROITS = {
-    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION'],
-    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION'],   // mêmes droits que l'IDE
+    IDE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION', 'ENTRETIEN'],
+    AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION', 'ENTRETIEN'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD', 'RECOURS'],
-    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'CORRECTION', 'REFUS_PROPOSITION', 'ANNULATION', 'STATS', 'FUSION'],
+    CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'ENTRETIEN', 'CORRECTION', 'REFUS_PROPOSITION', 'ANNULATION', 'STATS', 'FUSION'],
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
   };
 
@@ -103,6 +103,11 @@
     // ex. « Hébergement somatique » ou « Urgences »), 'suspension' (mesure suspendue jusqu'au retour, période non comptée),
     // 'arret' (la mesure prend fin ; une nouvelle mesure est saisie au retour si besoin).
     casParticuliers: { mainleveeType: 'tout', mainleveeInfoSansDelai: true, debutAilleurs: true, somatique: 'poursuite-service', serviceSomatique: '' },
+    // Qualité (Administration → Registre et statistiques), voir optionsQualite : motif du recours et entretien après
+    // la mesure, facultatifs ; traces de surveillance aussi pour les mesures hors CSI ; durée de conservation (années).
+    qualite: { motifRecours: false, motifsRecours: ['Prévention d’une violence imminente envers autrui', 'Prévention d’un passage à l’acte auto-agressif imminent', 'Agitation avec mise en danger', 'Risque de fugue avec mise en danger', 'Autre'],
+      entretien: false, nomEntretien: 'Entretien après la mesure', surveillanceHorsCSI: false, conservationAns: 0 },
+    rapportsAnnuels: {},      // { 2026: { politique, evaluation, actions, avisCDU, avisCS } } : textes de la trame du rapport annuel
     // Alertes de l'établissement (voir alertesConfig) : 'rappel' affiché à la saisie, ou 'information' d'une personne
     // à tracer dans un délai (0 = sans délai). services [] = tous. depuis : mesures saisies à partir de cette date.
     alertes: [
@@ -242,7 +247,7 @@
           origine: d.origine || '', numeroOrigine: d.numeroOrigine || '', correctionImport: d.correctionImport || '', suite: d.suiteDe || '',
           // Import d'un registre : entrées d'origine (numéro, catégorie, période, soignants) et soignants cités
           entreesOrigine: d.entreesOrigine || null, professionnelsOrigine: d.professionnelsOrigine || '',
-          informations: {}, segments: null, somatique: null, recours: [],
+          informations: {}, segments: null, somatique: null, recours: [], motifRecours: d.motifRecours || '', entretien: null,
           version: 1, champs: {}, evts: [e.id]
         };
         break;
@@ -305,6 +310,9 @@
         }
         m.segments.sort(function (a, b) { return a.debut - b.debut; });
         break;
+      case 'ENTRETIEN':
+        m.entretien = { realise: d.realise !== false, date: d.date, motif: d.motif || '', commentaire: d.commentaire || '', evt: e.id, by: e.by };
+        break;
       case 'RECOURS':
         m.recours = m.recours || [];
         m.recours.push({ nature: d.nature, auteur: d.auteur || '', date: d.date, decision: d.decision || null, commentaire: d.commentaire || '', evt: e.id, by: e.by });
@@ -336,7 +344,7 @@
         var ch = d.champs || {};
         var prop = d.proposition && st.propositions[d.proposition];
         if (prop && prop.statut === 'attente') { prop.statut = 'acceptee'; prop.decision = { by: e.by, at: e.at, motif: d.motif || '', evt: e.id }; }
-        ['debut', 'fin', 'lieu', 'csi', 'psychiatreDebut', 'psychiatreFin', 'modeHospi', 'exception', 'type', 'debutInitial', 'lieuInitial'].forEach(function (k) {
+        ['debut', 'fin', 'lieu', 'csi', 'psychiatreDebut', 'psychiatreFin', 'modeHospi', 'exception', 'type', 'debutInitial', 'lieuInitial', 'motifRecours'].forEach(function (k) {
           if (ch[k] !== undefined) m[k] = ch[k];
         });
         // Mesure découpée (transfert, soins somatiques) : le lieu corrigé est celui de la période en cours.
@@ -607,6 +615,48 @@
     return age < 18;
   }
 
+  // ------------------------------------------------------- Qualité, droit d'accès, conservation
+  function optionsQualite(config) {
+    var o = Object.assign({}, CONFIG_DEFAUT.qualite, (config && config.qualite) || {});
+    o.motifRecours = !!o.motifRecours; o.entretien = !!o.entretien; o.surveillanceHorsCSI = !!o.surveillanceHorsCSI;
+    o.motifsRecours = (Array.isArray(o.motifsRecours) ? o.motifsRecours : CONFIG_DEFAUT.qualite.motifsRecours).map(function (x) { return String(x).trim(); }).filter(Boolean);
+    o.nomEntretien = String(o.nomEntretien || '').trim() || CONFIG_DEFAUT.qualite.nomEntretien;
+    o.conservationAns = Math.max(0, Math.round(+o.conservationAns || 0));
+    return o;
+  }
+
+  /**
+   * Toutes les données d'un patient (droit d'accès, art. 15 du RGPD) : fiche, modes d'hospitalisation, mesures
+   * (lieux, pauses, JLD, tiers, recours, informations, entretien, motifs) et entrées du registre.
+   */
+  function donneesPatient(st, patientId, maintenant) {
+    var p = st.patients[ciblePatient(st, patientId)];
+    if (!p) return null;
+    var mesures = listeMesures(st).filter(function (m) { return m.patientId === p.id; }).sort(function (a, b) { return a.debut - b.debut; });
+    var services = {};
+    mesures.forEach(function (m) { morceaux(m).forEach(function (x) { services[x.service] = 1; }); });
+    var entrees = [];
+    Object.keys(services).forEach(function (sv) {
+      var ans = {};
+      mesures.forEach(function (m) { ans[new Date(m.debut).getFullYear()] = 1; if (typeof m.fin === 'number') ans[new Date(m.fin).getFullYear()] = 1; });
+      Object.keys(ans).forEach(function (an) { registre(st, sv, +an, maintenant).forEach(function (e) { if (e.patientId === p.id) entrees.push(e); }); });
+    });
+    return { patient: p, mesures: mesures, registre: entrees.sort(function (a, b) { return a.debut - b.debut; }) };
+  }
+
+  /** Patients dont la dernière mesure s'est terminée il y a plus de `ans` années (durée de conservation dépassée). */
+  function auDelaConservation(st, ans, maintenant) {
+    if (!ans) return [];
+    var limite = new Date(maintenant); limite.setFullYear(limite.getFullYear() - ans);
+    var derniere = {};
+    listeMesures(st).forEach(function (m) {
+      var f = typeof m.fin === 'number' ? m.fin : Infinity;
+      if (!(m.patientId in derniere) || f > derniere[m.patientId]) derniere[m.patientId] = f;
+    });
+    return Object.keys(derniere).filter(function (id) { return derniere[id] < limite.getTime() && st.patients[id]; })
+      .map(function (id) { return { patient: st.patients[id], derniereFin: derniere[id] }; });
+  }
+
   /** Corrections proposées (par un IDE ou un AS) en attente de la décision du cadre. */
   function propositionsEnAttente(st, filtre) {
     return Object.keys(st.propositions || {}).map(function (k) { return st.propositions[k]; })
@@ -775,8 +825,9 @@
   function postesSurveillance(st, service, maintenant, jours) {
     jours = jours || 7;
     var depuis = maintenant - jours * J;
+    var horsCSI = optionsQualite(st.config).surveillanceHorsCSI;
     var csi = listeMesures(st).filter(function (m) {
-      return m.service === service && m.csi && (typeof m.fin !== 'number' || m.fin >= depuis) && m.debut <= maintenant;
+      return m.service === service && (m.csi || horsCSI) && (typeof m.fin !== 'number' || m.fin >= depuis) && m.debut <= maintenant;
     });
     var postes = {};
     var periodes = periodesDe(st.config, service);
@@ -952,7 +1003,7 @@
    * soignants cités par le registre importé (« Nom (fonction) ; … »).
    */
   function professionnelsEntree(st, service, x, finRef) {
-    var pros = (x.cat === 'A' || x.cat === 'C') ? professionnelsDetailSur(st, service, x.debut, finRef) : [];
+    var pros = (x.cat === 'A' || x.cat === 'C' || optionsQualite(st.config).surveillanceHorsCSI) ? professionnelsDetailSur(st, service, x.debut, finRef) : [];
     if (pros.length) return pros;
     var cites = x.professionnelsOrigine || (x.fige ? '' : x.mesure.professionnelsOrigine) || '';
     return String(cites).split(/[;\n]+/).map(function (t) { t = t.trim(); var mo = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(t); return t ? { nom: mo ? mo[1] : t, fonction: mo ? mo[2] : '' } : null; }).filter(Boolean);
@@ -1183,6 +1234,16 @@
     var mesures = listeMesures(st).filter(function (m) { return services.indexOf(m.service) >= 0 && m.debut >= debutAn && m.debut < finAn; });
     var tiers = { INFORME: 0, NON: 0, TENTATIVE: 0, A_RENSEIGNER: 0 };
     var jld = { info: 0, saisine: 0, decision: 0, levee: 0, cyclesHorsDelai: 0 };
+    var motifs = {}, entretiens = { realises: 0, nonRealises: 0, nonRenseignes: 0 }, motifsFin = {};
+    mesures.forEach(function (m) {
+      var mo = m.motifRecours || 'Non renseigné';
+      motifs[mo] = (motifs[mo] || 0) + 1;
+      if (typeof m.fin === 'number') {
+        if (!m.entretien) entretiens.nonRenseignes++; else if (m.entretien.realise) entretiens.realises++; else entretiens.nonRealises++;
+        var mf = String(m.motifFin || 'Décision médicale').replace(/\s*\(.*$/, '');
+        motifsFin[mf] = (motifsFin[mf] || 0) + 1;
+      }
+    });
     var calc = mesuresCalcul(st, maintenant);
     mesures.forEach(function (m) {
       m = calc.filter(function (x) { return x.id === m.id; })[0] || m;
@@ -1221,7 +1282,8 @@
       partPatientsHC: hcOk && hc ? nPat / hc : null,
       partPatientsSSC: sscOk && ssc ? Object.keys(pSSC).length / ssc : null,
       categories: cat, soinsLibres: soinsLibres, patientsMineurs: Object.keys(pMineurs).length,
-      tiers: tiers, jld: jld, mois: mois
+      tiers: tiers, jld: jld, mois: mois, motifsRecours: motifs, entretiens: entretiens, motifsFin: motifsFin,
+      mesuresIsolement: mesures.filter(function (m) { return m.type === 'Isolement'; }).length, mesuresContention: mesures.filter(function (m) { return m.type === 'Contention'; }).length
     };
   }
 
@@ -1396,7 +1458,7 @@
     registre: registre, estFigee: estFigee, explicationEntree: explicationEntree, REGLES_CATEGORIES: REGLES_CATEGORIES, compteurPour: compteurPour, colonnesPatients: colonnesPatients, statistiquesPatients: statistiquesPatients, registreCommunicable: registreCommunicable, OCCULTATION_DEFAUT: OCCULTATION_DEFAUT, OCCULTATION_CHOIX: OCCULTATION_CHOIX, trancheAge: trancheAge, ageAu: ageAu, soustraire: soustraire, statistiquesAnnee: statistiquesAnnee, decompte: decompte,
     PAUSE_MAX_HEURES: PAUSE_MAX_HEURES, optionsPauses: optionsPauses, pauseEnCours: pauseEnCours, repriseAutomatique: repriseAutomatique, finPause: finPause,
     exclusions: exclusions, plagesPauses: plagesPauses, pausesSur: pausesSur, mesuresCalcul: mesuresCalcul, dureePausesHeures: dureePausesHeures,
-    optionsCas: optionsCas, propositionsEnAttente: propositionsEnAttente, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
+    optionsCas: optionsCas, optionsQualite: optionsQualite, donneesPatient: donneesPatient, auDelaConservation: auDelaConservation, propositionsEnAttente: propositionsEnAttente, morceaux: morceaux, suspensions: suspensions, MOTIFS_FIN: MOTIFS_FIN, mainlevees: mainlevees, mainleveeRecente: mainleveeRecente, apresMainlevee: apresMainlevee, ciblePatient: ciblePatient, doublonsPossibles: doublonsPossibles, normaliserNom: normaliserNom,
     DECLENCHEURS_ALERTE: DECLENCHEURS_ALERTE, TEXTES_ALERTE: TEXTES_ALERTE, DELAIS_ALERTE: DELAIS_ALERTE, alertesConfig: alertesConfig, faitsMesure: faitsMesure,
     reglesDeclenchees: reglesDeclenchees, alertesMesure: alertesMesure, informationsATracer: informationsATracer,
     COLONNES_DECOMPTE: COLONNES_DECOMPTE, IDENTITE_DECOMPTE: IDENTITE_DECOMPTE, SECTIONS_DECOMPTE: SECTIONS_DECOMPTE, MASQUE_DEFAUT: MASQUE_DEFAUT, FORMATS_DUREE: FORMATS_DUREE, masqueDecompte: masqueDecompte

@@ -1,5 +1,15 @@
 # Journal des versions
 
+## 1.28.0 — 1er novembre 2026
+
+- **Motif du recours** (option) : liste paramétrable proposée dans la nouvelle mesure, facultative pour l'agent ; statistiques et rapport annuel.
+- **Entretien après la mesure** (option), sous le nom choisi par l'établissement (ex. « Débriefing post-isolement ») : réalisé ou non, date, depuis le détail de la mesure ; mesures terminées depuis moins de 7 jours sans entretien renseigné dans les points de vigilance ; statistiques.
+- **Motifs de fin** dans les statistiques.
+- **Surveillance des mesures hors CSI** (option) : postes à compléter et professionnels au registre pour les catégories B, D et E.
+- **Rapport annuel (trame)** dans l'onglet Statistiques (art. L. 3222-5-1, III) : chiffres N / N-1 repris de l'outil, textes de l'établissement enregistrés, impression ou PDF.
+- **Droit d'accès** : export des données d'un patient (fiche, modes, mesures, registre), tracé au journal.
+- **Conservation et archivage** : durée de conservation (signalement des patients au-delà, sans suppression) et archive annuelle (registres et statistiques en CSV, tracée).
+
 ## 1.27.0 — 1er novembre 2026
 
 - **Comptes temporaires** (intérimaires, vacataires, stagiaires) : dernier jour d'accès à la création (y compris en lot) ou par *Modifier*, imprimé sur la fiche de remise ; connexion refusée après ce jour ; badges « expire le… » (7 jours) et « expiré » ; bouton *Désactiver les comptes expirés*.
