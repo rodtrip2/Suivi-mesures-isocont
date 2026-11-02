@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.40.1 — 2 novembre 2026
+
+- **Kit : guide pratique des IDE et aides-soignant(e)s** (`kit/08-guide-ide-as.md` et PDF, 11 pages, 18 captures en mode démonstration avec un compte IDE fictif) : se connecter, tableau de bord, créer une mesure, pause et reprise, information du tiers, décompte JLD enregistré en PDF et traçabilité de l'envoi, surveillance en CSI, fin de mesure, correction d'une erreur, mémo d'une page.
+- Script `scripts/captures-guide-ide-as.py` pour régénérer les captures après une évolution de l'interface ; le générateur des PDF du kit sait désormais inclure des images.
+
 ## 1.40.0 — 2 novembre 2026
 
 - **Rôles configurables** (*Administration → Comptes et sécurité → Rôles et accès*) :

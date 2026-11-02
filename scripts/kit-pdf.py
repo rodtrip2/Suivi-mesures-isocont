@@ -38,6 +38,10 @@ a { color: #1f5f5b; text-decoration: none; }
 hr { border: none; border-top: 1px solid #c9cfca; margin: 6mm 0 3mm; }
 hr + p { font-size: 8.5pt; color: #555; }
 .case { font-family: "Segoe UI Symbol", sans-serif; }
+img { display: block; max-width: 100%; max-height: 95mm; margin: 2mm auto 1mm; border: 1px solid #c9cfca; border-radius: 3px; break-inside: avoid; }
+img + em, p > em:only-child { display: block; text-align: center; font-size: 8.5pt; color: #555; margin-bottom: 3mm; }
+h2 { break-before: auto; }
+.saut { break-before: page; }
 """
 
 
@@ -57,14 +61,19 @@ def main():
         for f in fichiers:
             titre = re.search(r'^# (.+)$', f.read_text(encoding='utf-8'), flags=re.M).group(1)
             corps = convertir(f.read_text(encoding='utf-8'))
-            page.set_content(f'<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>{html.escape(titre)}</title>'
-                             f'<style>{CSS}</style></head><body>{corps}</body></html>')
+            # Page écrite dans le dossier du kit : les captures (images/…) se chargent par chemin relatif
+            tmp = KIT / ('.' + f.stem + '.html')
+            tmp.write_text(f'<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>{html.escape(titre)}</title>'
+                           f'<style>{CSS}</style></head><body>{corps}</body></html>', encoding='utf-8')
+            page.goto(tmp.as_uri())
+            page.wait_for_load_state('load')
             pied = ('<div style="font-size:7.5pt;color:#777;width:100%;padding:0 16mm;display:flex;justify-content:space-between">'
                     f'<span>Suivi-mesures-isocont {VERSION} — {html.escape(titre)}</span>'
                     '<span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>')
             page.pdf(path=str(SORTIE / (f.stem + '.pdf')), format='A4', print_background=True, display_header_footer=True,
                      header_template='<div></div>', footer_template=pied,
                      margin={'top': '16mm', 'bottom': '18mm', 'left': '16mm', 'right': '16mm'})
+            tmp.unlink()
             print('ok', f.stem + '.pdf')
         navigateur.close()
 

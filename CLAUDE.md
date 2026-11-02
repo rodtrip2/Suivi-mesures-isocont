@@ -141,7 +141,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 2. Vérification dans un vrai navigateur (Playwright, mode démonstration, données fictives) des écrans modifiés.
 3. Mettre à jour le guide utilisateur (`kit/06`), et selon le cas la fiche projet (`kit/01`), le guide d'installation (`kit/03`), les éléments RGPD (`kit/05`), `docs/architecture.md`.
 4. `CHANGELOG.md` (nouvelle entrée en tête), version dans `app/js/version.js` et `package.json`.
-5. Régénérer les PDF du kit (`python3 scripts/kit-pdf.py`) et les empreintes (`node scripts/empreintes.mjs`).
+5. Régénérer les PDF du kit (`python3 scripts/kit-pdf.py`) et les empreintes (`node scripts/empreintes.mjs`). Si un écran du **guide pratique IDE / AS** (`kit/08-guide-ide-as.md`, demande du porteur : création d'une mesure, pause, reprise, tiers, décompte et traçabilité de l'envoi, surveillance CSI, fin) change, régénérer ses captures (`python3 scripts/captures-guide-ide-as.py`, serveur local sur le port 8765, compte IDE fictif) et relire le texte.
 6. **Commit et push sur GitHub après chaque modification** (consigne permanente du porteur). Message en français ; terminer par les lignes d'attribution demandées par l'environnement.
 7. Compte rendu au porteur en français : ce qui a changé, ce qui reste à valider de son côté (choix juridiques, formulations), captures si utile.
 

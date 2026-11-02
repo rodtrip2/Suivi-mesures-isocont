@@ -1,6 +1,6 @@
 # Guide utilisateur
 
-*Suivi des mesures d'isolement et de contention — à lire en 10 minutes.*
+*Suivi des mesures d'isolement et de contention — à lire en 10 minutes. Pour les IDE et aides-soignant(e)s, un guide pratique illustré reprend les gestes du quotidien : document 08 du kit.*
 
 *Ce guide parle de « chambre de soins intensifs (CSI) ». Si votre établissement emploie une autre appellation (chambre d'isolement, espace d'isolement…), l'outil affiche la sienne.*
 

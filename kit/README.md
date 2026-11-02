@@ -10,6 +10,7 @@ Tout ce qu'il faut pour présenter, valider, installer et exploiter Suivi-mesure
 | [04 — Procédures de secours](04-procedures-secours.md) | Administrateur, cadres, service informatique | Mots de passe, clés, départs, panne, restauration ; fiche papier dégradée |
 | [05 — Éléments RGPD et analyse d'impact (AIPD)](05-elements-rgpd-aipd.md) | Délégué à la protection des données (DPO, référent RGPD) | Fiche du registre des traitements et préparation de l'analyse d'impact |
 | [06 — Guide utilisateur](06-guide-utilisateur.md) | IDE, secrétariat, cadres | Formation des équipes |
+| [08 — Guide pratique IDE et AS](08-guide-ide-as.md) | IDE, aides-soignant(e)s | Les gestes du quotidien avec captures : créer une mesure, pause et reprise, tiers, décompte et envoi au JLD, surveillance en CSI, fin |
 | [07 — Reprise à partir du registre](07-modele-import-registre.md) | Administrateur fonctionnel, cadres | Format du registre à importer, reconstitution des mesures, contrôles avant import |
 
 ## Parcours de déploiement
@@ -17,7 +18,7 @@ Tout ce qu'il faut pour présenter, valider, installer et exploiter Suivi-mesure
 1. **Présenter** la fiche projet (01) à la direction, la fiche technique (02) au service informatique, les éléments RGPD (05) au délégué à la protection des données.
 2. **Valider** : mode d'hébergement, registre des traitements, analyse d'impact, statut du registre légal.
 3. **Installer** selon le guide (03) et faire la recette.
-4. **Former** les équipes avec le guide utilisateur (06) ; imprimer les procédures de secours (04).
+4. **Former** les équipes avec le guide utilisateur (06) et le guide pratique des IDE et AS (08) ; imprimer les procédures de secours (04).
 5. **Piloter** dans une unité, puis étendre.
 
 Pour adapter les documents à votre établissement (référents, chemins du partage, adresse intranet), modifiez les fichiers Markdown puis régénérez les PDF : `python3 scripts/kit-pdf.py`.
