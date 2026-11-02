@@ -67,10 +67,10 @@
   var LIB_NATURE = { INFO: 'Information du JLD', SAISINE: 'Saisine du JLD', DECISION: 'Décision reçue du JLD' };
   var LIB_EVT = {
     CONFIG: 'Paramétrage', PATIENT: 'Patient', MODE_HOSPI: "Mode d'hospitalisation", MESURE_DEBUT: 'Début de mesure',
-    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', PROPOSITION: 'Correction proposée', REFUS_PROPOSITION: 'Correction proposée refusée', TRANSFERT: 'Transfert entre services', SOMATIQUE: 'Soins somatiques ou urgences', SOMATIQUE_RETOUR: 'Retour dans le service', RECOURS: 'Recours ou appel (JLD)', ENTRETIEN: 'Entretien après la mesure', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
+    MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', PROPOSITION: 'Correction proposée', REFUS_PROPOSITION: 'Correction proposée refusée', TRANSFERT: 'Transfert entre services', SOMATIQUE: 'Soins somatiques ou urgences', SOMATIQUE_RETOUR: 'Retour dans le service', RECOURS: 'Recours ou appel (JLD)', ENTRETIEN: 'Entretien après la mesure', INTEGRITE: 'Intégrité des données', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
-  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', REPARATION: 'réparation depuis une copie de sauvegarde', QUARANTAINE: 'mise en quarantaine', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
   var MOTIFS_PAUSE = ['Repas', 'Hygiène, douche', 'Visite', 'Appel téléphonique', 'Sortie accompagnée dans l’unité', 'Activité thérapeutique', 'Examen ou soin', 'Autre'];
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
@@ -873,6 +873,7 @@
       case 'SOMATIQUE_RETOUR': return sur + 'retour dans le service le ' + date(d.date) + (d.lieu ? ' (' + d.lieu + ')' : '');
       case 'RECOURS': return sur + SIC.ui.parcours.libRecours(d);
       case 'ENTRETIEN': return sur + M.optionsQualite(config()).nomEntretien.toLowerCase() + ' — ' + (d.realise === false ? 'non réalisé (' + (d.motif || '') + ')' : 'réalisé le ' + date(d.date)) + (d.commentaire ? ' — ' + d.commentaire : '');
+      case 'INTEGRITE': return 'Prise d’acte d’anomalies d’intégrité irrécupérables (' + [(d.manquants || []).length ? (d.manquants || []).length + ' saisie(s) perdue(s)' : '', (d.fichiers || []).length ? (d.fichiers || []).length + ' fichier(s) illisible(s)' : '', (d.reperes || []).length ? (d.reperes || []).length + ' repère(s) d’agent' : ''].filter(Boolean).join(', ') + '). Motif : ' + (d.motif || '') + '.';
       case 'FUSION':
         var fg = st().patients[M.ciblePatient(st(), d.garde)] || {}, fa = ((fg.fusionnes || []).filter(function (x) { return x.id === d.absorbe; })[0]) || {};
         return 'Fiches fusionnées : ' + ((fa.nom || '?') + ' ' + (fa.prenom || '')).trim() + (fa.ipp ? ' (IPP ' + fa.ipp + ')' : '') + ' rattachée à ' + nomPatient(d.garde).trim() + (fg.ipp ? ' (IPP ' + fg.ipp + ')' : '') + '. Motif : ' + (d.motif || 'non précisé') + '.';
@@ -943,7 +944,7 @@
           h('div', {}, h('b', { text: 'Appliquée : ' }), resumeEvt(a), ' — ', App.session.nomAuteur(a.by), ' ', choix(a, b)),
           h('div', {}, h('b', { text: 'Concurrente : ' }), resumeEvt(b), ' — ', App.session.nomAuteur(b.by), ' ', choix(b, a)));
       })) : null;
-    var manquants = etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Restaurez-les depuis la sauvegarde.' }) : null;
+    var manquants = etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Détail, réparation depuis une copie ou prise d’acte : Administration → Informations.' }) : null;
         var rejetes = App.session.rejetes.length ? h('div', { class: 'erreur', text: App.session.rejetes.length + ' fichier(s) illisible(s) ou altéré(s) ignoré(s) : ' + App.session.rejetes.map(function (r) { return r.nom; }).join(', ') }) : null;
 
     var lignes = etat.journal.slice().reverse().slice(0, 400);
@@ -958,7 +959,7 @@
           return h('tr', { class: annule ? 'ancienne' : '' },
             h('td', { class: 'nowrap', text: date(Date.parse(e.at)) }),
             h('td', { text: App.session.nomAuteur(e.by) }),
-            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE') ? 'Sauvegarde' : (LIB_EVT[e.type] || e.type)),
+            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE') ? 'Sauvegarde' : (LIB_EVT[e.type] || e.type)),
             h('td', {}, resumeEvt(e)),
             h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null));
         })))),

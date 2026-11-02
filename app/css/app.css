@@ -378,3 +378,7 @@ details.extrait-loi blockquote p { margin: 0 0 6px; }
 
 .note-qpc { margin-top: 8px; background: var(--surface-2, var(--accent-soft)); border-radius: var(--radius); padding: 8px 12px; font-size: .88rem; }
 .note-qpc ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+/* Intégrité : liste à transmettre à la DSI */
+.texte-dsi { width: 100%; font-size: .85em; }
+.panneau h4 { margin: 14px 0 4px; }
+td.mono { word-break: break-all; }

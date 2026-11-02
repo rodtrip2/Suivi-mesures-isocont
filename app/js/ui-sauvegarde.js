@@ -4,7 +4,8 @@
  * copie de sauvegarde complète et rappel, contrôle d'intégrité, restauration (coffre perdu ou abîmé,
  * dossier vide). Les fichiers produits restent chiffrés : inutilisables sans un moyen de déblocage.
  * Stockage : store.js (versionsCoffre, restaurerCoffre, copieComplete, restaurerCopie, repères) ;
- * session.js (verifierIntegrite, copieSousScelle, etatScelle, copieComplete, derniereCopie).
+ * session.js (verifierIntegrite, reparerDepuisCopie, mettreEnQuarantaine, prendreActeIntegrite, copieSousScelle,
+ * etatScelle, copieComplete, derniereCopie). Prise d'acte : saisie INTEGRITE, M.filtrerIntegrite.
  */
 (function () {
   'use strict';
@@ -42,6 +43,123 @@
     return pbs;
   }
 
+  /** Date d'une saisie d'après le nom de son fichier (horodatage UTC en tête de l'identifiant). */
+  function dateDeNom(nom) {
+    var m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(nom || '');
+    return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+  }
+  function agentDeNom(nom) {
+    var id = String(nom || '').replace(/\.enc$/, ''), i = id.indexOf('_'), j = id.lastIndexOf('_');
+    return i > 0 && j > i ? id.slice(i + 1, j) : '';
+  }
+  function loginDe(agent) {
+    var c = (U.App.session.comptes || []).filter(function (x) { return x.id === agent; })[0];
+    return c ? c.login : agent;
+  }
+
+  /** Anomalies du dernier contrôle, une ligne par fichier : { nature, chemin, agent, date, conseil }. */
+  function lignesAnomalies(r) {
+    var s = U.App.session, res = [], parId = {};
+    if (!r) return res;
+    s.evts.forEach(function (e) { parId[e.id] = e.by; });
+    r.fichiersIllisibles.forEach(function (f) { res.push({ nature: 'Fichier illisible (abîmé, modifié ou chiffré par un autre outil)', chemin: f.chemin, agent: agentDeNom(f.nom), date: dateDeNom(f.nom), conseil: 'à restaurer ou mettre en quarantaine' }); });
+    var illisibles = {}; r.fichiersIllisibles.forEach(function (f) { illisibles[f.nom.replace(/\.enc$/, '')] = true; });
+    r.listeManquants.filter(function (x) { return !illisibles[x.id]; }).forEach(function (x) { res.push({ nature: 'Saisie absente (trou dans le chaînage)', chemin: x.chemin, agent: x.by, date: dateDeNom(x.id), conseil: 'à restaurer' }); });
+    r.disparus.forEach(function (nom) { var id = nom.replace(/\.enc$/, ''); res.push({ nature: 'Saisie disparue du partage depuis l’ouverture de la session', chemin: M.cheminEvenement(nom), agent: parId[id] || agentDeNom(nom), date: dateDeNom(nom), conseil: 'à restaurer' }); });
+    r.reperes.forEach(function (x) {
+      if (x.illisible) res.push({ nature: 'Repère d’intégrité illisible', chemin: 'reperes/' + x.agent + '.enc', agent: x.agent, date: null, conseil: 'se répare à la prochaine saisie de l’agent' });
+      else res.push({ nature: (x.attendu - x.present > 0 ? (x.attendu - x.present) + ' saisie(s) de l’agent introuvable(s)' : 'dernière saisie de l’agent introuvable') + ' (' + x.present + ' présente(s) sur ' + x.attendu + ' attendue(s))', chemin: x.dernierManquant ? M.cheminEvenement(x.dernier + '.enc') : 'evenements/ (fichiers de l’agent)', agent: x.agent, date: x.dernierLe ? Date.parse(x.dernierLe) : null, conseil: 'à restaurer' });
+    });
+    return res;
+  }
+
+  /** Texte à transmettre à la DSI : chemins, dates, identifiants de connexion ; aucune donnée de patient. */
+  function texteDSI(r) {
+    var d = U.App.dossier, lignes = lignesAnomalies(r);
+    return ['Suivi des mesures d’isolement et de contention — version ' + SIC.VERSION,
+      'Contrôle d’intégrité du ' + U.date(r.verifieLe) + (d && d.handle && d.handle.name ? ' — dossier « ' + d.handle.name + ' »' : ''),
+      lignes.length + ' anomalie(s). Chemins relatifs au dossier de l’outil. Merci de rechercher ces fichiers dans les sauvegardes (version la plus récente avant la date indiquée ou peu après) et de nous les restituer à l’identique, sans les ouvrir ni les renommer.',
+      ''].concat(lignes.map(function (l) {
+      return '- ' + l.chemin + ' | ' + l.nature + ' | ' + (l.date ? 'saisie du ' + U.date(l.date) : 'date inconnue') + ' | agent : ' + loginDe(l.agent) + ' | ' + l.conseil;
+    })).join('\n');
+  }
+
+  /** Bloc « Anomalies » d'Administration → Informations : détail, copie pour la DSI, réparation, quarantaine, prise d'acte, historique. */
+  function blocIntegrite(r, rafraichir) {
+    var s = U.App.session, admin = s.peut('INTEGRITE'), zoneErr = h('div'), out = h('div', { class: 'pile' }, zoneErr);
+    var lignes = lignesAnomalies(r);
+    function erreur(e) { U.erreurDans(zoneErr, e); }
+    if (r && lignes.length) {
+      var texte = texteDSI(r), repli = h('textarea', { class: 'mono texte-dsi', readonly: true, rows: 8, hidden: true });
+      repli.value = texte;
+      out.appendChild(h('h4', { text: 'Détail des anomalies' }));
+      out.appendChild(h('table', { class: 'stats' },
+        h('thead', {}, h('tr', {}, ['Nature', 'Fichier', 'Agent', 'Date de la saisie', 'Que faire'].map(function (t) { return h('th', { text: t }); }))),
+        h('tbody', {}, lignes.map(function (l) {
+          return h('tr', {}, h('td', { text: l.nature }), h('td', { class: 'mono', text: l.chemin }), h('td', { text: s.nomAuteur(l.agent) }), h('td', { text: l.date ? U.date(l.date) : '—' }), h('td', { text: l.conseil }));
+        }))));
+      out.appendChild(h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
+        try { await navigator.clipboard.writeText(texte); U.toast('Liste copiée : collez-la dans votre demande à la DSI.'); }
+        catch (e) { repli.hidden = false; repli.select(); U.toast('Copie automatique impossible : sélectionnez le texte affiché.'); }
+      } }, 'Copier la liste pour la DSI')));
+      out.appendChild(repli);
+      out.appendChild(h('p', { class: 'muted', text: 'La liste ne contient que des chemins de fichiers, des dates et des identifiants de connexion : aucune donnée de patient. Si de nombreux fichiers deviennent illisibles en même temps, prévenez aussi le RSSI (attaque possible, voir la fiche « Alerte d’intégrité » du kit).' }));
+
+      if (admin) {
+        // Réparation depuis une copie complète
+        if (!s.formation) {
+          var fichier = h('input', { type: 'file', accept: '.json,application/json' });
+          out.appendChild(h('h4', { text: 'Réparer depuis une copie de sauvegarde' }));
+          out.appendChild(h('p', { class: 'muted', text: 'Choisissez la copie de sauvegarde complète la plus récente (fichier téléchargé depuis cet écran, ou restitué par la DSI). L’outil ne remet que les fichiers absents ou illisibles, après avoir vérifié qu’ils s’ouvrent avec la clé de l’établissement ; il ne modifie jamais un fichier présent et lisible. Un fichier illisible remplacé est d’abord mis en quarantaine. Le contrôle est ensuite refait.' }));
+          out.appendChild(h('div', { class: 'actions gauche' }, h('label', {}, 'Copie de sauvegarde (fichier .json)', fichier), h('button', { class: 'btn primaire', type: 'button', onclick: async function (ev) {
+            var b = ev.currentTarget; erreur(null);
+            try {
+              var copie = await lireFichierJSON(fichier);
+              if (!confirm('Remettre depuis la copie du ' + (copie.creeLe ? U.date(Date.parse(copie.creeLe)) : '?') + ' les fichiers absents ou illisibles du dossier ? Les fichiers présents et lisibles ne seront pas touchés.')) return;
+              b.disabled = true;
+              var rap = await s.reparerDepuisCopie(copie);
+              U.toast(rap.remis.length + ' fichier(s) remis' + (rap.invalides.length ? ', ' + rap.invalides.length + ' refusé(s) (ne s’ouvrent pas avec la clé actuelle)' : '') + '.');
+              if (!rap.remis.length) erreur(new Error('Aucun fichier manquant n’a été trouvé dans cette copie' + (rap.invalides.length ? ' (' + rap.invalides.length + ' fichier(s) refusé(s) : copie d’une autre installation ou abîmée)' : '') + '. Essayez une copie plus ancienne ou demandez les fichiers à la DSI.'));
+              rafraichir();
+            } catch (e) { erreur(e); } finally { b.disabled = false; }
+          } }, 'Réparer')));
+        }
+        // Quarantaine des fichiers illisibles
+        if (r.fichiersIllisibles.length) {
+          out.appendChild(h('h4', { text: 'Mettre à l’écart les fichiers illisibles' }));
+          out.appendChild(h('p', { class: 'muted', text: 'Les ' + r.fichiersIllisibles.length + ' fichier(s) illisible(s) sont déplacés dans le dossier « quarantaine » de l’outil, sans être supprimés : la DSI peut les examiner ou les restaurer. À faire après avoir tenté la réparation. Une saisie mise en quarantaine reste à restaurer ; si elle ne peut pas l’être, prenez-en acte.' }));
+          out.appendChild(h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
+            erreur(null);
+            if (!confirm('Déplacer ' + r.fichiersIllisibles.length + ' fichier(s) illisible(s) dans le dossier « quarantaine » ? L’opération est tracée au journal.')) return;
+            try { var f = await s.mettreEnQuarantaine(r.fichiersIllisibles.map(function (x) { return x.nom; })); U.toast(f.length + ' fichier(s) mis en quarantaine.'); rafraichir(); }
+            catch (e) { erreur(e); }
+          } }, 'Mettre en quarantaine')));
+        }
+        // Prise d'acte
+        var motif = h('textarea', { rows: 2, placeholder: 'Ex. : fichiers absents des sauvegardes de la DSI (ticket n° …), saisies ressaisies le …' });
+        out.appendChild(h('h4', { text: 'Prendre acte (récupération impossible)' }));
+        out.appendChild(h('p', { class: 'muted', text: 'Si les fichiers ne peuvent pas être récupérés (absents des sauvegardes), vérifiez les mesures concernées et ressaisissez ce qui doit l’être, puis prenez acte de ces anomalies avec un motif. L’alerte est alors close pour ces fichiers ; la décision est enregistrée au journal et listée ci-dessous. Toute nouvelle anomalie déclenche une nouvelle alerte.' }));
+        out.appendChild(h('label', {}, 'Motif (obligatoire)', motif));
+        out.appendChild(h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
+          erreur(null);
+          if (!motif.value.trim()) return erreur(new Error('Le motif est obligatoire.'));
+          if (!confirm('Prendre acte de ' + lignes.length + ' anomalie(s) ? L’alerte sera close pour ces fichiers ; une nouvelle anomalie déclenchera toujours une alerte.')) return;
+          try { await s.prendreActeIntegrite(motif.value); U.toast('Prise d’acte enregistrée au journal.'); rafraichir(); }
+          catch (e) { erreur(e); }
+        } }, 'Prendre acte')));
+      }
+    }
+    var hist = (s.etat && s.etat.integrite && s.etat.integrite.historique) || [];
+    if (r && r.acquis) out.appendChild(h('p', { class: 'muted', text: r.acquis + ' anomalie(s) déjà prise(s) en compte par une décision ci-dessous : elles ne sont plus signalées.' }));
+    if (hist.length) {
+      out.appendChild(h('h4', { text: 'Décisions de prise d’acte' }));
+      out.appendChild(h('ul', { class: 'liste-simple' }, hist.slice().reverse().map(function (x) {
+        return h('li', { text: U.date(Date.parse(x.at)) + ' — ' + s.nomAuteur(x.by) + ' — ' + [x.manquants ? x.manquants + ' saisie(s) perdue(s)' : '', x.fichiers ? x.fichiers + ' fichier(s) illisible(s)' : '', x.reperes ? x.reperes + ' repère(s) d’agent' : ''].filter(Boolean).join(', ') + ' — motif : ' + x.motif });
+      })));
+    }
+    return out;
+  }
+
   /** Lance le contrôle (après la connexion, puis toutes les 15 minutes) et rafraîchit l'affichage si un problème apparaît. */
   async function controler() {
     var s = U.App.session;
@@ -57,7 +175,7 @@
     var s = U.App.session, res = [], admin = s.peut('CONFIG');
     if (!(admin || s.peut('CORRECTION'))) return res;
     var pbs = texteIntegrite(s.integrite) || [];
-    if (pbs.length) res.push(h('li', { class: 'urgent' }, h('b', { text: 'Intégrité des données' }), ' — ' + pbs.join(' ; ') + '. Prévenez l’administrateur et la DSI (restauration depuis la sauvegarde, voir les procédures de secours).'));
+    if (pbs.length) res.push(h('li', { class: 'urgent' }, h('b', { text: 'Intégrité des données' }), ' — ' + pbs.join(' ; ') + '. ' + (admin ? 'Détail, liste à transmettre à la DSI, réparation ou prise d’acte : Administration → Informations.' : 'Prévenez l’administrateur.')));
     if (admin && !s.formation && U.App.dossier.mode !== 'demo') {
       var der = s.derniereCopie(), n = rappelJours();
       if (n && (!der || Date.now() - der > n * J)) res.push(h('li', {}, h('b', { text: 'Copie de sauvegarde' }), ' — ' + (der ? 'dernière copie complète le ' + U.date(der).slice(0, 10) : 'aucune copie complète téléchargée') + ' (rappel tous les ' + n + ' jours). Administration → Informations.'));
@@ -71,6 +189,7 @@
   function panneau() {
     var s = U.App.session;
     var zone = h('div', { class: 'pile' }, h('div', { class: 'muted', text: 'Lecture de l’état des données…' }));
+    var zoneIntegrite = h('div');
     var rappel = h('select', {}, [0, 1, 3, 7, 14, 30].map(function (j) { return h('option', { value: j, text: j ? 'tous les ' + j + ' jours' : 'aucun rappel', selected: j === rappelJours() }); }));
     async function remplir() {
       var versions = [];
@@ -81,6 +200,7 @@
         h('div', { class: !sc || !sc.aJour ? 'texte-bad' : '', text: 'Copie du coffre sous scellé : ' + (!sc ? 'jamais faite' : 'faite le ' + U.date(Date.parse(sc.creeLe)) + (sc.aJour ? '' : ' — à refaire, le code de secours a été renouvelé depuis')) }),
         h('div', { class: der && Date.now() - der <= (rappelJours() || 9999) * J ? '' : 'texte-bad', text: 'Dernière copie de sauvegarde complète : ' + (der ? U.date(der) : 'aucune') }),
         h('div', { class: pbs && pbs.length ? 'texte-bad' : '', text: 'Contrôle d’intégrité : ' + (!r ? 'non encore effectué' : (pbs.length ? pbs.join(' ; ') : 'aucune anomalie') + ' (le ' + U.date(r.verifieLe) + ')') })));
+      U.vider(zoneIntegrite).appendChild(blocIntegrite(r, function () { U.rendreContenu(); }));
     }
     remplir();
     return h('section', { class: 'panneau' }, h('h2', { text: 'État des données et sauvegardes' }),
@@ -104,7 +224,8 @@
         h('button', { class: 'btn petit', type: 'button', onclick: async function () { await U.enregistrerConfig([['sauvegarde', { rappelJours: +rappel.value }]]); remplir(); } }, 'Enregistrer le rappel')),
       h('h3', { text: 'Contrôle d’intégrité' }),
       h('p', { class: 'muted', text: 'Fait à la connexion puis toutes les 15 minutes : chaque agent laisse un repère (nombre et dernière de ses saisies) ; l’outil signale les saisies disparues, les fichiers illisibles et les trous dans le chaînage.' }),
-      h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () { await controler(); remplir(); U.toast('Contrôle effectué.'); } }, 'Vérifier maintenant')));
+      h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () { await controler(); remplir(); U.toast('Contrôle effectué.'); } }, 'Vérifier maintenant')),
+      zoneIntegrite);
   }
 
   // ------------------------------------------------------------ Restauration (avant connexion)
@@ -154,5 +275,5 @@
     return details;
   }
 
-  U.sauvegarde = { panneau: panneau, controler: controler, vigilance: vigilance, blocRestaurationCoffre: blocRestaurationCoffre, blocRestaurationCopie: blocRestaurationCopie, texteIntegrite: texteIntegrite };
+  U.sauvegarde = { panneau: panneau, controler: controler, vigilance: vigilance, blocRestaurationCoffre: blocRestaurationCoffre, blocRestaurationCopie: blocRestaurationCopie, texteIntegrite: texteIntegrite, lignesAnomalies: lignesAnomalies, texteDSI: texteDSI };
 })();

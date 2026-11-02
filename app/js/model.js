@@ -35,7 +35,7 @@
     AS: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'PROPOSITION', 'ENTRETIEN'],   // mêmes droits que l'IDE
     SECRETAIRE: ['JLD', 'RECOURS'],
     CADRE: ['PATIENT', 'MODE_HOSPI', 'MESURE_DEBUT', 'MESURE_FIN', 'PAUSE', 'REPRISE', 'TIERS', 'PROFESSIONNEL', 'JLD', 'INFORMATION', 'TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR', 'RECOURS', 'ENTRETIEN', 'CORRECTION', 'REFUS_PROPOSITION', 'ANNULATION', 'STATS', 'FUSION'],
-    ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT']
+    ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT', 'INTEGRITE']
   };
 
   function peut(roles, typeEvenement) {
@@ -177,7 +177,9 @@
     var st = {
       config: cloner(CONFIG_DEFAUT), fusions: {}, propositions: {},
       patients: {}, mesures: {}, professionnels: [], saisiesStats: {},
-      conflits: [], annules: {}, journal: [], parId: {}, manquants: []
+      conflits: [], annules: {}, journal: [], parId: {}, manquants: [],
+      // Anomalies d'intégrité dont l'administrateur a pris acte (saisies INTEGRITE) : elles ne déclenchent plus d'alerte.
+      integrite: { reperes: {}, manquants: {}, fichiers: {}, historique: [] }, manquantsAcquis: []
     };
     var tries = trierEvenements(deplier(evts));
 
@@ -198,7 +200,38 @@
       if (e.type === 'ANNULATION' || e.type === 'LOT' || st.annules[e.id] || (e.lot && st.annules[e.lot])) return;
       appliquer(st, e);
     });
+    var acq = st.integrite.manquants;
+    st.manquantsAcquis = st.manquants.filter(function (x) { return acq[x.manque]; });
+    st.manquants = st.manquants.filter(function (x) { return !acq[x.manque]; });
     return st;
+  }
+
+  /** Chemin d'un fichier de saisie d'après son nom (le mois vient de l'horodatage en tête de l'identifiant). */
+  function cheminEvenement(nom) {
+    var m = /^(\d{4})(\d{2})\d{2}T/.exec(nom || '');
+    return m ? 'evenements/' + m[1] + '/' + m[2] + '/' + nom : nom;
+  }
+
+  /**
+   * Retire du résultat du contrôle d'intégrité les anomalies dont l'administrateur a pris acte (`st.integrite`).
+   * Une anomalie nouvelle (écart plus grand, autre fichier) reste signalée. `res.acquis` = anomalies écartées.
+   */
+  function filtrerIntegrite(res, ig) {
+    ig = ig || { reperes: {}, manquants: {}, fichiers: {} };
+    var out = Object.assign({}, res), acquis = 0;
+    function idDe(nom) { return String(nom).replace(/\.enc$/, ''); }
+    out.reperes = (res.reperes || []).filter(function (r) {
+      var a = ig.reperes[r.agent], ok;
+      if (r.illisible) ok = !!(a && a.illisible);
+      else ok = !!a && (r.attendu - r.present) <= (a.ecart || 0) && (!r.dernierManquant || a.dernier === r.dernier);
+      if (ok) acquis++;
+      return !ok;
+    });
+    out.disparus = (res.disparus || []).filter(function (nom) { var ok = !!(ig.manquants[idDe(nom)] || ig.fichiers[nom]); if (ok) acquis++; return !ok; });
+    out.fichiersIllisibles = (res.fichiersIllisibles || []).filter(function (f) { var ok = !!ig.fichiers[f.nom]; if (ok) acquis++; return !ok; });
+    out.illisibles = out.fichiersIllisibles.length;
+    out.acquis = acquis + (res.manquantsAcquis || 0);
+    return out;
   }
 
   /** Fiche qui porte aujourd'hui un patient (après fusions éventuelles). */
@@ -226,6 +259,19 @@
 
       case 'CONFIG':
         st.config[d.cle] = cloner(d.valeur);
+        break;
+
+      case 'INTEGRITE':
+        // Prise d'acte d'anomalies d'intégrité irrécupérables (administrateur, motif obligatoire).
+        var ig = st.integrite;
+        (d.reperes || []).forEach(function (r) {
+          if (!r || !r.agent) return;
+          var prec = ig.reperes[r.agent] || { ecart: 0 };
+          ig.reperes[r.agent] = { ecart: Math.max(prec.ecart || 0, +r.ecart || 0), dernier: r.dernier || prec.dernier || '', illisible: !!r.illisible || !!prec.illisible };
+        });
+        (d.manquants || []).forEach(function (id) { ig.manquants[id] = e.id; });
+        (d.fichiers || []).forEach(function (nom) { ig.fichiers[nom] = e.id; });
+        ig.historique.push({ evt: e.id, at: e.at, by: e.by, motif: d.motif || '', reperes: (d.reperes || []).length, manquants: (d.manquants || []).length, fichiers: (d.fichiers || []).length });
         break;
 
       case 'PATIENT':
@@ -1608,7 +1654,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

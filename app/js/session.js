@@ -106,7 +106,7 @@
 
   Session.prototype.verrouiller = function () {
     this.cle = null; this.utilisateur = null; this.evts = []; this.connus = new Set(); this.etat = null; this.comptes = [];
-    this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = [];
+    this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = []; this.reperesLus = {}; this.integrite = null;
   };
 
   /** Relit le coffre, applique `modif`, réécrit (contrôle de révision). */
@@ -270,7 +270,15 @@
     this.connus.add(evt.id + '.enc');
     this.evts.push(evt);
     // Repère d'intégrité de l'agent : permet de détecter la disparition de ses dernières saisies.
-    try { await dossierActif(this).ecrireRepere(cleActive(this), by, { n: mesUns.length + 1, dernier: evt.id, at: at }); } catch (e) { /* sans conséquence sur la saisie */ }
+    // Le compteur ne recule jamais : un poste qui ne voit pas une saisie perdue ne doit pas effacer l'écart.
+    this.reperesLus = this.reperesLus || {};
+    if (this.reperesLus[by] === undefined) {
+      var lu = await dossierActif(this).lireRepere(cleActive(this), by);
+      this.reperesLus[by] = (lu && lu.n) || 0;
+    }
+    var n = Math.max(mesUns.length, this.reperesLus[by] || 0) + 1;
+    this.reperesLus[by] = n;
+    try { await dossierActif(this).ecrireRepere(cleActive(this), by, { n: n, dernier: evt.id, at: at }); } catch (e) { /* sans conséquence sur la saisie */ }
     this.recalculer();
     return evt;
   };
@@ -279,21 +287,103 @@
   /**
    * Contrôle d'intégrité du jeu de données actif : repères des agents (nombre de saisies et dernière
    * saisie attendus), saisies chargées qui ne sont plus sur le partage, fichiers illisibles, maillons
-   * manquants du chaînage. Retourne { verifieLe, reperes: [], disparus: [], illisibles, manquants }.
+   * manquants du chaînage. Les anomalies dont l'administrateur a pris acte sont écartées (M.filtrerIntegrite).
+   * Retourne { verifieLe, reperes: [], disparus: [], illisibles, fichiersIllisibles: [], manquants,
+   * listeManquants: [], acquis }.
    */
   Session.prototype.verifierIntegrite = async function () {
-    var s = this, d = dossierActif(this), res = { verifieLe: Date.now(), reperes: [], disparus: [], illisibles: this.rejetes.length, manquants: (this.etat && this.etat.manquants.length) || 0 };
+    var s = this, d = dossierActif(this), etat = this.etat || { manquants: [], manquantsAcquis: [] };
+    var res = { verifieLe: Date.now(), reperes: [], disparus: [],
+      fichiersIllisibles: this.rejetes.map(function (r) { return { nom: r.nom, chemin: r.chemin || M.cheminEvenement(r.nom), raison: r.raison || '' }; }),
+      listeManquants: etat.manquants.map(function (x) { return { id: x.manque, chemin: M.cheminEvenement(x.manque + '.enc'), by: x.by, suivant: x.evt }; }),
+      manquantsAcquis: (etat.manquantsAcquis || []).length };
+    res.manquants = res.listeManquants.length;
     var ids = {};
     this.evts.forEach(function (e) { ids[e.id] = e.by; });
     (await d.lireReperes(cleActive(this))).forEach(function (r) {
       if (r.illisible) { res.reperes.push({ agent: r.agent, illisible: true }); return; }
+      s.reperesLus = s.reperesLus || {};
+      s.reperesLus[r.agent] = Math.max(s.reperesLus[r.agent] || 0, r.n || 0);
       var n = s.evts.filter(function (e) { return e.by === r.agent; }).length;
-      if (!ids[r.dernier] || n < r.n) res.reperes.push({ agent: r.agent, attendu: r.n, present: n, dernierManquant: !ids[r.dernier], dernierLe: r.at });
+      if (!ids[r.dernier] || n < r.n) res.reperes.push({ agent: r.agent, attendu: r.n, present: n, dernier: r.dernier, dernierManquant: !ids[r.dernier], dernierLe: r.at });
     });
     var surPartage = await d.nomsEvenements();
     this.connus.forEach(function (nom) { if (!surPartage.has(nom)) res.disparus.push(nom); });
+    res = M.filtrerIntegrite(res, etat.integrite);
     this.integrite = res;
     return res;
+  };
+
+  /** Vrai si le dernier contrôle a relevé une anomalie non prise en compte. */
+  Session.prototype.anomaliesIntegrite = function () {
+    var r = this.integrite;
+    return !!r && !!(r.reperes.length || r.disparus.length || r.illisibles || r.manquants);
+  };
+
+  /**
+   * Répare le dossier des données réelles depuis une copie de sauvegarde complète : seuls les fichiers
+   * absents ou illisibles sont remis, après vérification qu'ils s'ouvrent avec la clé actuelle ;
+   * les fichiers illisibles remplacés passent en quarantaine. Relit le dossier, refait le contrôle,
+   * trace l'opération au journal. Retourne le rapport de store.reparerDepuisCopie.
+   */
+  Session.prototype.reparerDepuisCopie = async function (copie) {
+    if (this.formation) throw new Error('Réparation possible seulement sur les données réelles (quittez le mode formation).');
+    if (!this.peut('INTEGRITE')) throw new Error('Réservé à l’administrateur.');
+    var cle = this.cle, illisibles = new Set(this.rejetes.map(function (r) { return r.nom; }));
+    var rapport = await this.dossier.reparerDepuisCopie(copie, illisibles, async function (nom, octets) {
+      var e = await C.dechiffrerJSON(cle, octets, 'evt:' + nom);
+      return !!e && e.id + '.enc' === nom;
+    });
+    var charges = {}, s = this;
+    this.evts.forEach(function (e) { charges[e.id + '.enc'] = true; });
+    var remis = new Set(rapport.remis.map(function (c) { return c.split('/').pop(); }));
+    remis.forEach(function (nom) { if (!charges[nom]) s.connus.delete(nom); });
+    this.rejetes = this.rejetes.filter(function (r) { return !remis.has(r.nom); });
+    if (rapport.remis.length || rapport.invalides.length) await this.tracer('REPARATION', { libelle: rapport.remis.length + ' fichier(s) remis depuis la copie du ' + (copie.creeLe ? copie.creeLe.slice(0, 10) : '?') + (rapport.invalides.length ? ', ' + rapport.invalides.length + ' refusé(s)' : '') });
+    await this.synchroniser();
+    await this.verifierIntegrite();
+    return rapport;
+  };
+
+  /** Met en quarantaine les fichiers illisibles désignés (noms), tracé au journal. Retourne les chemins de destination. */
+  Session.prototype.mettreEnQuarantaine = async function (noms) {
+    if (!this.peut('INTEGRITE')) throw new Error('Réservé à l’administrateur.');
+    var d = dossierActif(this), voulus = new Set(noms), faits = [], s = this;
+    for (var i = 0; i < this.rejetes.length; i++) {
+      var r = this.rejetes[i];
+      if (!voulus.has(r.nom)) continue;
+      faits.push({ nom: r.nom, vers: await d.mettreEnQuarantaine(r.chemin || M.cheminEvenement(r.nom)) });
+    }
+    var ecartes = new Set(faits.map(function (f) { return f.nom; }));
+    this.rejetes = this.rejetes.filter(function (r) { return !ecartes.has(r.nom); });
+    ecartes.forEach(function (nom) { s.connus.delete(nom); });   // jamais chargés : ne pas les signaler comme disparus
+    if (faits.length) await this.tracer('QUARANTAINE', { libelle: faits.length + ' fichier(s) illisible(s) mis en quarantaine : ' + faits.map(function (f) { return f.nom; }).join(', ') });
+    await s.verifierIntegrite();
+    return faits;
+  };
+
+  /**
+   * Prise d'acte, par l'administrateur, des anomalies du dernier contrôle (récupération impossible) :
+   * saisie INTEGRITE avec motif obligatoire. Les anomalies listées ne déclenchent plus d'alerte ;
+   * une anomalie nouvelle en déclenche une.
+   */
+  Session.prototype.prendreActeIntegrite = async function (motif) {
+    motif = String(motif || '').trim();
+    if (!motif) throw new Error('Le motif est obligatoire.');
+    var r = await this.verifierIntegrite();
+    if (!this.anomaliesIntegrite()) throw new Error('Aucune anomalie à prendre en compte.');
+    var ids = {};
+    r.listeManquants.forEach(function (x) { ids[x.id] = true; });
+    r.disparus.forEach(function (nom) { ids[nom.replace(/\.enc$/, '')] = true; });
+    var data = {
+      motif: motif,
+      reperes: r.reperes.map(function (x) { return x.illisible ? { agent: x.agent, illisible: true } : { agent: x.agent, ecart: Math.max(0, x.attendu - x.present), dernier: x.dernierManquant ? x.dernier : '' }; }),
+      manquants: Object.keys(ids),
+      fichiers: r.fichiersIllisibles.map(function (f) { return f.nom; })
+    };
+    var evt = await this.enregistrer('INTEGRITE', data);
+    await this.verifierIntegrite();
+    return evt;
   };
 
   /**
@@ -427,14 +517,14 @@
     this.cleDonnees = await C.importerCle(o.k);
     this.donnees = new SIC.Dossier(await this.dossier.sousDossier([DOSSIER_FORMATION], false), 'formation');
     this.formation = true;
-    this.evts = []; this.connus = new Set(); this.rejetes = []; this.etat = null;
+    this.evts = []; this.connus = new Set(); this.rejetes = []; this.etat = null; this.reperesLus = {}; this.integrite = null;
     await this.synchroniser();
   };
 
   /** Revient aux données réelles. */
   Session.prototype.fermerFormation = async function () {
     this.donnees = null; this.cleDonnees = null; this.formation = false;
-    this.evts = []; this.connus = new Set(); this.rejetes = []; this.etat = null;
+    this.evts = []; this.connus = new Set(); this.rejetes = []; this.etat = null; this.reperesLus = {}; this.integrite = null;
     await this.synchroniser();
   };
 

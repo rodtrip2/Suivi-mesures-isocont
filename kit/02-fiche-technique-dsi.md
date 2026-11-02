@@ -102,7 +102,8 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 - **Conflits** : deux modifications concurrentes de la même donnée d'une mesure (par exemple deux fins saisies en même temps) sont détectées. La première est appliquée, la seconde est conservée et signalée pour arbitrage par un cadre. Rien n'est perdu.
 - **Corrections et annulations** : ce sont de nouvelles saisies, avec leur motif. L'historique reste intact.
 - **Instantanés** : les saisies d'un mois clos sont regroupées dans un fichier chiffré `instantanes\AAAA-MM.enc`, lu en une fois. Les fichiers d'origine restent en place et font foi ; le dossier `instantanes` peut être supprimé sans perte (il est reconstruit).
-- Chaque saisie référence la précédente du même agent (chaînage).
+- Chaque saisie référence la précédente du même agent (chaînage) ; chaque agent laisse un **repère** chiffré (`reperes\<agent>.enc` : nombre de ses saisies, dernière saisie), dont le compteur ne recule jamais. Le contrôle d'intégrité (connexion, puis toutes les 15 minutes) signale les saisies disparues, les fichiers illisibles et les trous du chaînage.
+- **En cas d'anomalie**, l'administrateur transmet à la DSI la liste des fichiers (chemins relatifs `evenements\AAAA\MM\<nom>.enc`), à restaurer **à l'identique, au même chemin**. L'outil peut aussi réparer depuis une copie de sauvegarde complète : il ne remet que les fichiers absents ou illisibles, vérifiés avec la clé de l'établissement. Les fichiers illisibles peuvent être déplacés dans `quarantaine\AAAA\MM\` (jamais supprimés). Ces dossiers sont à sauvegarder avec le reste.
 
 ### Mode formation
 

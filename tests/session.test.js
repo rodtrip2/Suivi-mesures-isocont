@@ -274,3 +274,88 @@ test('Intégrité : disparition des dernières saisies d’un agent et des fichi
   assert.equal(r.reperes[0].dernierManquant, true);
   assert.ok(autre.etat.mesures[e1.data.mesureId]);
 });
+
+function dossierMois(racine, evt) {
+  const m = evt.at.slice(0, 7).split('-');
+  return racine.e.get('evenements').e.get(m[0]).e.get(m[1]);
+}
+
+test('Intégrité : réparation depuis une copie (absents et illisibles seulement), quarantaine, refus d’un fichier étranger', async () => {
+  const { racine, admin } = await nouveauDossier();
+  const debut = Date.now() - 5 * 3600e3;
+  const e1 = await admin.enregistrer('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut, csi: true });
+  const e2 = await admin.enregistrer('PAUSE', { mesureId: 'M1', debut: debut + 3600e3, repriseprevue: debut + 2 * 3600e3 });
+  const e3 = await admin.enregistrer('MESURE_FIN', { mesureId: 'M1', fin: Date.now() - 60e3 });
+  const copie = JSON.parse(JSON.stringify(await admin.copieComplete()));
+  // Incident : une saisie supprimée, une autre altérée
+  dossierMois(racine, e1).e.delete(e1.id + '.enc');
+  const altere = dossierMois(racine, e2).e.get(e2.id + '.enc'); altere.data[50] ^= 1;
+  const s = await connecter(racine, 'admin', 'mot de passe solide');
+  let r = await s.verifierIntegrite();
+  assert.ok(s.anomaliesIntegrite());
+  assert.deepEqual(r.fichiersIllisibles.map((f) => f.nom), [e2.id + '.enc']);
+  assert.match(r.fichiersIllisibles[0].chemin, /^evenements\/\d{4}\/\d{2}\/.+\.enc$/);
+  assert.deepEqual(r.listeManquants.map((x) => x.id), [e2.id]);
+  assert.equal(SIC.model.cheminEvenement(e1.id + '.enc'), 'evenements/' + e1.at.slice(0, 4) + '/' + e1.at.slice(5, 7) + '/' + e1.id + '.enc');
+  // Un fichier de la copie qui ne s'ouvre pas avec la clé actuelle est refusé
+  const piege = JSON.parse(JSON.stringify(copie));
+  const f1 = piege.fichiers.find((f) => f.chemin.endsWith(e1.id + '.enc'));
+  f1.contenu = C.b64(new TextEncoder().encode('pas une saisie'));
+  const rp = await s.reparerDepuisCopie(piege);
+  assert.deepEqual([rp.invalides.length, rp.remis.length], [1, 1]);      // e1 refusé ; e2 (illisible) remis
+  // Réparation : seuls e1 (absent) et e2 (illisible) sont remis ; l'original altéré part en quarantaine
+  const presentAvant = dossierMois(racine, e3).e.get(e3.id + '.enc').data;
+  const rap = await s.reparerDepuisCopie(copie);
+  assert.deepEqual(rap.remis.map((c) => c.split('/').pop()), [e1.id + '.enc']);   // seul e1 manquait encore
+  assert.equal(dossierMois(racine, e3).e.get(e3.id + '.enc').data, presentAvant);   // fichier présent jamais réécrit
+  assert.ok(racine.e.get('quarantaine'));
+  assert.equal(s.rejetes.length, 0);
+  assert.ok([e1, e2, e3].every((e) => s.evts.some((x) => x.id === e.id)) && s.etat.mesures.M1.fin);
+  assert.equal(s.anomaliesIntegrite(), false);
+  assert.ok(s.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'REPARATION'));
+});
+
+test('Intégrité : prise d’acte par l’administrateur (motif obligatoire), nouvelle anomalie toujours signalée, quarantaine', async () => {
+  const { racine, admin } = await nouveauDossier();
+  await admin.creerCompte({ nom: 'IDE', login: 'ide', motDePasse: 'autre mot de passe', roles: ['IDE'], services: ['U1'] });
+  const a = await admin.enregistrer('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
+  const b = await admin.enregistrer('PATIENT', { patientId: 'P', ipp: '000 (fictif)' });
+  await admin.enregistrer('PATIENT', { patientId: 'P', nom: 'FICTIF' });
+  dossierMois(racine, b).e.delete(b.id + '.enc');                          // perdu, sans copie
+  const s = await connecter(racine, 'admin', 'mot de passe solide');
+  await s.verifierIntegrite();
+  assert.ok(s.anomaliesIntegrite());
+  const ide = await connecter(racine, 'ide', 'autre mot de passe');
+  await assert.rejects(ide.prendreActeIntegrite('test'), /rôle/);
+  await assert.rejects(s.prendreActeIntegrite('  '), /obligatoire/);
+  await s.prendreActeIntegrite('Fichier perdu, absent des sauvegardes de la DSI (test fictif)');
+  assert.equal(s.anomaliesIntegrite(), false);
+  assert.equal(s.etat.integrite.historique.length, 1);
+  assert.equal(s.etat.manquants.length, 0);
+  assert.equal(s.etat.manquantsAcquis.length, 1);
+  // Une autre session voit la même chose
+  const t = await connecter(racine, 'admin', 'mot de passe solide');
+  await t.verifierIntegrite();
+  assert.equal(t.anomaliesIntegrite(), false);
+  // Nouvelle disparition : nouvelle alerte
+  dossierMois(racine, a).e.delete(a.id + '.enc');
+  const u = await connecter(racine, 'admin', 'mot de passe solide');
+  await u.verifierIntegrite();
+  assert.ok(u.anomaliesIntegrite());
+  // Fichier illisible mis en quarantaine (rien n'est supprimé)
+  const c = await u.enregistrer('PATIENT', { patientId: 'P', prenom: 'Test' });
+  dossierMois(racine, c).e.get(c.id + '.enc').data[45] ^= 1;
+  const v = await connecter(racine, 'admin', 'mot de passe solide');
+  assert.equal(v.rejetes.length, 1);
+  const faits = await v.mettreEnQuarantaine([c.id + '.enc']);
+  assert.equal(faits.length, 1);
+  assert.equal(v.rejetes.length, 0);
+  assert.ok(!dossierMois(racine, c).e.has(c.id + '.enc'));
+  const m = c.at.slice(0, 7).split('-');
+  assert.ok(racine.e.get('quarantaine').e.get(m[0]).e.get(m[1]).e.has(c.id + '.enc'));
+  assert.ok(v.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'QUARANTAINE'));
+  // L'annulation de la prise d'acte rouvre l'alerte
+  const acte = v.evts.find((e) => e.type === 'INTEGRITE');
+  await v.enregistrer('ANNULATION', { cible: acte.id, motif: 'test' });
+  assert.equal(v.etat.integrite.historique.length, 0);
+});

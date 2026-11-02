@@ -246,6 +246,56 @@
     return copie.fichiers.length;
   };
 
+  function cheminSur(chemin) {
+    var parties = String(chemin || '').split('/');
+    return parties.length === 4 && parties[0] === 'evenements' && /^\d{4}$/.test(parties[1]) && /^\d{2}$/.test(parties[2]) && /\.enc$/.test(parties[3]) && !parties.some(function (p) { return !p || p === '..' || p === '.'; }) ? parties : null;
+  }
+
+  /**
+   * Met un fichier de saisie à l'écart dans quarantaine/AAAA/MM (copie relue, puis retrait du dossier
+   * en service). Rien n'est supprimé : la DSI peut l'examiner ou le restaurer.
+   */
+  Dossier.prototype.mettreEnQuarantaine = async function (chemin) {
+    var parties = cheminSur(chemin);
+    if (!parties) throw new Error('Chemin de fichier inattendu : ' + chemin);
+    var source = await this.sousDossier(parties.slice(0, 3), false), nom = parties[3];
+    var octets = await this.lireFichier(source, nom);
+    if (!octets) throw new Error('Fichier introuvable : ' + chemin);
+    var dest = await this.sousDossier(['quarantaine', parties[1], parties[2]], true);
+    await this.ecrireFichier(dest, nom, octets);
+    var relu = await this.lireFichier(dest, nom);
+    if (!relu || relu.length !== octets.length) throw new Error('La copie en quarantaine n’a pas pu être vérifiée : le fichier est laissé en place.');
+    await source.removeEntry(nom);
+    return 'quarantaine/' + parties[1] + '/' + parties[2] + '/' + nom;
+  };
+
+  /**
+   * Réparation depuis une copie de sauvegarde complète : ne remet que les fichiers de saisie absents du
+   * dossier en service ou illisibles (`illisibles` : Set de noms), jamais un fichier présent et lisible.
+   * `verifier(nom, octets)` doit confirmer que le fichier de la copie s'ouvre avec la clé actuelle.
+   * Un fichier illisible remplacé est d'abord mis en quarantaine.
+   * Retourne { remis: [chemin], invalides: [chemin], dejaPresents: n }.
+   */
+  Dossier.prototype.reparerDepuisCopie = async function (copie, illisibles, verifier) {
+    if (!copie || copie.format !== 'SIC-sauvegarde' || !Array.isArray(copie.fichiers)) throw new Error('Ce fichier n’est pas une copie de sauvegarde de l’outil.');
+    var presents = await this.nomsEvenements(), res = { remis: [], invalides: [], dejaPresents: 0 };
+    illisibles = illisibles || new Set();
+    for (var i = 0; i < copie.fichiers.length; i++) {
+      var f = copie.fichiers[i], parties = cheminSur(f.chemin);
+      if (!parties) continue;
+      var nom = parties[3];
+      if (presents.has(nom) && !illisibles.has(nom)) { res.dejaPresents++; continue; }
+      var octets;
+      try { octets = C.deb64(f.contenu); if (!(await verifier(nom, octets))) throw new Error('contenu inattendu'); }
+      catch (e) { res.invalides.push(f.chemin); continue; }
+      if (presents.has(nom)) { try { await this.mettreEnQuarantaine(f.chemin); } catch (e) { res.invalides.push(f.chemin); continue; } }
+      var dir = await this.sousDossier(parties.slice(0, 3), true);
+      await this.ecrireFichier(dir, nom, octets);
+      res.remis.push(f.chemin);
+    }
+    return res;
+  };
+
   /** Noms des fichiers de saisie présents sur le partage. */
   Dossier.prototype.nomsEvenements = async function () {
     var noms = new Set(), racine;
@@ -265,6 +315,15 @@
   Dossier.prototype.ecrireRepere = async function (cle, agent, repere) {
     var dir = await this.sousDossier(['reperes'], true), nom = agent.replace(/[^a-zA-Z0-9_-]/g, '_') + '.enc';
     await this.ecrireFichier(dir, nom, await C.chiffrerJSON(cle, Object.assign({ agent: agent }, repere), 'repere:' + nom));
+  };
+
+  /** Repère d'un agent, ou null (absent ou illisible). */
+  Dossier.prototype.lireRepere = async function (cle, agent) {
+    try {
+      var dir = await this.sousDossier(['reperes'], false), nom = agent.replace(/[^a-zA-Z0-9_-]/g, '_') + '.enc';
+      var o = await this.lireFichier(dir, nom);
+      return o ? await C.dechiffrerJSON(cle, o, 'repere:' + nom) : null;
+    } catch (e) { return null; }
   };
 
   Dossier.prototype.lireReperes = async function (cle) {
@@ -331,7 +390,7 @@
           var nom = fichiers[i].name;
           if (duMois[nom] || connus.has(nom)) continue; // déjà lu (instantané ou session en cours)
           try { duMois[nom] = await lireEvenement(cle, fichiers[i]); }
-          catch (err) { rejetsMois++; res.rejetes.push({ nom: nom, raison: err.message || String(err) }); }
+          catch (err) { rejetsMois++; res.rejetes.push({ nom: nom, chemin: 'evenements/' + an.name + '/' + mois.name + '/' + nom, raison: err.message || String(err) }); }
         }
         nouveaux.forEach(function (x) {
           connus.add(x.name);

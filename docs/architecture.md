@@ -39,11 +39,15 @@ SuiviIsoCont/
   coffre.json                      emballages de la clé de données, comptes chiffrés, révision
   evenements/AAAA/MM/<id>.enc      une saisie (ou un lot) par fichier, mois UTC de la saisie
   instantanes/AAAA-MM.enc          copie consolidée d'un mois clos (régénérable)
+  coffre-historique/rev-N.json     30 dernières versions du coffre (la version actuelle comprise)
+  reperes/<agent>.enc              repère d'intégrité : nombre de saisies de l'agent, dernière saisie
+  quarantaine/AAAA/MM/<id>.enc     fichiers illisibles mis à l'écart par l'administrateur (jamais supprimés)
 ```
 
 - Identifiant d'événement : `AAAAMMJJTHHMMSSZ_<auteur>_<aléa>` ; écriture exclusive (refus si le nom existe), atomique (`createWritable`).
 - Événement : `{ v, id, at, by, type, data, base?, prec }`. `base` = version de la mesure vue par l'auteur ; `prec` = identifiant de sa saisie précédente (chaînage).
 - **Lot** (`type: LOT`) : un fichier contenant plusieurs saisies (`data.evenements`), dépliées à la lecture avec les identifiants `<lot>.<n°>` ; annulable en bloc ou saisie par saisie. Utilisé par l'import et les données de démonstration.
+- **Intégrité** : `Session.verifierIntegrite` compare les repères (compteur qui ne recule jamais), les fichiers présents et le chaînage ; détail par fichier (`fichiersIllisibles`, `listeManquants`, `disparus`). `reparerDepuisCopie` remet depuis une copie complète les seuls fichiers absents ou illisibles qui s'ouvrent avec la clé actuelle ; `mettreEnQuarantaine` déplace un fichier illisible ; la saisie `INTEGRITE` (administrateur, motif) enregistre une prise d'acte (`st.integrite`), appliquée par `M.filtrerIntegrite` et `st.manquantsAcquis`.
 - **Instantanés** : un mois est clos s'il est antérieur au mois précédent. À la lecture, l'instantané fournit les saisies du mois ; les fichiers absents de l'instantané sont lus un à un, puis l'instantané est réécrit. Les fichiers individuels font foi : une saisie présente dans l'instantané sans fichier correspondant est ignorée.
 
 ## 4. Réduction et conflits

@@ -81,14 +81,57 @@ Le fichier `coffre.json` contient les copies protégées de la clé des données
 
 ## Alerte d'intégrité
 
-Le tableau de bord signale « Intégrité des données » quand des saisies ont disparu (repère d'un agent non retrouvé, fichier chargé qui n'est plus sur le partage), quand des fichiers sont illisibles ou quand le chaînage des saisies présente un trou. Prévenir l'administrateur et la DSI : restaurer les fichiers manquants depuis la sauvegarde (étapes ci-dessous), puis *Vérifier maintenant*. Ne pas ressaisir avant d'avoir tenté la restauration, pour ne pas créer de doublons.
+Le tableau de bord signale « Intégrité des données » quand des saisies ont disparu (repère d'un agent non retrouvé, fichier chargé qui n'est plus sur le partage), quand des fichiers sont illisibles ou quand le chaînage des saisies présente un trou. Le cadre prévient l'administrateur. Tout se traite dans *Administration → Informations*, rubrique *Contrôle d'intégrité*, qui donne le détail des fichiers concernés (chemin, agent, date de la saisie).
+
+**Règle d'or : ne pas ressaisir avant d'avoir tenté la récupération**, pour ne pas créer de doublons.
+
+### Arbre de décision
+
+1. **Refaire le contrôle** (*Vérifier maintenant*) après quelques minutes. Un fichier écrit sur un autre poste peut ne pas encore être synchronisé sur le partage : si l'alerte disparaît, rien à faire.
+2. **Beaucoup de fichiers illisibles en même temps, extensions ou noms de fichiers modifiés, message de rançon dans le dossier ?** C'est peut-être une attaque (rançongiciel). Arrêter les saisies dans l'outil, passer en **procédure dégradée** (fiche papier ci-dessus), prévenir **immédiatement le RSSI** et la DSI, ne rien réparer soi-même. Le RSSI et le DPO décident des suites (notification éventuelle à la CNIL dans les 72 heures).
+3. **Quelques fichiers seulement** (erreur de manipulation, incident de stockage) :
+   - **Une copie de sauvegarde complète récente existe** : *Réparer depuis une copie de sauvegarde*. L'outil ne remet que les fichiers absents ou illisibles, après avoir vérifié qu'ils s'ouvrent avec la clé de l'établissement, et ne touche jamais aux fichiers présents et lisibles. Le contrôle est refait automatiquement. Si l'alerte persiste (saisies postérieures à la copie), passer au point suivant.
+   - **Sinon, ou en complément** : *Copier la liste pour la DSI* et l'envoyer (modèle ci-dessous). La DSI remet les fichiers à l'identique, au même chemin, depuis ses sauvegardes ; puis *Vérifier maintenant*.
+4. **Fichier illisible qui ne peut pas être remplacé** : *Mettre en quarantaine*. Le fichier est déplacé dans le dossier `quarantaine` de l'outil, sans être supprimé, pour que la DSI puisse l'examiner. La saisie qu'il contenait reste à récupérer.
+5. **Récupération impossible** (fichiers absents de toutes les sauvegardes) : vérifier les mesures des patients concernés (dates indiquées dans le détail) avec le dossier patient, **ressaisir ce qui doit l'être** avec les heures réelles, puis *Prendre acte* avec un **motif obligatoire** (par exemple : « fichiers absents des sauvegardes, ticket DSI n° …, saisies refaites le … »). L'alerte est close pour ces fichiers ; la décision est enregistrée au journal et listée dans *Informations* (elle peut être annulée). Toute nouvelle anomalie déclenche une nouvelle alerte.
+6. **Consigner l'incident** : date, fichiers concernés, cause connue, actions menées. Une perte de données de santé, même sans attaque, peut constituer une violation de données : en informer le DPO.
+
+### Quand prévenir le RSSI
+
+- dès qu'un grand nombre de fichiers devient illisible en même temps, ou que des fichiers ont été renommés ou chiffrés ;
+- quand des fichiers ont disparu sans explication (aucune manipulation connue) ;
+- quand un fichier remis par la DSI est refusé par l'outil (« ne s'ouvre pas avec la clé actuelle ») alors qu'il provient bien des sauvegardes du dossier.
+
+### Modèle de message à la DSI
+
+La liste copiée depuis l'outil ne contient que des chemins de fichiers, des dates et des identifiants de connexion : aucune donnée de patient. Elle peut être jointe à un ticket.
+
+```
+Objet : Restauration de fichiers — outil de suivi isolement et contention
+
+Bonjour,
+
+Le contrôle d'intégrité de l'outil de suivi des mesures d'isolement et de contention
+(dossier réseau : \\serveur\partage\SuiviIsoCont) signale des fichiers absents ou illisibles.
+
+Pouvez-vous rechercher dans les sauvegardes les fichiers listés ci-dessous (version la plus
+récente précédant l'incident) et les remettre à l'identique, au même chemin, sans les
+ouvrir, les renommer ni les convertir ? Les fichiers sont chiffrés ; les autres fichiers du
+dossier ne doivent pas être modifiés. Merci d'indiquer ceux qui sont introuvables.
+
+[coller ici la liste copiée depuis Administration → Informations]
+
+Merci de nous prévenir une fois la restauration faite : nous relancerons le contrôle.
+
+[Nom, fonction, service, téléphone]
+```
 
 ## Restauration après incident sur le dossier
 
 1. DSI : restaurer le dossier (ou les fichiers manquants) depuis la sauvegarde.
 2. Les fichiers de saisie sont indépendants : une restauration partielle est sans danger. Le dossier `instantanes` peut être supprimé : il est reconstruit automatiquement. Les dossiers `coffre-historique` et `reperes` doivent être restaurés avec le reste.
-3. Ouvrir l'onglet *Journal* : l'application signale les fichiers illisibles ou les saisies manquantes.
-4. Ressaisir ce qui a été fait depuis la sauvegarde, avec les heures réelles.
+3. *Administration → Informations → Vérifier maintenant* : l'application signale les fichiers encore illisibles ou manquants (voir « Alerte d'intégrité » ci-dessus).
+4. Ressaisir ce qui a été fait depuis la sauvegarde, avec les heures réelles, puis prendre acte des pertes définitives.
 
 ## Saisies en conflit
 

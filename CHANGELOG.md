@@ -1,5 +1,15 @@
 # Journal des versions
 
+## 1.34.0 — 2 novembre 2026
+
+- **Anomalie d'intégrité : que faire ?** Dans *Administration → Informations*, le contrôle d'intégrité détaille désormais chaque anomalie (nature, chemin du fichier, agent, date de la saisie) et propose :
+  - *Copier la liste pour la DSI* : chemins, dates et identifiants de connexion, sans aucune donnée de patient ;
+  - *Réparer depuis une copie de sauvegarde* (administrateur) : seuls les fichiers absents ou illisibles sont remis, après vérification qu'ils s'ouvrent avec la clé de l'établissement ; les fichiers présents et lisibles ne sont jamais modifiés ; le contrôle est refait ;
+  - *Mettre en quarantaine* les fichiers illisibles (dossier `quarantaine`, jamais de suppression) ;
+  - *Prendre acte* quand la récupération est impossible, avec un motif obligatoire : l'alerte est close pour ces fichiers, la décision est inscrite au journal (*Intégrité des données*, annulable) et listée ; toute nouvelle anomalie déclenche une nouvelle alerte.
+- Repère d'intégrité plus sûr : son compteur ne recule plus quand un poste ne voit pas une saisie perdue (l'écart restait sinon invisible après la saisie suivante).
+- Kit : fiche « Alerte d'intégrité » réécrite (arbre de décision, quand prévenir le RSSI, modèle de message à la DSI) ; fiche technique DSI, guide utilisateur et analyse de risques complétés.
+
 ## 1.33.0 — 2 novembre 2026
 
 - **Décompte JLD — « Enregistrer en PDF »** : le fichier PDF est produit directement, sans passer par la boîte d'impression (masque, papier à en-tête, marges, mise en évidence, bandeau confidentiel, numéros de page) ; bouton *Imprimer* distinct. Générateur PDF intégré, sans bibliothèque externe.
