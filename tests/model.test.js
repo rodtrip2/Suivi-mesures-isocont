@@ -550,3 +550,11 @@ test('Surveillance : nombre minimal par poste réglable, lieux précisés par le
   assert.deepEqual(pros('S1').sort(), ['Agent A (fictif)', 'Agent B (fictif)']);
   assert.deepEqual(pros('S2'), ['Agent B (fictif)']);
 });
+
+test('Comparaison des numéros de version (vérification de la page GitHub)', () => {
+  assert.ok(M.comparerVersions('1.46.0', '1.45.0') > 0);
+  assert.ok(M.comparerVersions('1.45.0', '1.45.10') < 0);
+  assert.ok(M.comparerVersions('1.10.0', '1.9.9') > 0);
+  assert.equal(M.comparerVersions('1.45.0', '1.45.0'), 0);
+  assert.equal(M.CONFIG_DEFAUT.verificationVersion, true);
+});

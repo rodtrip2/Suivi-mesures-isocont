@@ -927,7 +927,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -1001,6 +1001,7 @@
       case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return M.optionsSurveillance({ surveillance: v }).minParPoste + ' par poste';
+      case 'verificationVersion': return v === false ? 'désactivée' : 'activée';
       case 'organisationJLD': return String(v || '').trim() ? '« ' + String(v).trim() + ' »' : 'aucun texte';
       case 'lieuIsolement': var ll = M.libLieu({ lieuIsolement: v }); return ll.long + ' (' + ll.court + ')';
       case 'sauvegarde': return v && v.rappelJours ? 'tous les ' + v.rappelJours + ' jours' : 'aucun rappel';
@@ -2401,7 +2402,7 @@
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
       ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), demo]],
-      ['apropos', 'À propos', SIC.ui.apropos.panneau()]
+      ['apropos', 'À propos', [SIC.ui.apropos.panneau(), SIC.ui.version.panneau()]]
     ]);
 
     /** Sous-onglets de l'administration : seul le contenu du sous-onglet choisi est affiché. */

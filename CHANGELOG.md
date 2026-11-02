@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.46.0 — 2 novembre 2026
+
+- **Vérification de la version sur la page GitHub** : ouvert depuis sa page GitHub (adresse en « github.io »), l'outil vérifie à l'ouverture puis toutes les 30 minutes que la version utilisée est la dernière publiée. Sinon, un bandeau propose *Recharger la page* ou *Plus tard*. Seul le numéro de version est relu, sur le même site ; aucune donnée n'est envoyée et la politique de sécurité du contenu est inchangée. Sans effet sur l'intranet ou un partage.
+- Réglage *Administration → À propos → Mise à jour de l'outil* : activer ou désactiver la vérification (activée par défaut, tracée au journal), bouton *Vérifier maintenant*.
+
 ## 1.45.0 — 2 novembre 2026
 
 - **Décompte JLD : lieu exact et type d'espace.** La ligne *Lieu* de l'identité indique le lieu précis et sa nature (« CSI 1 — chambre de soins intensifs », « Chambre 12 — hors chambre de soins intensifs »), selon l'appellation choisie par l'établissement. Nouvelle colonne **Lieu** dans le tableau : le lieu de chaque ligne, mesures antérieures comprises ; un changement de lieu en cours de mesure (transfert, soins somatiques) ouvre une nouvelle ligne. Colonne ajoutée automatiquement aux masques existants (décochable dans *Administration → Décompte JLD*), en PDF, à l'impression et en CSV.

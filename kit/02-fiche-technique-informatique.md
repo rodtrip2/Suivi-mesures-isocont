@@ -13,7 +13,7 @@
 | Stockage | Dossier d'un partage réseau (SMB) choisi par l'utilisateur, accédé par l'API *File System Access* du navigateur |
 | Chiffrement | AES-GCM 256 bits côté poste (Web Crypto API) ; chiffrement en enveloppe |
 | Authentification | Comptes nominatifs ; mot de passe (PBKDF2-SHA-256, 600 000 itérations), clé de sécurité FIDO2 (WebAuthn, extension PRF) ou code de secours ; mot de passe provisoire à changer obligatoirement à la première connexion |
-| Flux réseau | **Aucun flux sortant** : politique de sécurité du contenu `connect-src 'none'` ; seul le chargement des fichiers de l'application depuis l'hébergement choisi |
+| Flux réseau | **Aucun flux sortant** : politique de sécurité du contenu `connect-src 'none'` ; seul le chargement des fichiers de l'application depuis l'hébergement choisi. Sur la page GitHub seulement, relecture périodique du fichier `js/version.js` sur le même site, comme un script (aucune donnée envoyée ; désactivable) |
 | Navigateurs | Microsoft Edge ou Google Chrome récents (Chromium). Firefox et Safari : mode démonstration uniquement |
 | Postes | Windows 10/11 (ou tout système avec Edge/Chrome) ; aucun logiciel à installer |
 | Volumétrie | Environ 1 à 2 Ko par saisie ; ordre de grandeur : quelques dizaines de Mo par an pour une unité |

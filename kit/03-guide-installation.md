@@ -38,7 +38,7 @@
 
 **Repli sans serveur web** — copier `app/` dans un dossier en lecture seule du partage et ouvrir `index.html` avec Edge ou Chrome. Les clés de sécurité ne fonctionnent pas dans ce mode.
 
-**Démonstration** — https://rodtrip2.github.io/Suivi-mesures-isocont/, en *mode démonstration* uniquement, sans aucune donnée réelle.
+**Démonstration** — https://rodtrip2.github.io/Suivi-mesures-isocont/, en *mode démonstration* uniquement, sans aucune donnée réelle. Ouverte depuis cette page (adresse en « github.io »), l'outil vérifie à l'ouverture puis toutes les 30 minutes qu'il s'agit de la dernière version publiée et propose de recharger la page sinon (réglage *Administration → À propos → Mise à jour de l'outil*, activé par défaut). Sur l'intranet ou un partage, la vérification n'a pas lieu : la mise à jour reste faite par le service informatique, après contrôle des empreintes.
 
 Test sur un poste type : ouvrir le lien, cliquer *Ouvrir le dossier réseau du service*, choisir le dossier créé à l'étape 2. L'écran *Initialiser le dossier* doit s'afficher.
 

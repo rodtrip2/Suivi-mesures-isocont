@@ -193,6 +193,8 @@
     informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],
     // Organisation des envois au JLD, affichée en tête de l'onglet JLD (texte libre de l'établissement ; vide = rien d'affiché)
     organisationJLD: '',
+    // Page GitHub : vérifier que la version utilisée est la dernière publiée (désactivable)
+    verificationVersion: true,
     // Exports (PDF, CSV) enregistrés automatiquement dans ce sous-dossier du dossier des données
     exports: { dossier: 'exports', conservationJours: 0, cheminReseau: '' },   // 0 = aucune purge ; cheminReseau : chemin Windows du dossier des données
     // Surveillance en CSI : nombre minimal de professionnels attendus par poste
@@ -963,6 +965,16 @@
     }
     var vides = ['', 'chambre', 'hors csi', 'hors ' + n(l.court), 'hors espace d isolement', 'chambre hors csi'];
     return vides.indexOf(n(nom)) >= 0 ? 'Hors ' + l.long + ' (lieu non précisé)' : nom + ' — hors ' + l.long;
+  }
+
+  /** Compare deux numéros de version « 1.45.0 » : négatif si a < b, 0 si égaux. */
+  function comparerVersions(a, b) {
+    var x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
+    for (var i = 0; i < Math.max(x.length, y.length); i++) {
+      var d = (x[i] || 0) - (y[i] || 0);
+      if (d) return d;
+    }
+    return 0;
   }
 
   // ------------------------------------------------------- Alertes de l'établissement
@@ -1928,7 +1940,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, comparerVersions: comparerVersions, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
