@@ -1224,20 +1224,36 @@
   }
 
   /**
-   * Profil annuel d'un patient pour sa fiche : entrées du registre débutées dans l'année (services donnés),
-   * heures par mois de début, en isolement seul (A, B) et en contention (C, D, E), et frise des entrées.
-   * Retourne { annee, mois: [{ iso, cont, n }] × 12, total, iso, cont, entrees: [{ debut, fin, finAffichee, categorie, numero, dureeHeures }] }.
+   * Profil annuel d'un patient pour sa fiche. Totaux : entrées du registre débutées dans l'année (même règle
+   * que les statistiques). Histogramme : heures réparties sur les mois réellement couverts (une entrée à cheval
+   * sur deux mois ou deux années compte pour chacun sa part ; pauses déduites si le registre les déduit).
+   * Retourne { annee, mois: [{ iso, cont, n }] × 12, total, iso, cont, heuresAnnee, entrees: [...] }.
    */
   function profilAnnuelPatient(st, patientId, services, annee, maintenant) {
-    var res = { annee: annee, mois: [], total: 0, iso: 0, cont: 0, entrees: [] };
-    for (var i = 0; i < 12; i++) res.mois.push({ iso: 0, cont: 0, n: 0 });
+    var res = { annee: annee, mois: [], total: 0, iso: 0, cont: 0, heuresAnnee: 0, entrees: [] };
+    var d0 = new Date(annee, 0, 1).getTime(), d1 = new Date(annee + 1, 0, 1).getTime();
+    var bornes = []; for (var i = 0; i <= 12; i++) bornes.push(new Date(annee, i, 1).getTime());
+    for (i = 0; i < 12; i++) res.mois.push({ iso: 0, cont: 0, n: 0 });
+    function recouvre(a, b, c, d) { return Math.max(0, Math.min(b, d) - Math.max(a, c)); }
     services.forEach(function (sv) {
-      registre(st, sv, annee, maintenant).forEach(function (e) {
-        if (e.patientId !== patientId) return;
-        var mo = new Date(e.debut).getMonth(), cont = /[CDE]/.test(e.categorie);
-        res.mois[mo][cont ? 'cont' : 'iso'] += e.dureeHeures; res.mois[mo].n++;
-        res[cont ? 'cont' : 'iso'] += e.dureeHeures; res.total += e.dureeHeures;
-        res.entrees.push({ debut: e.debut, fin: e.fin, finAffichee: e.fin === null ? maintenant : e.fin, categorie: e.categorie, numero: e.numero || '', dureeHeures: e.dureeHeures, service: sv });
+      [annee - 1, annee].forEach(function (an) {
+        registre(st, sv, an, maintenant).forEach(function (e) {
+          if (e.patientId !== patientId) return;
+          var fin = e.fin === null ? maintenant : e.fin, cont = /[CDE]/.test(e.categorie), cle = cont ? 'cont' : 'iso';
+          if (an === annee) {
+            res[cle] += e.dureeHeures; res.total += e.dureeHeures;
+            res.mois[new Date(e.debut).getMonth()].n++;
+          }
+          if (fin <= d0 || e.debut >= d1) return;
+          // Pauses déduites de la durée de l'entrée : elles sont retirées mois par mois
+          var reelle = (fin - e.debut) / H, pauses = e.dureeHeures < reelle - 1e-6 ? (e.pauses || []) : [];
+          for (var k = 0; k < 12; k++) {
+            var ms = recouvre(e.debut, fin, bornes[k], bornes[k + 1]);
+            pauses.forEach(function (p) { ms -= recouvre(Math.max(p[0], e.debut), Math.min(p[1], fin), bornes[k], bornes[k + 1]); });
+            if (ms > 0) { res.mois[k][cle] += ms / H; res.heuresAnnee += ms / H; }
+          }
+          res.entrees.push({ debut: e.debut, fin: e.fin, finAffichee: fin, categorie: e.categorie, numero: e.numero || '', dureeHeures: e.dureeHeures, service: sv, anneeDebut: an });
+        });
       });
     });
     res.entrees.sort(function (a, b) { return a.debut - b.debut; });

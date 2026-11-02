@@ -110,7 +110,7 @@
   function s(tag, attrs, texte) { var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); if (texte != null) e.textContent = texte; return e; }
   function courtJour(t) { var d = new Date(t); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
-  /** Heures par mois de début, empilées : isolement seul (A, B) et contention (C, D, E). */
+  /** Heures réparties sur les mois réellement couverts, empilées : isolement seul (A, B) et contention (C, D, E). */
   function graphiqueMois(pr) {
     var brut = Math.max(1, Math.max.apply(null, pr.mois.map(function (m) { return m.iso + m.cont; })));
     var pas = [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 240, 336, 480, 720].filter(function (x) { return x * 4 >= brut; })[0] || Math.ceil(brut / 4);
@@ -123,13 +123,13 @@
     }
     pr.mois.forEach(function (m, i) {
       var x = g + i * larg + larg * 0.18, w = larg * 0.64, hIso = (bas - 20) * m.iso / max, hCont = (bas - 20) * m.cont / max;
-      var titre = MOIS[i] + ' ' + pr.annee + ' : ' + fd(m.iso + m.cont) + ' (isolement seul ' + fd(m.iso) + ', contention ' + fd(m.cont) + '), ' + m.n + ' entrée(s)';
+      var titre = MOIS[i] + ' ' + pr.annee + ' : ' + fd(m.iso + m.cont) + ' (isolement seul ' + fd(m.iso) + ', contention ' + fd(m.cont) + ')' + (m.n ? ', ' + m.n + ' entrée(s) débutée(s) ce mois-ci' : '');
       if (m.iso) { var r1 = s('rect', { x: x, y: bas - hIso, width: w, height: hIso, class: 'barre-iso', rx: 2 }); r1.appendChild(s('title', {}, titre)); svg.appendChild(r1); }
       if (m.cont) { var r2 = s('rect', { x: x, y: bas - hIso - hCont, width: w, height: hCont, class: 'barre-cont', rx: 2 }); r2.appendChild(s('title', {}, titre)); svg.appendChild(r2); }
       svg.appendChild(s('text', { x: g + i * larg + larg / 2, y: bas + 16, 'text-anchor': 'middle', class: 'axe' }, MOIS[i]));
     });
     return h('figure', { class: 'figure' }, svg,
-      h('figcaption', {}, h('span', { class: 'puce iso' }), ' Isolement seul (A, B)  ', h('span', { class: 'puce cont' }), ' Contention (C, D, E) — heures par mois de début de l’entrée'));
+      h('figcaption', {}, h('span', { class: 'puce iso' }), ' Isolement seul (A, B)  ', h('span', { class: 'puce cont' }), ' Contention (C, D, E) — heures réparties sur les mois réellement couverts'));
   }
 
   /** Frise de l'année : chaque entrée du registre à sa place dans le temps. */
@@ -162,7 +162,7 @@
       zone.appendChild(h('div', { class: 'barre' }, h('h3', { text: 'Année ' + an }), h('div', { class: 'espace' }),
         h('button', { class: 'btn petit', type: 'button', onclick: function () { an--; dessiner(); } }, '◀ ' + (an - 1)),
         h('button', { class: 'btn petit', type: 'button', disabled: an >= new Date(maintenant).getFullYear(), onclick: function () { an++; dessiner(); } }, (an + 1) + ' ▶')));
-      if (!pr.entrees.length) { zone.appendChild(h('p', { class: 'muted', text: 'Aucune entrée du registre débutée en ' + an + '.' })); return; }
+      if (!pr.entrees.length) { zone.appendChild(h('p', { class: 'muted', text: 'Aucune entrée du registre en ' + an + '.' })); return; }
       zone.appendChild(h('div', { class: 'grille-4' },
         h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: fd(pr.total) }), h('div', { class: 'libelle', text: 'Durée totale (' + pr.entrees.length + ' entrée(s))' })),
         h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: fd(pr.iso) }), h('div', { class: 'libelle', text: 'Isolement seul (A, B)' })),
@@ -170,7 +170,8 @@
         h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: format === 'h' ? U.duree(pr.total) : enHeures(pr.total) }), h('div', { class: 'libelle', text: format === 'h' ? 'Soit, en jours et heures' : 'Soit, en heures' }))));
       zone.appendChild(graphiqueMois(pr));
       zone.appendChild(frise(pr));
-      zone.appendChild(h('small', { class: 'muted', text: 'Entrées du registre des services affichés, comptées l’année et le mois de leur début, comme dans les statistiques' + (M.optionsPauses(U.config()).deduireRegistre ? ' ; durées hors pauses.' : ' ; durées réelles, levées temporaires comprises.') }));
+      zone.appendChild(h('small', { class: 'muted', text: 'Entrées du registre des services affichés. Les totaux comptent les entrées débutées dans l’année, comme les statistiques ; l’histogramme et la frise montrent les heures à leur date réelle'
+        + (Math.abs(pr.heuresAnnee - pr.total) > 0.02 ? ' (' + fd(pr.heuresAnnee) + ' dans l’année civile ' + an + ', les entrées à cheval sur deux années comptant pour chacune leur part)' : '') + (M.optionsPauses(U.config()).deduireRegistre ? ' ; durées hors pauses.' : ' ; durées réelles, levées temporaires comprises.') }));
     }
     dessiner();
     return zone;

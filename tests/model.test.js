@@ -478,3 +478,23 @@ test('Option : pause de l’isolement seul interdite pendant une contention (dé
   assert.equal(M.optionsPauses({ pauses: { verrouContention: true } }).verrouContention, true);
   assert.equal(M.optionsPauses({ pauses: { verrouContention: 'oui' } }).verrouContention, false);
 });
+
+test('Fiche patient : heures réparties sur les mois et les années réellement couverts', () => {
+  const evts = [
+    // Isolement du 31/01 20 h au 01/02 08 h : 4 h en janvier, 8 h en février
+    evt('MESURE_DEBUT', { mesureId: 'I1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: local(2026, 1, 31, 20), csi: true, lieu: 'CSI 1' }),
+    evt('MESURE_FIN', { mesureId: 'I1', fin: local(2026, 2, 1, 8) }),
+    // Isolement du 31/12/2025 22 h au 01/01/2026 04 h : 4 h en janvier 2026 (débuté en 2025)
+    evt('MESURE_DEBUT', { mesureId: 'I0', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: local(2025, 12, 31, 22), csi: true, lieu: 'CSI 1' }),
+    evt('MESURE_FIN', { mesureId: 'I0', fin: local(2026, 1, 1, 4) })
+  ];
+  const st = M.reduire(evts);
+  const pr = M.profilAnnuelPatient(st, 'P', ['U1'], 2026, local(2026, 12, 1));
+  assert.equal(Math.round(pr.mois[0].iso), 8);      // 4 h (I1) + 4 h (I0, part de 2026)
+  assert.equal(Math.round(pr.mois[1].iso), 8);
+  assert.equal(Math.round(pr.heuresAnnee), 16);
+  assert.equal(pr.total, 12);                        // totaux : entrées débutées en 2026 (règle des statistiques)
+  assert.equal(pr.entrees.length, 2);                // la frise montre aussi l'entrée débutée en 2025
+  const pr25 = M.profilAnnuelPatient(st, 'P', ['U1'], 2025, local(2026, 12, 1));
+  assert.equal(Math.round(pr25.mois[11].iso), 2);   // 2 h en décembre 2025
+});

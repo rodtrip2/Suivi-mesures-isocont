@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.37.1 — 2 novembre 2026
+
+- Fiche du patient, histogramme de l'année : les heures d'une mesure à cheval sur plusieurs mois (ou sur deux années) sont **réparties sur les mois réellement couverts**, pauses déduites si le registre les déduit ; la frise montre aussi une entrée débutée l'année précédente. Les totaux restent ceux des statistiques (entrées débutées dans l'année) ; l'écart éventuel est indiqué sous la frise.
+
 ## 1.37.0 — 2 novembre 2026
 
 - **Onglet Patients, statistiques améliorées** :
