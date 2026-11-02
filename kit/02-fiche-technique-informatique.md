@@ -70,7 +70,7 @@ Une clé de sécurité est liée au nom de domaine du site : elle doit être enr
 ### Serveur web (mode intranet)
 - Service de fichiers statiques en HTTPS avec certificat reconnu par les postes.
 - En-têtes recommandés (la page déclare déjà sa politique de sécurité dans une balise `meta`) :
-  - `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'`
+  - `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'`
   - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
   - `Cache-Control: no-cache` sur `index.html` et les scripts, pour que les postes prennent une mise à jour sans délai.
 

@@ -1,0 +1,15 @@
+{
+  "name": "Suivi des mesures d’isolement et de contention",
+  "short_name": "Isolement-contention",
+  "description": "Suivi des durées, des communications au juge, du registre et des statistiques des mesures d’isolement et de contention.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f2",
+  "theme_color": "#1f5f5b",
+  "icons": [
+    { "src": "img/icone-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "img/icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

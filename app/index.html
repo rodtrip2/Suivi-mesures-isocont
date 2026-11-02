@@ -5,9 +5,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Aucune connexion sortante, aucun script externe : même un code altéré ne peut rien envoyer sur Internet. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' data: file:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' data: file:; connect-src 'none'; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Suivi mesures iso/cont</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="img/icone-32.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="img/icone-256.png">
+  <link rel="apple-touch-icon" href="img/icone-256.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1f5f5b">
   <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/app.css">
 </head>

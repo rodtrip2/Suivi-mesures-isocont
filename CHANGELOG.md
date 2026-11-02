@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.44.0 — 2 novembre 2026
+
+- **Icône de l'application** : icône propre à l'outil (onglet du navigateur, application installée, raccourci Windows), fichier `app/img/icone.ico` pour les raccourcis et les stratégies de groupe, images PNG ; manifeste pour **installer l'outil comme une application** depuis Edge ou Chrome (fenêtre dédiée, menu Démarrer, bureau). Politique de sécurité du contenu complétée par `manifest-src 'self'`.
+- Guide d'installation : trois façons de créer le raccourci avec l'icône (installation par le navigateur, raccourci Windows, stratégie de groupe).
+
 ## 1.43.0 — 2 novembre 2026
 
 - **Exports rangés par service** : `exports\<service>\<catégorie>` (et `exports\Etablissement` pour les exports qui couvrent plusieurs services). La fenêtre *Exports* ne montre à chaque agent que les fichiers de ses services, avec un filtre par service.

@@ -30,6 +30,12 @@
 
 **Intranet (recommandé)** — copier le contenu de `app/` dans un site web statique servi en HTTPS, par exemple `https://intranet.etablissement.fr/isocont/`. Ajouter les en-têtes conseillés dans la fiche technique (section 3). Diffuser le lien sur les postes (favori, raccourci).
 
+**Raccourci et icône.** L'application fournit son icône (`app/img/icone.ico`, et des images PNG pour le navigateur). Trois façons de la mettre à disposition des agents :
+
+- **Edge ou Chrome** : ouvrir l'outil, puis menu *Applications → Installer ce site en tant qu'application* : l'outil s'ouvre dans sa propre fenêtre, avec son icône, depuis le menu Démarrer ou le bureau ;
+- **raccourci Windows** : clic droit sur le bureau → *Nouveau → Raccourci*, cible `msedge.exe --app=https://intranet.etablissement.fr/isocont/` (ou le simple lien), puis *Propriétés → Changer d'icône* et choisir `icone.ico` copié sur le partage ou le poste ;
+- **stratégie de groupe** (service informatique) : raccourci déployé sur les postes concernés (préférence *Raccourcis*, champ *Fichier d'icône* pointant vers `\\serveur\partage\isocont\img\icone.ico`).
+
 **Repli sans serveur web** — copier `app/` dans un dossier en lecture seule du partage et ouvrir `index.html` avec Edge ou Chrome. Les clés de sécurité ne fonctionnent pas dans ce mode.
 
 **Démonstration** — https://rodtrip2.github.io/Suivi-mesures-isocont/, en *mode démonstration* uniquement, sans aucune donnée réelle.
