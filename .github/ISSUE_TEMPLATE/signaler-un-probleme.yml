@@ -12,7 +12,7 @@ body:
     attributes:
       label: Version de l'outil
       description: Administration → À propos (préremplie si vous venez de l'outil).
-      placeholder: "1.40.1"
+      placeholder: "1.41.0"
     validations:
       required: true
   - type: textarea

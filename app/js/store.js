@@ -326,6 +326,66 @@
     } catch (e) { return null; }
   };
 
+  // ------------------------------------------------------ Dossier des exports
+  /** Chemin relatif sûr (« exports », « exports/2026 »…) : segments simples, jamais « .. ». */
+  function cheminExport(chemin) {
+    var parties = String(chemin || '').replace(/\\/g, '/').split('/').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!parties.length || parties.some(function (x) { return x === '.' || x === '..' || !/^[\p{L}\p{N}_ .()'-]{1,60}$/u.test(x); })) return null;
+    return parties;
+  }
+  var RESERVES = ['evenements', 'instantanes', 'coffre-historique', 'reperes', 'quarantaine', 'preferences', 'formation'];
+
+  /**
+   * Enregistre un fichier exporté (PDF, CSV…) dans le dossier des exports, sous-dossier `categorie`.
+   * Un fichier de même nom n'est jamais écrasé (suffixe -2, -3…). Retourne le chemin relatif écrit.
+   */
+  Dossier.prototype.ecrireExport = async function (dossierExports, categorie, nom, octets) {
+    var base = cheminExport(dossierExports);
+    if (!base) throw new Error('Dossier des exports mal défini : « ' + dossierExports + ' ».');
+    if (RESERVES.indexOf(base[0].toLowerCase()) >= 0) throw new Error('Le dossier des exports ne peut pas être un dossier réservé de l’outil (« ' + base[0] + ' »).');
+    var chemin = base.concat(categorie ? [categorie] : []);
+    var dir = await this.sousDossier(chemin, true);
+    var propre = String(nom).replace(/[\\/:*?"<>|]+/g, '_');
+    var point = propre.lastIndexOf('.'), racine = point > 0 ? propre.slice(0, point) : propre, ext = point > 0 ? propre.slice(point) : '';
+    var final = propre, k = 2;
+    while (await this.lireFichier(dir, final)) final = racine + '-' + k++ + ext;
+    await this.ecrireFichier(dir, final, octets, true);
+    return chemin.concat([final]).join('/');
+  };
+
+  /** Fichiers du dossier des exports : [{ chemin, nom, categorie, taille, modifieLe }], les plus récents d'abord. */
+  Dossier.prototype.listerExports = async function (dossierExports) {
+    var base = cheminExport(dossierExports), res = [];
+    if (!base) return res;
+    var racine;
+    try { racine = await this.sousDossier(base, false); } catch (e) { return res; }
+    async function parcourir(dir, prefixe) {
+      for await (var x of dir.values()) {
+        if (x.kind === 'directory') await parcourir(x, prefixe.concat([x.name]));
+        else { var f = await x.getFile(); res.push({ chemin: base.concat(prefixe, [x.name]).join('/'), nom: x.name, categorie: prefixe.join('/'), taille: f.size, modifieLe: f.lastModified }); }
+      }
+    }
+    await parcourir(racine, []);
+    return res.sort(function (a, b) { return b.modifieLe - a.modifieLe; });
+  };
+
+  async function fichierExport(d, chemin) {
+    var parties = cheminExport(chemin);
+    if (!parties || parties.length < 2) throw new Error('Chemin inattendu : ' + chemin);
+    return { dir: await d.sousDossier(parties.slice(0, -1), false), nom: parties[parties.length - 1] };
+  }
+  Dossier.prototype.lireExport = async function (chemin) {
+    var x = await fichierExport(this, chemin);
+    var o = await this.lireFichier(x.dir, x.nom);
+    if (!o) throw new Error('Fichier introuvable : ' + chemin);
+    return o;
+  };
+  Dossier.prototype.supprimerExport = async function (chemin) {
+    var x = await fichierExport(this, chemin);
+    await x.dir.removeEntry(x.nom);
+  };
+  SIC.cheminExport = cheminExport;
+
   // ------------------------------------------------------ Préférences d'un agent
   /** Préférences d'affichage d'un agent (thème…), chiffrées, une par agent : preferences/<agent>.enc. */
   Dossier.prototype.ecrirePreferences = async function (cle, agent, prefs) {

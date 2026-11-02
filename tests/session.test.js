@@ -373,3 +373,30 @@ test('Préférences de l’agent : thème enregistré chiffré pour son compte, 
   assert.equal((await admin.lirePreferences()).theme, undefined);          // propre à chaque agent
   assert.ok(!autrePoste.evts.some((e) => JSON.stringify(e.data || {}).includes('theme')));   // rien au journal
 });
+
+test('Exports : enregistrés dans le dossier des exports, jamais écrasés, listés, chemins sûrs, tracés', async () => {
+  const { racine, admin } = await nouveauDossier();
+  const octets = new TextEncoder().encode('%PDF-1.4 (fictif)');
+  const c1 = await admin.exporter('decomptes', 'decompte_fictif.pdf', octets);
+  const c2 = await admin.exporter('decomptes', 'decompte_fictif.pdf', octets);
+  assert.equal(c1, 'exports/decomptes/decompte_fictif.pdf');
+  assert.equal(c2, 'exports/decomptes/decompte_fictif-2.pdf');                 // pas d'écrasement
+  assert.ok(racine.e.get('exports').e.get('decomptes').e.has('decompte_fictif.pdf'));
+  const liste = await admin.listerExports();
+  assert.deepEqual(liste.map((f) => f.nom).sort(), ['decompte_fictif-2.pdf', 'decompte_fictif.pdf']);
+  assert.equal(new TextDecoder().decode(await admin.lireExport(c1)), '%PDF-1.4 (fictif)');
+  assert.ok(admin.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'EXPORT' && e.data.libelle === c1));
+  // Dossier réglé par l'administrateur, chemins dangereux refusés
+  await admin.enregistrer('CONFIG', { cle: 'exports', valeur: { dossier: 'Exports unité/2026' } });
+  assert.equal(await admin.exporter('registres', 'registre.csv', octets, { sansTrace: true }), 'Exports unité/2026/registres/registre.csv');
+  for (const mauvais of ['../hors', 'evenements', 'a/../b', '']) {
+    await assert.rejects(admin.dossier.ecrireExport(mauvais, 'x', 'y.csv', octets));
+  }
+  await assert.rejects(admin.dossier.lireExport('../coffre.json'));
+  // Suppression réservée à l'administrateur
+  await admin.creerCompte({ nom: 'IDE', login: 'ide', motDePasse: 'autre mot de passe', roles: ['IDE'], services: ['U1'] });
+  const ide = await connecter(racine, 'ide', 'autre mot de passe');
+  await assert.rejects(ide.supprimerExport(c2), /administrateur/);
+  await admin.supprimerExport(c2);
+  assert.ok(!racine.e.get('exports').e.get('decomptes').e.has('decompte_fictif-2.pdf'));
+});

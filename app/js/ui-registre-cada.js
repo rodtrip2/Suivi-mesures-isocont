@@ -86,8 +86,7 @@
       { texte: 'Exporter (CSV)', action: async function () {
         var r = calculer();
         await tracer('CSV');
-        var a = h('a', { href: URL.createObjectURL(new Blob([csv(service, annee, r, reference.value.trim())], { type: 'text/csv;charset=utf-8' })), download: 'registre_communication_' + service + '_' + annee + '.csv' });
-        document.body.appendChild(a); a.click(); a.remove();
+        await U.exporter('communication', 'registre_communication_' + service + '_' + annee + '.csv', csv(service, annee, r, reference.value.trim()), 'text/csv;charset=utf-8', { sansTrace: true });
         return false;
       } },
       { texte: 'Imprimer / PDF', classe: 'primaire', action: async function () {

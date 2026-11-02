@@ -86,7 +86,7 @@ Au retour du patient : **Reprise** → heure réelle de reprise → **Enregistre
 
 Bouton **Décompte** sur la ligne de la mesure. L'aperçu reprend l'identité, la période analysée (15 jours glissants), chaque mesure, les pauses et le cumul, à la date et l'heure de référence (en général : maintenant).
 
-- **Enregistrer en PDF** : le fichier est créé directement, à **enregistrer sur le réseau de l'établissement** (jamais sur une clé USB ou un poste personnel) puis à joindre à la communication au juge selon la procédure du service ;
+- **Enregistrer en PDF** : le fichier est créé et **rangé automatiquement dans le dossier des exports** de l'outil, sur le réseau de l'établissement (un message indique son nom). Joignez-le ensuite à la communication au juge selon la procédure du service, en le prenant dans ce dossier ;
 - **Imprimer** : si un envoi papier est nécessaire.
 
 ![Fenêtre « Décompte JLD »](images/guide-ide-as/09-decompte.png)
@@ -96,6 +96,10 @@ Bouton **Décompte** sur la ligne de la mesure. L'aperçu reprend l'identité, l
 ![Décompte enregistré en PDF](images/guide-ide-as/18-decompte-pdf.png)
 
 *Première page du PDF produit (mise en page selon le modèle de votre établissement).*
+
+Le bouton **Exports**, en haut de l'écran, liste les fichiers enregistrés (décomptes, registres, statistiques…), les plus récents d'abord : *Ouvrir* affiche un PDF, *Télécharger* en fait une copie sur le poste. Ne copiez jamais ces fichiers hors du réseau de l'établissement (clé USB, messagerie personnelle).
+
+![Fenêtre « Exports »](images/guide-ide-as/19-exports.png)
 
 ### 6.2 Tracer l'envoi
 
@@ -116,13 +120,17 @@ L'échéance passe en bleu, avec la mention « fait le … » : l'envoi est trac
 
 ## 7. Suivi de la CSI : professionnels chargés de la surveillance
 
-Le registre légal doit indiquer les professionnels qui ont assuré la surveillance. Onglet **Surveillance CSI** : chaque poste (matin, après-midi, nuit) couvert par une mesure en CSI a deux emplacements ; un poste incomplet est signalé (« À renseigner », liseré orange) et compté au tableau de bord.
+Le registre légal doit indiquer les professionnels qui ont assuré la surveillance. Onglet **Surveillance CSI** : chaque poste (matin, après-midi, nuit) couvert par une mesure en CSI attend un nombre minimal de professionnels fixé par l'établissement (deux par défaut) ; un poste incomplet est signalé (« À renseigner », liseré orange) et compté au tableau de bord. Les lieux occupés pendant le poste sont rappelés sous son nom.
 
 ![Onglet Surveillance](images/guide-ide-as/13-surveillance.png)
 
-**Ajouter** sur la ligne du poste → **nom** et **fonction** (IDE, AS…) → **Enregistrer**, ou **Enregistrer et ajouter un autre** pour le second professionnel.
+**Ajouter** sur la ligne du poste → **nom** et **fonction** (IDE, AS…) → **Enregistrer**, ou **Enregistrer et ajouter un autre** pour le professionnel suivant.
 
 ![Fenêtre « Professionnel chargé de la surveillance »](images/guide-ide-as/14-professionnel.png)
+
+Par défaut, un professionnel est compté pour **tous les lieux** du service. Si vous n'avez surveillé que certaines chambres, décochez *Tous les lieux* et cochez celles que vous avez surveillées : vous n'apparaîtrez au registre que pour les mesures de ces lieux.
+
+![Lieux surveillés précisés](images/guide-ide-as/20-professionnel-lieux.png)
 
 *À faire à chaque poste, de préférence avant la relève.*
 
@@ -155,9 +163,9 @@ Bouton **Détail** sur la ligne : tout l'historique de la mesure, saisie par sai
 | Le psychiatre décide une mesure | Mesures | **+ Nouvelle mesure** |
 | Repas, douche, visite (décidés par le psychiatre) | Mesures, ligne du patient | **Pause**, puis **Reprise** |
 | Un proche est informé (à chaque cycle) | Mesures, ligne du patient | **Tiers** |
-| Pièce à joindre à l'envoi au juge | Mesures, ligne du patient | **Décompte** → **Enregistrer en PDF** |
+| Pièce à joindre à l'envoi au juge | Mesures, ligne du patient | **Décompte** → **Enregistrer en PDF** (puis bouton **Exports**) |
 | Information ou saisine envoyée, décision reçue | JLD | **Saisir un envoi ou une décision** |
-| Début de chaque poste en CSI | Surveillance CSI | **Ajouter** (deux professionnels) |
+| Début de chaque poste en CSI | Surveillance CSI | **Ajouter** (nombre fixé par l'établissement, lieux si besoin) |
 | Le psychiatre lève la mesure | Mesures, ligne du patient | **Fin** |
 | Erreur de saisie | Mesures → **Détail** | **Proposer une correction…** |
 

@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.41.0 — 2 novembre 2026
+
+- **Exports enregistrés automatiquement sur le réseau** : décomptes JLD (PDF, CSV), registres, statistiques, registres pour communication, données d'un patient et archives sont écrits dans le **dossier des exports** (sous-dossier du dossier des données, « exports » par défaut, réglable dans *Administration → Établissement et services*), classés par catégorie, jamais écrasés et tracés au journal. Plus de fichiers nominatifs laissés dans les téléchargements des postes (téléchargement seulement en secours si le dossier est inaccessible).
+- **Bouton « Exports »** dans le bandeau : liste des fichiers (recherche, catégorie), *Ouvrir* (PDF), *Télécharger*, *Supprimer* (administrateur, tracé).
+- **Surveillance en CSI** : nombre minimal de professionnels par poste réglable (1 à 6, deux par défaut) ; chaque professionnel peut préciser les **lieux surveillés** (tous par défaut) — il n'est alors cité au registre que pour les mesures de ces lieux ; lieux occupés rappelés sur chaque poste.
+- Guide pratique IDE / AS et kit mis à jour (captures régénérées).
+
 ## 1.40.1 — 2 novembre 2026
 
 - **Kit : guide pratique des IDE et aides-soignant(e)s** (`kit/08-guide-ide-as.md` et PDF, 11 pages, 18 captures en mode démonstration avec un compte IDE fictif) : se connecter, tableau de bord, créer une mesure, pause et reprise, information du tiers, décompte JLD enregistré en PDF et traçabilité de l'envoi, surveillance en CSI, fin de mesure, correction d'une erreur, mémo d'une page.

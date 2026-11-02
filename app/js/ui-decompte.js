@@ -263,16 +263,6 @@
     return doc.octets();
   }
 
-  function telechargerPDF(octets, nom) {
-    var a = h('a', { href: URL.createObjectURL(new Blob([octets], { type: 'application/pdf' })), download: nom });
-    document.body.appendChild(a); a.click(); a.remove();
-  }
-
-  function telecharger(texte, nom) {
-    var a = h('a', { href: URL.createObjectURL(new Blob([texte], { type: 'text/csv;charset=utf-8' })), download: nom });
-    document.body.appendChild(a); a.click(); a.remove();
-  }
-
   U.actions.decompte = function (m) {
     var etat = U.st(), masque = M.masqueDecompte(etat.config, m.service);
     var ref = h('input', { type: 'datetime-local', value: U.versSaisie(typeof m.fin === 'number' ? Math.min(m.fin, Date.now()) : Date.now()) });
@@ -291,7 +281,7 @@
       h('small', { class: 'muted', text: '« Enregistrer en PDF » crée directement le fichier, sans passer par l’impression (masque et papier à en-tête compris).' + (masque.fond ? ' Pour imprimer : format A4, marges « par défaut ».' : '') + ' Le PDF' + (masque.exportCSV ? ' et l’export CSV contiennent' : ' contient') + ' des données nominatives : enregistrez-les uniquement sur le réseau de l’établissement.' })), [
       { texte: 'Fermer' },
       masque.exportCSV ? { texte: 'Exporter (CSV)', action: function () {
-        telecharger(csv(etat, m, U.depuisSaisie(ref.value), masque), nomFichier('csv'));
+        U.exporter('decomptes', nomFichier('csv'), csv(etat, m, U.depuisSaisie(ref.value), masque), 'text/csv;charset=utf-8');
         return false;
       } } : null,
       { texte: 'Imprimer', action: function () {
@@ -300,8 +290,7 @@
         return true;
       } },
       { texte: 'Enregistrer en PDF', classe: 'primaire', action: function () {
-        telechargerPDF(pdf(etat, m, U.depuisSaisie(ref.value), masque, options), nomFichier('pdf'));
-        U.toast('PDF enregistré (dossier des téléchargements) : rangez-le sur le réseau de l’établissement.');
+        U.exporter('decomptes', nomFichier('pdf'), pdf(etat, m, U.depuisSaisie(ref.value), masque, options), 'application/pdf');
         return false;
       } }].filter(Boolean));
     function nomFichier(ext) {

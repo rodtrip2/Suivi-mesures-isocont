@@ -283,6 +283,28 @@
     return evt;
   };
 
+  // ---------------------------------------------------------- Exports
+  /**
+   * Enregistre un export (PDF, CSV) dans le dossier des exports du jeu de données actif (réglage
+   * `config.exports.dossier`, « exports » par défaut), sous-dossier `categorie`. Tracé au journal
+   * (nom du fichier) sauf `options.sansTrace` (export déjà tracé par ailleurs). Retourne le chemin relatif.
+   */
+  Session.prototype.exporter = async function (categorie, nom, octets, options) {
+    var d = dossierActif(this), dossier = M.dossierExports(this.etat ? this.etat.config : M.CONFIG_DEFAUT);
+    var chemin = await d.ecrireExport(dossier, categorie, nom, octets);
+    if (!(options && options.sansTrace)) { try { await this.tracer('EXPORT', { libelle: chemin }); } catch (e) { /* sans conséquence sur l'export */ } }
+    return chemin;
+  };
+  Session.prototype.listerExports = function () {
+    return dossierActif(this).listerExports(M.dossierExports(this.etat ? this.etat.config : M.CONFIG_DEFAUT));
+  };
+  Session.prototype.lireExport = function (chemin) { return dossierActif(this).lireExport(chemin); };
+  Session.prototype.supprimerExport = async function (chemin) {
+    if (!this.peut('CONFIG')) throw new Error('Réservé à l’administrateur.');
+    await dossierActif(this).supprimerExport(chemin);
+    await this.tracer('EXPORT_SUPPRIME', { libelle: chemin });
+  };
+
   // ---------------------------------------------------------- Préférences de l'agent
   /**
    * Préférences d'affichage de l'agent connecté (thème clair ou sombre…), rangées avec les données réelles

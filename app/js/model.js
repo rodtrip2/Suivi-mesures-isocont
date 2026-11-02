@@ -193,6 +193,10 @@
     informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],
     // Organisation des envois au JLD, affichée en tête de l'onglet JLD (texte libre de l'établissement ; vide = rien d'affiché)
     organisationJLD: '',
+    // Exports (PDF, CSV) enregistrés automatiquement dans ce sous-dossier du dossier des données
+    exports: { dossier: 'exports' },
+    // Surveillance en CSI : nombre minimal de professionnels attendus par poste
+    surveillance: { minParPoste: 2 },
     // Rôles de l'établissement (libellé, accès, services) ; vide = rôles fournis avec leurs droits par défaut
     roles: {},   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
     // Méthode des statistiques (voir optionsStats) : tolérance de regroupement des entrées en séquences (minutes,
@@ -523,7 +527,22 @@
 
   function appliquerProfessionnel(st, e) {
     var d = e.data;
-    st.professionnels.push({ service: d.service, date: d.date, periode: d.periode, nom: d.nom, fonction: d.fonction || '', evt: e.id, by: e.by });
+    // lieux : lieux précisés par l'agent ; liste vide = tous les lieux du service (comportement historique)
+    var lieux = Array.isArray(d.lieux) ? d.lieux.map(String).filter(Boolean) : [];
+    st.professionnels.push({ service: d.service, date: d.date, periode: d.periode, nom: d.nom, fonction: d.fonction || '', lieux: lieux, evt: e.id, by: e.by });
+  }
+
+  /** Réglages de la surveillance, validés : { minParPoste } (1 à 6, 2 par défaut). */
+  function optionsSurveillance(config) {
+    var v = (config && config.surveillance) || {};
+    var n = Math.round(+v.minParPoste);
+    return { minParPoste: isFinite(n) && n >= 1 && n <= 6 ? n : 2 };
+  }
+
+  /** Dossier des exports (chemin relatif au dossier des données), « exports » par défaut. */
+  function dossierExports(config) {
+    var d = String(((config && config.exports) || {}).dossier || '').trim();
+    return d || 'exports';
   }
 
   // ------------------------------------------------------- Vues calculées
@@ -1049,7 +1068,7 @@
     var csi = listeMesures(st).filter(function (m) {
       return m.service === service && (m.csi || horsCSI) && (typeof m.fin !== 'number' || m.fin >= depuis) && m.debut <= maintenant;
     });
-    var postes = {};
+    var postes = {}, min = optionsSurveillance(st.config).minParPoste;
     var periodes = periodesDe(st.config, service);
     var d = new Date(depuis - J); d.setHours(12, 0, 0, 0);
     for (; d.getTime() <= maintenant + J; d.setDate(d.getDate() + 1)) {
@@ -1057,16 +1076,18 @@
       periodes.forEach(function (p) {
         var b = bornesPeriode(dateISO, p);
         if (b[0] > maintenant || b[1] < depuis) return;
-        var couvert = csi.some(function (m) { var f = typeof m.fin === 'number' ? m.fin : maintenant; return m.debut < b[1] && f > b[0]; });
-        if (!couvert) return;
-        postes[dateISO + '|' + p.code] = { date: dateISO, periode: p.code, libelle: p.libelle, debut: b[0], fin: b[1], professionnels: [] };
+        var couvrant = csi.filter(function (m) { var f = typeof m.fin === 'number' ? m.fin : maintenant; return m.debut < b[1] && f > b[0]; });
+        if (!couvrant.length) return;
+        var lieux = [];
+        couvrant.forEach(function (m) { if (m.lieu && lieux.indexOf(m.lieu) < 0) lieux.push(m.lieu); });
+        postes[dateISO + '|' + p.code] = { date: dateISO, periode: p.code, libelle: p.libelle, debut: b[0], fin: b[1], professionnels: [], lieux: lieux.sort(), min: min };
       });
     }
     st.professionnels.forEach(function (x) {
       var cle = x.date + '|' + x.periode;
       if (x.service === service && postes[cle]) postes[cle].professionnels.push(x);
     });
-    return Object.keys(postes).map(function (k) { return postes[k]; })
+    return Object.keys(postes).map(function (k) { var p = postes[k]; p.complet = p.professionnels.length >= p.min; return p; })
       .sort(function (a, b) { return b.debut - a.debut; });
   }
 
@@ -1223,17 +1244,22 @@
    * soignants cités par le registre importé (« Nom (fonction) ; … »).
    */
   function professionnelsEntree(st, service, x, finRef) {
-    var pros = (x.cat === 'A' || x.cat === 'C' || optionsQualite(st.config).surveillanceHorsCSI) ? professionnelsDetailSur(st, service, x.debut, finRef) : [];
+    var lieuEntree = x.lieu || (x.mesure && x.mesure.lieu) || '';
+    var pros = (x.cat === 'A' || x.cat === 'C' || optionsQualite(st.config).surveillanceHorsCSI) ? professionnelsDetailSur(st, service, x.debut, finRef, lieuEntree) : [];
     if (pros.length) return pros;
     var cites = x.professionnelsOrigine || (x.fige ? '' : x.mesure.professionnelsOrigine) || '';
     return String(cites).split(/[;\n]+/).map(function (t) { t = t.trim(); var mo = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(t); return t ? { nom: mo ? mo[1] : t, fonction: mo ? mo[2] : '' } : null; }).filter(Boolean);
   }
 
-  /** Professionnels (nom, fonction) ayant surveillé une CSI d'un service entre `debut` et `fin`, sans doublon. */
-  function professionnelsDetailSur(st, service, debut, fin) {
+  /**
+   * Professionnels (nom, fonction) ayant surveillé une CSI d'un service entre `debut` et `fin`, sans doublon.
+   * Avec `lieu` : seuls ceux qui ont surveillé ce lieu (ou tous les lieux, faute de précision).
+   */
+  function professionnelsDetailSur(st, service, debut, fin, lieu) {
     var pros = [], vus = {}, periodes = periodesDe(st.config, service);
     st.professionnels.forEach(function (p) {
       if (p.service !== service) return;
+      if (lieu && p.lieux && p.lieux.length && p.lieux.indexOf(lieu) < 0) return;
       var per = periodes.filter(function (q) { return q.code === p.periode; })[0];
       if (!per) return;
       var b = bornesPeriode(p.date, per);
@@ -1845,7 +1871,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

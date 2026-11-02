@@ -89,9 +89,15 @@ with sync_playwright() as p:
     # ---------------- Décompte
     a.locator('tr', has_text='HOTEL (fictif)').first.get_by_role('button', name='Décompte').click(); time.sleep(1.5)
     d = a.locator('dialog'); shot(d, '09-decompte')
-    with a.expect_download() as dl: d.get_by_role('button', name='Enregistrer en PDF').click()
-    dl.value.save_as(OUT + '/decompte.pdf'); print('pdf', dl.value.suggested_filename)
+    d.get_by_role('button', name='Enregistrer en PDF').click(); time.sleep(1.5)
+    # Le PDF est enregistré dans le dossier des exports : relu pour l'illustration
+    import base64
+    b64 = a.evaluate("async () => { const s = SIC.ui.App.session; const f = (await s.listerExports()).find(x => /\\.pdf$/.test(x.nom)); const o = await s.lireExport(f.chemin); let t = ''; o.forEach(c => t += String.fromCharCode(c)); return btoa(t); }")
+    open(OUT + '/decompte.pdf', 'wb').write(base64.b64decode(b64))
     d.get_by_role('button', name='Fermer').last.click(); time.sleep(0.5)
+    a.get_by_role('button', name='Exports').click(); time.sleep(1.2)
+    shot(a.locator('dialog'), '19-exports')
+    a.locator('dialog').get_by_role('button', name='Fermer').last.click(); time.sleep(0.5)
     # ---------------- JLD
     a.locator('nav.onglets button', has_text='JLD').click(); time.sleep(1)
     shot(a, '10-onglet-jld')
@@ -116,6 +122,13 @@ with sync_playwright() as p:
     time.sleep(0.3); shot(d, '14-professionnel')
     d.get_by_role('button', name='Enregistrer', exact=True).click(); time.sleep(1.5)
     print('erreurs:', a.locator('dialog .erreur').all_inner_texts())
+    # Second professionnel, lieux précisés
+    a.locator('main button', has_text='Ajouter').first.click(); time.sleep(0.8)
+    d = a.locator('dialog'); champ(d, 'Nom').fill('Sam AS (fictif)'); champ(d, 'Fonction').select_option(label='AS')
+    d.locator('label.case', has_text='Tous les lieux').locator('input').uncheck(); time.sleep(0.2)
+    d.locator('label.case', has_text='CSI 1').locator('input').check(); time.sleep(0.3)
+    shot(d, '20-professionnel-lieux')
+    d.get_by_role('button', name='Enregistrer', exact=True).click(); time.sleep(1.5)
     # ---------------- Fin
     a.locator('nav.onglets button', has_text='Mesures').click(); time.sleep(1)
     a.locator('tr', has_text='HOTEL (fictif)').first.get_by_role('button', name='Fin').click(); time.sleep(0.8)

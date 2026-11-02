@@ -43,6 +43,7 @@ SuiviIsoCont/
   reperes/<agent>.enc              repère d'intégrité : nombre de saisies de l'agent, dernière saisie
   quarantaine/AAAA/MM/<id>.enc     fichiers illisibles mis à l'écart par l'administrateur (jamais supprimés)
   preferences/<agent>.enc          préférences d'affichage de l'agent (thème clair ou sombre), chiffrées
+  exports/<catégorie>/<fichier>    exports en clair (PDF, CSV), dossier réglable (config.exports.dossier)
 ```
 
 - Identifiant d'événement : `AAAAMMJJTHHMMSSZ_<auteur>_<aléa>` ; écriture exclusive (refus si le nom existe), atomique (`createWritable`).

@@ -521,3 +521,27 @@ test('Journal : annuler puis rétablir une saisie ; droits selon le type de sais
   st = M.reduire([d, f, c, a1, a2, evt('ANNULATION', { cible: c.id, motif: 'test' })]);
   assert.equal(st.config.organisationJLD, '');
 });
+
+test('Surveillance : nombre minimal par poste réglable, lieux précisés par le professionnel', () => {
+  const debut = local(2026, 4, 10, 8);
+  const base = [
+    evt('CONFIG', { cle: 'lieuxCSI', valeur: { U1: ['CSI 1', 'CSI 2'] } }),
+    evt('MESURE_DEBUT', { mesureId: 'S1', patientId: 'P1', service: 'U1', typeMesure: 'Isolement', debut, csi: true, lieu: 'CSI 1' }),
+    evt('MESURE_FIN', { mesureId: 'S1', fin: debut + 5 * H }),
+    evt('MESURE_DEBUT', { mesureId: 'S2', patientId: 'P2', service: 'U1', typeMesure: 'Isolement', debut, csi: true, lieu: 'CSI 2' }),
+    evt('MESURE_FIN', { mesureId: 'S2', fin: debut + 5 * H }),
+    evt('PROFESSIONNEL', { service: 'U1', date: '2026-04-10', periode: 'M', nom: 'Agent A (fictif)', fonction: 'IDE', lieux: ['CSI 1'] }),
+    evt('PROFESSIONNEL', { service: 'U1', date: '2026-04-10', periode: 'M', nom: 'Agent B (fictif)', fonction: 'AS' })
+  ];
+  let st = M.reduire(base);
+  const poste = M.postesSurveillance(st, 'U1', debut + 6 * H, 2).find((p) => p.date === '2026-04-10' && p.periode === 'M');
+  assert.deepEqual([poste.min, poste.complet, poste.lieux], [2, true, ['CSI 1', 'CSI 2']]);
+  st = M.reduire(base.concat([evt('CONFIG', { cle: 'surveillance', valeur: { minParPoste: 3 } })]));
+  assert.equal(M.postesSurveillance(st, 'U1', debut + 6 * H, 2).find((p) => p.periode === 'M' && p.date === '2026-04-10').complet, false);
+  assert.equal(M.optionsSurveillance({ surveillance: { minParPoste: 9 } }).minParPoste, 2);   // hors bornes : défaut
+  // Registre : l'agent A (CSI 1 seulement) n'est pas cité pour la mesure en CSI 2 ; l'agent B (tous les lieux) l'est
+  const reg = M.registre(st, 'U1', 2026, debut + 6 * H);
+  const pros = (id) => reg.find((e) => e.mesureId === id).professionnelsDetail.map((p) => p.nom);
+  assert.deepEqual(pros('S1').sort(), ['Agent A (fictif)', 'Agent B (fictif)']);
+  assert.deepEqual(pros('S2'), ['Agent B (fictif)']);
+});
