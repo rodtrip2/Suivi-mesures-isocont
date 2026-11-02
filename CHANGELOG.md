@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.36.0 — 2 novembre 2026
+
+- **Organisation des envois au JLD réglable** (*Administration → Établissement et services*) : le texte affiché en tête de l'onglet *JLD* (« Envois assurés par la secrétaire en semaine, par l'IDE le week-end… », propre à un établissement) est désormais rédigé par chaque établissement ; vide par défaut, rien n'est alors affiché. Réglage tracé au journal.
+
 ## 1.35.3 — 2 novembre 2026
 
 - Onglet *JLD*, colonne *Tiers* : « tiers à informer avec le juge » devient « Proche à informer avant le [échéance de l'information du juge], comme le juge », avec la règle au survol (le médecin informe du renouvellement au moins un membre de la famille ou un proche, et de son droit de saisir le juge ; pour un majeur protégé, aussi le tuteur ou le curateur).

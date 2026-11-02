@@ -656,7 +656,7 @@
     });
     return h('div', {},
       h('div', { class: 'barre' }, h('h1', { text: 'Suivi JLD' }), h('div', { class: 'espace' }),
-        h('small', { class: 'muted', text: 'Envois assurés par la secrétaire en semaine, par l’IDE le week-end et en son absence.' })),
+        String(config().organisationJLD || '').trim() ? h('small', { class: 'muted', text: String(config().organisationJLD).trim() }) : null),
       enCours.length ? h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Patient', 'Mesure', 'Cycle', 'Cumul 15 j avant', 'Information avant', 'Saisine avant', 'Décision avant', 'Tiers', ''].map(function (t) { return h('th', { text: t }); }))),
         tbody)) : h('div', { class: 'panneau vide', text: 'Aucune mesure en cours.' }),
@@ -751,7 +751,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', organisationJLD: 'Organisation des envois au JLD', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -822,6 +822,7 @@
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + lieu(', surveillance hors CSI ') + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
+      case 'organisationJLD': return String(v || '').trim() ? '« ' + String(v).trim() + ' »' : 'aucun texte';
       case 'lieuIsolement': var ll = M.libLieu({ lieuIsolement: v }); return ll.long + ' (' + ll.court + ')';
       case 'sauvegarde': return v && v.rappelJours ? 'tous les ' + v.rappelJours + ' jours' : 'aucun rappel';
       case 'rapportsAnnuels': return Object.keys(v || {}).join(', ') || 'aucun';
@@ -1804,6 +1805,13 @@
         await enregistrerConfig([['etablissement', etab.value.trim()], ['services', svs], ['lieuxCSI', lieux], ['psychiatres', lignesDe(tPsy)]]);
       }));
 
+    // -- Organisation des envois au JLD (texte affiché en tête de l'onglet JLD)
+    var tOrgJLD = h('textarea', { rows: 2, maxlength: 300, placeholder: 'Ex. : envois assurés par la secrétaire en semaine, par l’IDE le week-end et en son absence.' }, String(cfg.organisationJLD || ''));
+    var pOrgJLD = h('section', { class: 'panneau' }, h('h2', { text: 'Organisation des envois au JLD' }),
+      h('p', { class: 'muted', text: 'Rappel affiché en tête de l’onglet JLD : qui fait les envois au juge, selon la politique de l’établissement. Laissez vide pour ne rien afficher. Les droits de saisie des envois se règlent par les rôles des comptes.' }),
+      h('label', {}, 'Texte affiché', tOrgJLD),
+      boutonEnregistrer(async function () { await enregistrerConfig([['organisationJLD', tOrgJLD.value.trim()]]); }));
+
     // -- Appellation des lieux dédiés à l'isolement
     var lieuAct = M.libLieu(cfg), lieuxProp = M.LIEUX_ISOLEMENT;
     var iCourt = h('input', { type: 'text', maxlength: 12, value: lieuAct.court }), iLong = h('input', { type: 'text', maxlength: 60, value: lieuAct.long }), iLongs = h('input', { type: 'text', maxlength: 60, value: lieuAct.longs });
@@ -2088,7 +2096,7 @@
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
       return sousOngletsAdmin([
-        ['services', 'Établissement et services', [note, pServices, pLieuNom, pSurv, pTiers]],
+        ['services', 'Établissement et services', [note, pServices, pLieuNom, pSurv, pTiers, pOrgJLD]],
         ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
         ['alertes', 'Alertes', [note, SIC.ui.alertes.panneauAdmin()]],
         ['cas', 'Cas particuliers', [note, SIC.ui.cas.panneauAdmin()]],
@@ -2100,7 +2108,7 @@
     }
     return sousOngletsAdmin([
       ['comptes', 'Comptes et sécurité', [comptes, deblocage, SIC.ui.formation.sectionAdmin()]],
-      ['services', 'Établissement et services', [pServices, pLieuNom, pSurv, pTiers]],
+      ['services', 'Établissement et services', [pServices, pLieuNom, pSurv, pTiers, pOrgJLD]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
       ['cas', 'Cas particuliers', [SIC.ui.cas.panneauAdmin()]],

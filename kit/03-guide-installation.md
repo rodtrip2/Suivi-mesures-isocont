@@ -56,7 +56,7 @@ Onglet *Administration* :
 
 | Section | À renseigner |
 | --- | --- |
-| Établissement et services | Nom de l'établissement (en-tête des documents), services (code ; libellé), chambres de soins intensifs par service, appellation de ces lieux dans l'outil (« chambre de soins intensifs (CSI) » par défaut, ou chambre d'isolement, espace d'isolement…), liste des psychiatres. |
+| Établissement et services | Nom de l'établissement (en-tête des documents), services (code ; libellé), chambres de soins intensifs par service, appellation de ces lieux dans l'outil (« chambre de soins intensifs (CSI) » par défaut, ou chambre d'isolement, espace d'isolement…), liste des psychiatres, organisation des envois au JLD (texte libre affiché en tête de l'onglet *JLD*, par exemple qui fait les envois en semaine et le week-end). |
 | Postes de surveillance | Postes par défaut (matin, après-midi, nuit…) ou propres à un service (par exemple jour et nuit en 12 h). |
 | Règles légales | Valeurs par défaut conformes aux textes en vigueur : ne les modifier qu'en cas d'évolution réglementaire. |
 | Pauses (levées temporaires) | Par défaut, la levée temporaire est active, les pauses restent comptées dans les durées, sans reprise automatique, alerte au-delà de 12 h et refus à 48 h, colonne « Levées temporaires » affichée dans le registre. Si les pauses ne sont pas déduites, la fonction peut être désactivée. Si elles le sont, choisir la portée : délais du juge des libertés et de la détention (JLD) seulement (registre et statistiques en durée réelle) ou partout. Déduire la durée des pauses du cumul reporte les échéances JLD : décision de la direction, à tracer dans le projet d'établissement. |

@@ -113,7 +113,9 @@
     lieuIsolement: { court: 'CSI', long: 'chambre de soins intensifs', longs: 'chambres de soins intensifs' },
     // Information du tiers : fonctions proposées en plus du psychiatre (toujours en tête, la loi confiant cette
     // information au médecin). Chaque établissement complète la liste selon son organisation.
-    informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
+    informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],
+    // Organisation des envois au JLD, affichée en tête de l'onglet JLD (texte libre de l'établissement ; vide = rien d'affiché)
+    organisationJLD: '',   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
     // Méthode des statistiques (voir optionsStats) : tolérance de regroupement des entrées en séquences (minutes,
     // 0 = entrées qui se touchent, jusqu'à 48 h), unité principale du rapport, mentions affichées, méthode antérieure par année.
     statsMethode: { toleranceMinutes: 0, unitePrincipale: 'entrees', colonneSequences: false,
