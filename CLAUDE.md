@@ -142,6 +142,10 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 6. **Commit et push sur GitHub après chaque modification** (consigne permanente du porteur). Message en français ; terminer par les lignes d'attribution demandées par l'environnement.
 7. Compte rendu au porteur en français : ce qui a changé, ce qui reste à valider de son côté (choix juridiques, formulations), captures si utile.
 
+## 12 bis. Évolutions futures
+
+- Gardées pour plus tard, avec leur étude : `docs/evolutions-futures.md` (connexion avec la session Windows via IIS, décision du porteur du 2 novembre 2026 : à développer ultérieurement). Ne pas les développer sans demande du porteur.
+
 ## 13. Points à faire valider par l'établissement
 
 - Déduire ou non les pauses (lecture des textes), portée de la déduction.
