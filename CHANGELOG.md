@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.46.1 — 2 novembre 2026
+
+- Tableau de bord : la tuile « Échéances JLD dans les … h » reprend le seuil « échéance proche » réglé par l'établissement (12 h par défaut) au lieu d'afficher toujours 12 h.
+- Registre : l'infobulle du mode d'hospitalisation modifié reprend le délai de bascule réglé (12 h par défaut).
+
 ## 1.46.0 — 2 novembre 2026
 
 - **Vérification de la version sur la page GitHub** : ouvert depuis sa page GitHub (adresse en « github.io »), l'outil vérifie à l'ouverture puis toutes les 30 minutes que la version utilisée est la dernière publiée. Sinon, un bandeau propose *Recharger la page* ou *Plus tard*. Seul le numéro de version est relu, sur le même site ; aucune donnée n'est envoyée et la politique de sécurité du contenu est inchangée. Sans effet sur l'intranet ou un partage.

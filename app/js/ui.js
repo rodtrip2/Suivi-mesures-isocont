@@ -748,7 +748,10 @@
       h('div', { class: 'indicateurs' },
         ind(enCours.length, 'Mesures en cours (' + nIso + ' isolement, ' + (enCours.length - nIso) + ' contention)'),
         ind(depassees, 'Échéances JLD dépassées', depassees ? 'bad' : 'ok'),
-        ind(proches, 'Échéances JLD dans les 12 h', proches ? 'warn' : 'ok'),
+        ind(proches, (function () {
+          var sj = ['Isolement', 'Contention'].map(function (t) { return SIC.rules.params(t, config().parametres).seuilJaune || 12; });
+          return sj[0] === sj[1] ? 'Échéances JLD dans les ' + sj[0] + ' h' : 'Échéances JLD proches (' + sj[0] + ' h isolement, ' + sj[1] + ' h contention)';
+        })(), proches ? 'warn' : 'ok'),
         !M.optionsPauses(config()).active && !enPause.length ? null : ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant, config()).depassee; }) ? 'bad' : ''),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
         ind(postesIncomplets.length, lieu('Postes CSI incomplets (48 h)'), postesIncomplets.length ? 'warn' : 'ok'),
@@ -917,7 +920,7 @@
             h('td', { class: 'nowrap', text: e.fin ? date(e.fin) : 'en cours' }),
             h('td', { class: 'nowrap', text: duree(e.dureeHeures) }),
             colPauses ? h('td', { class: 'nowrap', title: e.pauses.map(function (p) { return date(p[0]) + ' → ' + date(p[1]); }).join('\n'), text: textePauses(e) }) : null,
-            h('td', {}, e.modeHospi || '—', e.basculeMode ? h('span', { class: 'badge', title: 'Mode modifié dans les 12 h suivant le début : le nouveau mode est retenu.', text: '*' }) : null),
+            h('td', {}, e.modeHospi || '—', e.basculeMode ? h('span', { class: 'badge', title: 'Mode modifié dans les ' + (config().delaiModeHospiHeures == null ? 12 : config().delaiModeHospiHeures) + ' h suivant le début : le nouveau mode est retenu.', text: '*' }) : null),
             h('td', { text: e.lieu || '—' }),
             h('td', { text: e.psychiatre || '—' }),
             h('td', {}, e.professionnels.length ? e.professionnels.join(', ') : (e.categorie === 'A' || e.categorie === 'C' ? h('span', { class: 'badge warn', text: 'non renseigné' }) : '—')));
