@@ -924,9 +924,27 @@
       exporter('registres', 'registre_' + svCode + '_' + anneeRegistre + '.csv', csv, 'text/csv;charset=utf-8', { service: svCode });
     }
 
+    /** Registre en PDF, avec le papier à en-tête et les réglages du masque du décompte du service. */
+    function exporterPDF() {
+      var P = SIC.ui.pdfEtab.creer(svCode, 'Registre des mesures d’isolement et de contention — ' + anneeRegistre, {
+        confidentiel: true, sousTitre: 'Registre prévu par l’article L. 3222-5-1 du code de la santé publique, à présenter à la commission départementale des soins psychiatriques, au contrôleur général des lieux de privation de liberté et aux parlementaires. Patient désigné par son identifiant (IPP).' });
+      var doc = P.doc;
+      if (notePauses) doc.paragraphe(notePauses, { taille: 8, rgb: [0.25, 0.25, 0.25], apres: 4 });
+      SIC.ui.pdfEtab.section(doc, 'Synthèse par catégorie', ['Catégorie', 'Entrées'], Object.keys(synthese).map(function (k) { return [k + ' — ' + LIB_CAT[k], synthese[k]]; }), [80, 20], 8);
+      var entetes = ['N°', 'Cat.', 'IPP', 'Âge', 'Début', 'Fin', libDuree].concat(colPauses ? ['Levées temp.'] : [], ['Mode', 'Lieu', 'Psychiatre', 'Professionnels chargés de la surveillance']);
+      var poids = [5, 4, 8, 4, 10, 10, 7].concat(colPauses ? [7] : [], [6, 7, 9, 18]);
+      SIC.ui.pdfEtab.section(doc, 'Entrées du registre', entetes, entrees.map(function (e) {
+        return [e.numero || 'en cours', e.categorie, e.ipp || '—', e.age == null ? '—' : e.age, date(e.debut), e.fin ? date(e.fin) : 'en cours', duree(e.dureeHeures)]
+          .concat(colPauses ? [textePauses(e)] : [], [e.modeHospi || '—', e.lieu || '—', e.psychiatre || '—', e.professionnels.length ? e.professionnels.join(', ') : (e.categorie === 'A' || e.categorie === 'C' ? 'non renseigné' : '—')]);
+      }), poids, 6.5);
+      var octets = P.finir({ mentions: ['Catégories : ' + Object.keys(LIB_CAT).map(function (k) { return k + ' = ' + LIB_CAT[k]; }).join(' ; ') + '.'] });
+      exporter('registres', 'registre_' + svCode + '_' + anneeRegistre + '.pdf', octets, 'application/pdf', { service: svCode });
+    }
+
     return h('div', {},
       h('div', { class: 'barre' }, h('h1', { text: 'Registre des mesures' }), h('div', { class: 'espace' }),
         h('label', {}, 'Année', selAn),
+        h('button', { class: 'btn', disabled: !entrees.length, title: 'Avec le papier à en-tête du service (masque du décompte JLD)', onclick: function () { try { exporterPDF(); } catch (e) { toast(e.message); } } }, 'Enregistrer en PDF'),
         h('button', { class: 'btn', disabled: !entrees.length, onclick: exporterCSV }, 'Exporter (CSV)'),
         SIC.ui.actions.registreCADA && (App.session.peut('EDITION_CADA') || App.session.peut('CONFIG')) ? h('button', { class: 'btn', disabled: !entrees.length, title: 'Registre occulté, pour une demande de communication d’un tiers (CADA)', onclick: function () { SIC.ui.actions.registreCADA(svCode, anneeRegistre); } }, 'Version pour communication (CADA)…') : null,
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),

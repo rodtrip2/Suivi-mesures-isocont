@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.48.0 — 2 novembre 2026
+
+- **Registre en PDF** (bouton *Enregistrer en PDF* de l'onglet *Registre*) : synthèse par catégorie et entrées, avec le papier à en-tête, les marges, l'en-tête, le pied de page et le bloc signature du masque du décompte JLD du service, mention « document confidentiel », numéros de page. Fichier rangé dans les exports du service.
+- **Statistiques en PDF** : indicateurs N / N-1, catégories, suivi réglementaire, séquences, répartition mensuelle et méthode, avec le même papier à en-tête (masque de l'établissement pour plusieurs services).
+
 ## 1.47.0 — 2 novembre 2026
 
 - **Modes d'hospitalisation modifiables** (*Administration → Établissement et services*) : ajout (soins sur décision de justice, personne détenue, ordonnance de placement provisoire d'un mineur…), libellé, soins sans consentement ou soins libres ; un code déjà employé reste protégé.

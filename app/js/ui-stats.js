@@ -138,6 +138,25 @@
       } }]);
   }
 
+  /** Statistiques en PDF (papier à en-tête du service, ou de l'établissement pour plusieurs services). */
+  function exporterPDF(a, b, svs, titreSv) {
+    var P = U.pdfEtab.creer(svs.length === 1 ? svs[0] : null, 'L’isolement et la contention en chiffres — ' + b.annee, { sousTitre: titreSv + U.lieu('. Une mesure = une entrée du registre anonymisé terminée, comptée l’année de son début ; une contention en CSI couvre l’isolement qui l’accompagne.') });
+    var doc = P.doc, S = U.pdfEtab.section;
+    S(doc, 'Indicateurs', ['Indicateur', String(a.annee), String(b.annee), 'Évolution'], lignesRapport(a, b).map(function (l) { return [l[0], l[3](l[1]), l[3](l[2]), evolution(l[1], l[2])]; }), [52, 16, 16, 16]);
+    if (b.commentaires.length) doc.paragraphe('Commentaire : ' + b.commentaires.join(' ; '), { taille: 8, apres: 4 });
+    S(doc, 'Répartition par catégorie du registre', ['Catégorie', String(a.annee), String(b.annee)], Object.keys(b.categories).map(function (k) { return [k + ' — ' + U.lieu(M.LIB_CATEGORIES[k]), a.categories[k], b.categories[k]]; }), [64, 18, 18]);
+    S(doc, 'Suivi réglementaire', ['', String(a.annee), String(b.annee)], lignesConformite(a, b).map(function (l) { return [l[0], l[1], l[2]]; }), [64, 18, 18]);
+    var seq = U.methode.lignesSequences(a, b);
+    if (seq.length) S(doc, 'Séquences', ['', String(a.annee), String(b.annee), 'Évolution'], seq.map(function (l) { return [l[0], l[3](l[1]), l[3](l[2]), evolution(l[1], l[2])]; }), [52, 16, 16, 16]);
+    S(doc, 'Répartition mensuelle (mesures)', ['Mois', String(a.annee), String(b.annee)], b.mois.map(function (m, i) { return [MOIS[i], a.mois[i].mesures, m.mesures]; }), [50, 25, 25]);
+    var methode = U.methode.lignesCSV(b.annee).filter(function (l) { return l && l.length && l[0] !== 'Méthode de calcul'; });
+    if (methode.length) {
+      doc.paragraphe('Méthode', { taille: 10, style: 'gras', avant: 6, apres: 3 });
+      methode.forEach(function (l) { doc.paragraphe(l.filter(Boolean).join(' : '), { taille: 7.5, apres: 2 }); });
+    }
+    U.exporter('statistiques', 'statistiques_' + (svs.length === 1 ? svs[0] : 'services') + '_' + b.annee + '.pdf', P.finir(), 'application/pdf', { service: svs.length === 1 ? svs[0] : null });
+  }
+
   U.vues.stats = function (maintenant) {
     var svs = servicesChoisis(), etat = U.st();
     var a = M.statistiquesAnnee(etat, svs, annee - 1, maintenant), b = M.statistiquesAnnee(etat, svs, annee, maintenant);
@@ -148,6 +167,7 @@
         h('label', {}, 'Année du rapport', champAn),
         U.App.session.peut('STATS') ? h('button', { class: 'btn', onclick: function () { modaleSaisie(svs); } }, 'Saisir les effectifs (hospitalisation complète, soins sans consentement)') : null,
         h('button', { class: 'btn', onclick: function () { U.qualite.modaleRapport(svs, annee); } }, 'Rapport annuel (trame)…'),
+        h('button', { class: 'btn', title: 'Avec le papier à en-tête (masque du décompte JLD)', onclick: function () { try { exporterPDF(a, b, svs, titreSv); } catch (e) { U.toast(e.message); } } }, 'Enregistrer en PDF'),
         h('button', { class: 'btn', onclick: function () { exporterCSV(a, b, svs); } }, 'Exporter (CSV)'),
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),
       h('div', { class: 'seulement-impression' }, h('h2', { text: (U.etablissement() ? U.etablissement() + ' — ' : '') + 'L’isolement et la contention en chiffres — ' + titreSv + ' — ' + annee })),
