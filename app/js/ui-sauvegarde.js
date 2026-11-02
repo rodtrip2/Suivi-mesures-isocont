@@ -73,7 +73,7 @@
     return res;
   }
 
-  /** Texte à transmettre à la DSI : chemins, dates, identifiants de connexion ; aucune donnée de patient. */
+  /** Texte à transmettre au service informatique : chemins, dates, identifiants de connexion ; aucune donnée de patient. */
   function texteDSI(r) {
     var d = U.App.dossier, lignes = lignesAnomalies(r);
     return ['Suivi des mesures d’isolement et de contention — version ' + SIC.VERSION,
@@ -84,7 +84,7 @@
     })).join('\n');
   }
 
-  /** Bloc « Anomalies » d'Administration → Informations : détail, copie pour la DSI, réparation, quarantaine, prise d'acte, historique. */
+  /** Bloc « Anomalies » d'Administration → Informations : détail, copie pour le service informatique, réparation, quarantaine, prise d'acte, historique. */
   function blocIntegrite(r, rafraichir) {
     var s = U.App.session, admin = s.peut('INTEGRITE'), zoneErr = h('div'), out = h('div', { class: 'pile' }, zoneErr);
     var lignes = lignesAnomalies(r);
@@ -99,18 +99,18 @@
           return h('tr', {}, h('td', { text: l.nature }), h('td', { class: 'mono', text: l.chemin }), h('td', { text: s.nomAuteur(l.agent) }), h('td', { text: l.date ? U.date(l.date) : '—' }), h('td', { text: l.conseil }));
         }))));
       out.appendChild(h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
-        try { await navigator.clipboard.writeText(texte); U.toast('Liste copiée : collez-la dans votre demande à la DSI.'); }
+        try { await navigator.clipboard.writeText(texte); U.toast('Liste copiée : collez-la dans votre demande au service informatique.'); }
         catch (e) { repli.hidden = false; repli.select(); U.toast('Copie automatique impossible : sélectionnez le texte affiché.'); }
-      } }, 'Copier la liste pour la DSI')));
+      } }, 'Copier la liste pour le service informatique')));
       out.appendChild(repli);
-      out.appendChild(h('p', { class: 'muted', text: 'La liste ne contient que des chemins de fichiers, des dates et des identifiants de connexion : aucune donnée de patient. Si de nombreux fichiers deviennent illisibles en même temps, prévenez aussi le RSSI (attaque possible, voir la fiche « Alerte d’intégrité » du kit).' }));
+      out.appendChild(h('p', { class: 'muted', text: 'La liste ne contient que des chemins de fichiers, des dates et des identifiants de connexion : aucune donnée de patient. Si de nombreux fichiers deviennent illisibles en même temps, prévenez aussi le responsable de la sécurité informatique (RSSI) : il peut s’agir d’une attaque (voir la fiche « Alerte d’intégrité » du kit).' }));
 
       if (admin) {
         // Réparation depuis une copie complète
         if (!s.formation) {
           var fichier = h('input', { type: 'file', accept: '.json,application/json' });
           out.appendChild(h('h4', { text: 'Réparer depuis une copie de sauvegarde' }));
-          out.appendChild(h('p', { class: 'muted', text: 'Choisissez la copie de sauvegarde complète la plus récente (fichier téléchargé depuis cet écran, ou restitué par la DSI). L’outil ne remet que les fichiers absents ou illisibles, après avoir vérifié qu’ils s’ouvrent avec la clé de l’établissement ; il ne modifie jamais un fichier présent et lisible. Un fichier illisible remplacé est d’abord mis en quarantaine. Le contrôle est ensuite refait.' }));
+          out.appendChild(h('p', { class: 'muted', text: 'Choisissez la copie de sauvegarde complète la plus récente (fichier téléchargé depuis cet écran, ou restitué par le service informatique). L’outil ne remet que les fichiers absents ou illisibles, après avoir vérifié qu’ils s’ouvrent avec la clé de l’établissement ; il ne modifie jamais un fichier présent et lisible. Un fichier illisible remplacé est d’abord mis en quarantaine. Le contrôle est ensuite refait.' }));
           out.appendChild(h('div', { class: 'actions gauche' }, h('label', {}, 'Copie de sauvegarde (fichier .json)', fichier), h('button', { class: 'btn primaire', type: 'button', onclick: async function (ev) {
             var b = ev.currentTarget; erreur(null);
             try {
@@ -119,7 +119,7 @@
               b.disabled = true;
               var rap = await s.reparerDepuisCopie(copie);
               U.toast(rap.remis.length + ' fichier(s) remis' + (rap.invalides.length ? ', ' + rap.invalides.length + ' refusé(s) (ne s’ouvrent pas avec la clé actuelle)' : '') + '.');
-              if (!rap.remis.length) erreur(new Error('Aucun fichier manquant n’a été trouvé dans cette copie' + (rap.invalides.length ? ' (' + rap.invalides.length + ' fichier(s) refusé(s) : copie d’une autre installation ou abîmée)' : '') + '. Essayez une copie plus ancienne ou demandez les fichiers à la DSI.'));
+              if (!rap.remis.length) erreur(new Error('Aucun fichier manquant n’a été trouvé dans cette copie' + (rap.invalides.length ? ' (' + rap.invalides.length + ' fichier(s) refusé(s) : copie d’une autre installation ou abîmée)' : '') + '. Essayez une copie plus ancienne ou demandez les fichiers au service informatique.'));
               rafraichir();
             } catch (e) { erreur(e); } finally { b.disabled = false; }
           } }, 'Réparer')));
@@ -127,7 +127,7 @@
         // Quarantaine des fichiers illisibles
         if (r.fichiersIllisibles.length) {
           out.appendChild(h('h4', { text: 'Mettre à l’écart les fichiers illisibles' }));
-          out.appendChild(h('p', { class: 'muted', text: 'Les ' + r.fichiersIllisibles.length + ' fichier(s) illisible(s) sont déplacés dans le dossier « quarantaine » de l’outil, sans être supprimés : la DSI peut les examiner ou les restaurer. À faire après avoir tenté la réparation. Une saisie mise en quarantaine reste à restaurer ; si elle ne peut pas l’être, prenez-en acte.' }));
+          out.appendChild(h('p', { class: 'muted', text: 'Les ' + r.fichiersIllisibles.length + ' fichier(s) illisible(s) sont déplacés dans le dossier « quarantaine » de l’outil, sans être supprimés : le service informatique peut les examiner ou les restaurer. À faire après avoir tenté la réparation. Une saisie mise en quarantaine reste à restaurer ; si elle ne peut pas l’être, prenez-en acte.' }));
           out.appendChild(h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
             erreur(null);
             if (!confirm('Déplacer ' + r.fichiersIllisibles.length + ' fichier(s) illisible(s) dans le dossier « quarantaine » ? L’opération est tracée au journal.')) return;
@@ -136,7 +136,7 @@
           } }, 'Mettre en quarantaine')));
         }
         // Prise d'acte
-        var motif = h('textarea', { rows: 2, placeholder: 'Ex. : fichiers absents des sauvegardes de la DSI (ticket n° …), saisies ressaisies le …' });
+        var motif = h('textarea', { rows: 2, placeholder: 'Ex. : fichiers absents des sauvegardes du service informatique (ticket n° …), saisies ressaisies le …' });
         out.appendChild(h('h4', { text: 'Prendre acte (récupération impossible)' }));
         out.appendChild(h('p', { class: 'muted', text: 'Si les fichiers ne peuvent pas être récupérés (absents des sauvegardes), vérifiez les mesures concernées et ressaisissez ce qui doit l’être, puis prenez acte de ces anomalies avec un motif. L’alerte est alors close pour ces fichiers ; la décision est enregistrée au journal et listée ci-dessous. Toute nouvelle anomalie déclenche une nouvelle alerte.' }));
         out.appendChild(h('label', {}, 'Motif (obligatoire)', motif));
@@ -175,7 +175,7 @@
     var s = U.App.session, res = [], admin = s.peut('CONFIG');
     if (!(admin || s.peut('CORRECTION'))) return res;
     var pbs = texteIntegrite(s.integrite) || [];
-    if (pbs.length) res.push(h('li', { class: 'urgent' }, h('b', { text: 'Intégrité des données' }), ' — ' + pbs.join(' ; ') + '. ' + (admin ? 'Détail, liste à transmettre à la DSI, réparation ou prise d’acte : Administration → Informations.' : 'Prévenez l’administrateur.')));
+    if (pbs.length) res.push(h('li', { class: 'urgent' }, h('b', { text: 'Intégrité des données' }), ' — ' + pbs.join(' ; ') + '. ' + (admin ? 'Détail, liste à transmettre au service informatique, réparation ou prise d’acte : Administration → Informations.' : 'Prévenez l’administrateur.')));
     if (admin && !s.formation && U.App.dossier.mode !== 'demo') {
       var der = s.derniereCopie(), n = rappelJours();
       if (n && (!der || Date.now() - der > n * J)) res.push(h('li', {}, h('b', { text: 'Copie de sauvegarde' }), ' — ' + (der ? 'dernière copie complète le ' + U.date(der).slice(0, 10) : 'aucune copie complète téléchargée') + ' (rappel tous les ' + n + ' jours). Administration → Informations.'));
@@ -204,7 +204,7 @@
     }
     remplir();
     return h('section', { class: 'panneau' }, h('h2', { text: 'État des données et sauvegardes' }),
-      h('p', { class: 'muted', text: 'Le dossier réseau doit être sauvegardé par la DSI (au moins chaque jour, versions conservées 30 jours ou plus, une copie hors ligne ou non modifiable). Les copies ci-dessous la complètent ; elles restent chiffrées et ne s’ouvrent qu’avec un moyen de déblocage de l’outil.' }),
+      h('p', { class: 'muted', text: 'Le dossier réseau doit être sauvegardé par le service informatique (DSI ou direction du numérique, selon l’établissement) au moins chaque jour, avec des versions conservées 30 jours ou plus et une copie hors ligne ou non modifiable. Les copies ci-dessous la complètent ; elles restent chiffrées et ne s’ouvrent qu’avec un moyen de déblocage de l’outil.' }),
       zone,
       h('h3', { text: 'Copie du coffre sous scellé' }),
       h('p', { class: 'muted', text: 'À enregistrer sur une clé USB ou un CD conservé au coffre avec l’enveloppe du code de secours. Si le fichier coffre.json était perdu avec ses sauvegardes, cette copie et le code de secours suffisent à rouvrir toutes les données (les mots de passe des agents seront alors à réinitialiser). À refaire après chaque renouvellement du code de secours.' }),

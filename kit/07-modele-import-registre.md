@@ -2,7 +2,7 @@
 
 *Pour tout établissement, quel que soit son outil actuel de suivi des mesures.*
 
-Le registre prévu par l'article L. 3222-5-1 du code de la santé publique est le seul document que tout établissement tient obligatoirement sous forme numérique. Suivi-mesures-isocont peut donc reprendre l'historique d'un service à partir de son registre : exportez-le de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel, puis importez-le dans *Administration → Reprise des données → Importer un registre…*.
+Le registre prévu par l'article L. 3222-5-1 du code de la santé publique est le seul document que tout établissement tient obligatoirement sous forme numérique. Suivi-mesures-isocont peut donc reprendre l'historique d'un service à partir de son registre : exportez-le de votre outil (tableur, logiciel métier, dossier patient informatisé) au format CSV ou Excel, puis importez-le dans *Administration → Reprise des données → Importer un registre…*.
 
 Le fichier est lu dans le navigateur : rien n'est envoyé sur Internet. L'import est enregistré en un seul lot, annulable depuis le journal.
 
@@ -14,15 +14,15 @@ Une ligne = une **entrée** du registre.
 
 | Donnée | Obligatoire | Contenu attendu |
 | --- | --- | --- |
-| Identifiant du patient | oui | IPP ou identifiant utilisé par le registre |
+| Identifiant du patient | oui | IPP (identifiant permanent du patient) ou identifiant utilisé par le registre |
 | Début | oui | date et heure (JJ/MM/AAAA HH:MM, AAAA-MM-JJ HH:MM, ou date et heure dans deux colonnes) |
 | Type de mesure ou Catégorie | l'un des deux | Isolement / Contention, ou catégorie A à E (le type s'en déduit) ; un numéro qui commence par la catégorie (A12) suffit |
 | Numéro d'entrée | non | A12, ou 12 avec la catégorie dans sa colonne ; permet de conserver la numérotation |
 | Fin | non | date et heure ; vide = mesure en cours |
 | Durée (heures) | non | utilisée si la fin manque |
 | Service | non | code du service ; sinon, service choisi à l'import (services inconnus : à créer ou rattacher) |
-| Lieu, En CSI, Exception | non | à défaut, déduits de la catégorie (A, C en CSI ; B, D hors CSI ; E exception prévue) |
-| Mode d'hospitalisation | non | SDT, SDTU, SPI, SDRE, SL, SL mineur… |
+| Lieu, En CSI (chambre de soins intensifs), Exception | non | à défaut, déduits de la catégorie (A, C en CSI ; B, D hors CSI ; E exception prévue) |
+| Mode d'hospitalisation | non | SDT (soins à la demande d'un tiers), SDTU (en urgence), SPI (péril imminent), SDRE (sur décision du représentant de l'État), SL (soins libres), SL mineur… |
 | Psychiatre | non | psychiatre ayant décidé la mesure |
 | Professionnels chargés de la surveillance | non | séparés par « ; », fonction entre parenthèses : Agent A (IDE) ; Agent B (AS) |
 | Nom, prénom, date de naissance, âge | non | la date de naissance est à compléter ensuite si elle manque (l'âge sert seulement au contrôle) |
@@ -50,6 +50,6 @@ Avant de confirmer, l'écran d'import :
 
 ## Ce que le registre ne contient pas
 
-Les cycles JLD (information, saisine, décisions), l'information des tiers et la surveillance poste par poste ne figurent pas au registre : ils ne sont pas repris. Pour les mesures en cours au moment de la reprise, saisissez-les dans l'onglet JLD. Les soignants cités par le registre restent affichés dans le registre de l'outil.
+Les cycles du juge des libertés et de la détention, JLD (information, saisine, décisions), l'information des tiers et la surveillance poste par poste ne figurent pas au registre : ils ne sont pas repris. Pour les mesures en cours au moment de la reprise, saisissez-les dans l'onglet JLD. Les soignants cités par le registre restent affichés dans le registre de l'outil.
 
 Complétez ensuite dans l'onglet Patients les fiches des nouveaux patients (nom, date de naissance), et affectez les services créés aux comptes concernés.

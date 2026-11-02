@@ -328,7 +328,7 @@ test('Intégrité : prise d’acte par l’administrateur (motif obligatoire), n
   const ide = await connecter(racine, 'ide', 'autre mot de passe');
   await assert.rejects(ide.prendreActeIntegrite('test'), /rôle/);
   await assert.rejects(s.prendreActeIntegrite('  '), /obligatoire/);
-  await s.prendreActeIntegrite('Fichier perdu, absent des sauvegardes de la DSI (test fictif)');
+  await s.prendreActeIntegrite('Fichier perdu, absent des sauvegardes du service informatique (test fictif)');
   assert.equal(s.anomaliesIntegrite(), false);
   assert.equal(s.etat.integrite.historique.length, 1);
   assert.equal(s.etat.manquants.length, 0);

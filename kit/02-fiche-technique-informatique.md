@@ -1,4 +1,6 @@
-# Fiche technique — à l'attention de la DSI et du RSSI
+# Fiche technique — à l'attention du service informatique et du responsable de la sécurité informatique
+
+*Destinataires : le service informatique (DSI ou direction du numérique, selon l'établissement) et le responsable de la sécurité informatique (RSSI).*
 
 *Suivi-mesures-isocont 1.0 — application web statique, données chiffrées sur un partage réseau de l'établissement. Licence EUPL-1.2. Code source : https://github.com/rodtrip2/Suivi-mesures-isocont*
 
@@ -47,7 +49,7 @@
 | Mise en place | Serveur web existant (IIS, Apache, nginx) | Immédiate | Copie de fichiers |
 | Accès Internet requis | Non | Oui (chargement du code) | Non |
 | Clés de sécurité (WebAuthn) | Oui (nom de domaine et certificat valides) | Oui | Non |
-| Maîtrise de la version | DSI | Mainteneurs du projet | DSI |
+| Maîtrise de la version | Service informatique | Mainteneurs du projet | Service informatique |
 | Usage conseillé | **Production** | Démonstration, données fictives | Repli |
 
 Une clé de sécurité est liée au nom de domaine du site : elle doit être enregistrée dans chaque mode utilisé. Le mot de passe et le code de secours fonctionnent partout.
@@ -103,7 +105,7 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 - **Corrections et annulations** : ce sont de nouvelles saisies, avec leur motif. L'historique reste intact.
 - **Instantanés** : les saisies d'un mois clos sont regroupées dans un fichier chiffré `instantanes\AAAA-MM.enc`, lu en une fois. Les fichiers d'origine restent en place et font foi ; le dossier `instantanes` peut être supprimé sans perte (il est reconstruit).
 - Chaque saisie référence la précédente du même agent (chaînage) ; chaque agent laisse un **repère** chiffré (`reperes\<agent>.enc` : nombre de ses saisies, dernière saisie), dont le compteur ne recule jamais. Le contrôle d'intégrité (connexion, puis toutes les 15 minutes) signale les saisies disparues, les fichiers illisibles et les trous du chaînage.
-- **En cas d'anomalie**, l'administrateur transmet à la DSI la liste des fichiers (chemins relatifs `evenements\AAAA\MM\<nom>.enc`), à restaurer **à l'identique, au même chemin**. L'outil peut aussi réparer depuis une copie de sauvegarde complète : il ne remet que les fichiers absents ou illisibles, vérifiés avec la clé de l'établissement. Les fichiers illisibles peuvent être déplacés dans `quarantaine\AAAA\MM\` (jamais supprimés). Ces dossiers sont à sauvegarder avec le reste.
+- **En cas d'anomalie**, l'administrateur transmet au service informatique la liste des fichiers (chemins relatifs `evenements\AAAA\MM\<nom>.enc`), à restaurer **à l'identique, au même chemin**. L'outil peut aussi réparer depuis une copie de sauvegarde complète : il ne remet que les fichiers absents ou illisibles, vérifiés avec la clé de l'établissement. Les fichiers illisibles peuvent être déplacés dans `quarantaine\AAAA\MM\` (jamais supprimés). Ces dossiers sont à sauvegarder avec le reste.
 
 ### Mode formation
 
@@ -150,20 +152,20 @@ Chaque agent a sa propre copie emballée de la clé de données. Désactiver un 
 
 | Sujet | Analyse | À valider par |
 | --- | --- | --- |
-| Hébergement de données de santé (art. L. 1111-8 CSP) | Les données restent sur l'infrastructure de l'établissement, sans prestataire. La certification HDS s'impose à qui propose un service d'hébergement ; elle ne devrait donc pas s'appliquer ici, mais tout projet doit être examiné au cas par cas ([ANS](https://esante.gouv.fr/faq/quel-est-le-champ-dapplication-de-la-legislation-relative-lhebergement-de-donnees-de-sante-caractere-personnel)). Avec GitHub Pages, seul le code est servi par GitHub. | DPO, DSI |
-| RGPD | Traitement à inscrire au registre ; analyse d'impact probablement requise ([liste CNIL](https://www.cnil.fr/sites/default/files/atoms/files/liste-traitements-avec-aipd-requise-v2.pdf)). Éléments pré-remplis : document 05 du kit. | DPO |
-| Registre légal (art. L. 3222-5-1 CSP) | L'outil produit le registre ; son statut de support officiel relève d'une décision de l'établissement. | Direction |
-| Politique de sécurité | Navigateurs, clés USB, droits du partage, journalisation. | RSSI |
+| Hébergement de données de santé (art. L. 1111-8 code de la santé publique) | Les données restent sur l'infrastructure de l'établissement, sans prestataire. La certification d'hébergeur de données de santé (HDS) s'impose à qui propose un service d'hébergement ; elle ne devrait donc pas s'appliquer ici, mais tout projet doit être examiné au cas par cas ([Agence du numérique en santé](https://esante.gouv.fr/faq/quel-est-le-champ-dapplication-de-la-legislation-relative-lhebergement-de-donnees-de-sante-caractere-personnel)). Avec GitHub Pages, seul le code est servi par GitHub. | Délégué à la protection des données (DPO, référent RGPD), service informatique |
+| RGPD | Traitement à inscrire au registre ; analyse d'impact probablement requise ([liste CNIL](https://www.cnil.fr/sites/default/files/atoms/files/liste-traitements-avec-aipd-requise-v2.pdf)). Éléments pré-remplis : document 05 du kit. | Délégué à la protection des données (DPO, référent RGPD) |
+| Registre légal (art. L. 3222-5-1 code de la santé publique) | L'outil produit le registre ; son statut de support officiel relève d'une décision de l'établissement. | Direction |
+| Politique de sécurité | Navigateurs, clés USB, droits du partage, journalisation. | Responsable de la sécurité informatique |
 
 ## 11. Limites connues de la version 1.0
 
 - Pas de rotation automatique de la clé de données (désactiver un compte suffit pour un départ ; voir les procédures de secours).
 - Contrôle des rôles côté poste (voir le modèle de menace).
-- Pas d'interface avec le DPI : les décisions médicales y sont reportées manuellement.
+- Pas d'interface avec le dossier patient informatisé (DPI) : les décisions médicales y sont reportées manuellement.
 - Pas de notification hors de l'application (courriel, SMS) : les alertes s'affichent à l'ouverture.
 - Firefox et Safari ne permettent pas d'ouvrir un dossier réseau.
 
-## 12. Recette DSI — liste de contrôle
+## 12. Recette technique — liste de contrôle
 
 - [ ] Empreintes SHA-256 des fichiers vérifiées.
 - [ ] Application servie en HTTPS sur l'intranet ; certificat reconnu par les postes.

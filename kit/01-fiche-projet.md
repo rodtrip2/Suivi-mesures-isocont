@@ -6,7 +6,7 @@
 | --- | --- |
 | **Objet** | Suivre les durées des mesures d'isolement et de contention, anticiper l'information et la saisine du juge des libertés et de la détention (JLD), produire le registre anonymisé et le rapport annuel. |
 | **Pour qui** | Infirmiers, aides-soignants, secrétariat médical, cadres de santé des unités de psychiatrie ; direction des soins pour le rapport annuel. |
-| **Coût** | Aucun coût de licence. Mise en place : quelques heures de DSI, une formation courte des équipes. |
+| **Coût** | Aucun coût de licence. Mise en place : quelques heures du service informatique (DSI ou direction du numérique, selon l'établissement), une formation courte des équipes. |
 | **Où sont les données** | Dans un dossier du réseau de l'établissement, chiffrées. Rien n'est envoyé à l'extérieur. |
 | **Ce que l'outil ne fait pas** | Il ne remplace ni le dossier patient informatisé (DPI), ni la prescription médicale, ni la surveillance clinique. |
 
@@ -31,9 +31,9 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | Envois JLD | Secrétariat (et IDE le week-end) : enregistrement des informations, saisines et décisions reçues ; repérage des envois hors délai. |
 | Décompte JLD | Document imprimable, PDF ou CSV détaillant la durée cumulée, à joindre à la saisine. Présentation et données exportées réglées par un masque d'établissement ou propre à chaque service. |
 | Information des tiers | Traçabilité par cycle : qui a informé (psychiatre ou autre fonction prévue par l'établissement, liste paramétrable), quel tiers, ou pourquoi aucun tiers n'a pu l'être. |
-| Surveillance en CSI | Professionnels présents par poste, nécessaires au registre. |
+| Surveillance en chambre de soins intensifs (CSI) | Professionnels présents par poste, nécessaires au registre. |
 | Reprise de l'historique | À partir du registre du service, quel que soit l'outil utilisé jusque-là (export CSV ou Excel, colonnes à faire correspondre). Mesures reconstituées, numérotation conservée ou recalculée, contrôle et aperçu de l'impact avant import. |
-| Registre | Conforme à l'article L. 3222-5-1 (IPP, âge, mode d'hospitalisation, début, durée, psychiatre, soignants), catégories A à E, numérotation annuelle, impression et export. Version occultée pour les demandes de communication (CADA). |
+| Registre | Conforme à l'article L. 3222-5-1 (identifiant permanent du patient ou IPP, âge, mode d'hospitalisation, début, durée, psychiatre, soignants), catégories A à E, numérotation annuelle, impression et export. Version occultée pour les demandes de communication d'un tiers (droit d'accès aux documents administratifs, CADA). |
 | Rapport annuel | Indicateurs « L'isolement et la contention en chiffres » (année N et N-1), suivi réglementaire, répartition mensuelle, export pseudonymisé. |
 | Vigilance | Tableau de bord : échéances proches ou dépassées, tiers à renseigner, patients en soins libres, mineurs, cumuls élevés. |
 | Saisie à plusieurs | Plusieurs postes peuvent saisir en même temps sans perte d'information ; les saisies contradictoires sont signalées pour arbitrage. |
@@ -49,8 +49,8 @@ Suivi-mesures-isocont est né dans une unité d'hospitalisation psychiatrique, d
 | Cadre de santé | Pilotage, corrections tracées, registre, statistiques. |
 | Administrateur | Comptes (un par un ou en lot à partir d'une liste d'agents), services affectés à chaque compte, accès au mode formation, réinitialisation des mots de passe perdus, clés de secours, paramétrage, import. Rôle cumulable avec celui de cadre. |
 | Psychiatres | Non utilisateurs à ce stade : la décision et la prescription restent dans le DPI. |
-| DSI | Mise à disposition du dossier réseau et de l'application, sauvegardes, postes. |
-| DPO | Inscription au registre des traitements, analyse d'impact. |
+| Service informatique | Mise à disposition du dossier réseau et de l'application, sauvegardes, postes. |
+| Délégué à la protection des données (DPO, référent RGPD) | Inscription au registre des traitements, analyse d'impact. |
 
 Chaque agent ne voit que les services qui lui sont affectés. Les comptes sont créés avec un mot de passe provisoire, que l'agent doit obligatoirement remplacer à sa première connexion.
 
@@ -59,7 +59,7 @@ Chaque agent ne voit que les services qui lui sont affectés. Les comptes sont c
 - **Les données restent dans l'établissement**, sur un dossier du réseau, chiffrées (AES-256) sur le poste avant d'y être écrites.
 - **Aucun serveur à installer, aucune connexion sortante** : l'application est un ensemble de fichiers statiques qui ne peuvent rien envoyer sur Internet.
 - **Accès nominatifs**, mot de passe personnel imposé à la première connexion, rôles, verrouillage automatique, clés matérielles (YubiKey) et code de secours papier.
-- **Hébergement de données de santé** : les données n'étant confiées à aucun prestataire, la certification HDS ne devrait pas s'appliquer ; la qualification revient au DPO et à la DSI (voir la fiche technique).
+- **Hébergement de données de santé** : les données n'étant confiées à aucun prestataire, la certification d'hébergeur de données de santé (HDS) ne devrait pas s'appliquer ; la qualification revient au délégué à la protection des données et au service informatique (voir la fiche technique).
 - **RGPD** : traitement à inscrire au registre ; une analyse d'impact est probablement requise (données de santé de personnes vulnérables). Les éléments utiles sont fournis dans le kit.
 
 ## 6. Bénéfices attendus et indicateurs de suivi
@@ -76,9 +76,9 @@ Chaque agent ne voit que les services qui lui sont affectés. Les comptes sont c
 
 | Étape | Contenu | Durée indicative |
 | --- | --- | --- |
-| 1. Cadrage | Présentation de cette fiche à la direction, à la DSI et au DPO ; choix du mode d'hébergement. | 2 à 4 semaines |
-| 2. Validation | Fiche technique revue par la DSI et le RSSI ; registre des traitements et analyse d'impact par le DPO. | selon l'établissement |
-| 3. Installation | Dossier réseau, publication de l'application, test sur un poste type. | 1 demi-journée DSI |
+| 1. Cadrage | Présentation de cette fiche à la direction, au service informatique et au délégué à la protection des données ; choix du mode d'hébergement. | 2 à 4 semaines |
+| 2. Validation | Fiche technique revue par le service informatique et le responsable de la sécurité informatique (RSSI) ; registre des traitements et analyse d'impact par le délégué à la protection des données. | selon l'établissement |
+| 3. Installation | Dossier réseau, publication de l'application, test sur un poste type. | 1 demi-journée du service informatique |
 | 4. Paramétrage | Services, CSI, postes de surveillance, comptes, clés de secours ; import éventuel de l'existant. | 1 demi-journée |
 | 5. Pilote | Une unité, en parallèle de l'outil actuel, avec comparaison des échéances. | 1 à 2 mois |
 | 6. Généralisation | Autres unités, abandon de l'outil antérieur. | progressive |
@@ -104,12 +104,12 @@ Le logiciel n'est pas un dispositif médical : il n'émet aucune recommandation 
 ## 10. Décisions attendues
 
 - [ ] Accord de la direction et de la direction des soins pour un pilote.
-- [ ] Mode d'hébergement retenu par la DSI (intranet recommandé).
-- [ ] Inscription au registre des traitements et analyse d'impact par le DPO.
+- [ ] Mode d'hébergement retenu par le service informatique (intranet recommandé).
+- [ ] Inscription au registre des traitements et analyse d'impact par le délégué à la protection des données.
 - [ ] Reconnaissance de l'outil comme support du registre prévu à l'article L. 3222-5-1, ou articulation avec le registre existant.
 - [ ] Désignation de l'administrateur fonctionnel et des détenteurs des clés de secours.
 
 **Référent du projet dans l'établissement :** ______________________ — **Date :** ____ / ____ / ________
 
 ---
-*Sources : [article L. 3222-5-1 du code de la santé publique](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048447133) ; [ANS, champ d'application de l'hébergement de données de santé](https://esante.gouv.fr/faq/quel-est-le-champ-dapplication-de-la-legislation-relative-lhebergement-de-donnees-de-sante-caractere-personnel) ; [CNIL, liste des traitements pour lesquels une analyse d'impact est requise](https://www.cnil.fr/sites/default/files/atoms/files/liste-traitements-avec-aipd-requise-v2.pdf). Ce document ne constitue pas un avis juridique.*
+*Sources : [article L. 3222-5-1 du code de la santé publique](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048447133) ; [Agence du numérique en santé (ANS), champ d'application de l'hébergement de données de santé](https://esante.gouv.fr/faq/quel-est-le-champ-dapplication-de-la-legislation-relative-lhebergement-de-donnees-de-sante-caractere-personnel) ; [CNIL, liste des traitements pour lesquels une analyse d'impact est requise](https://www.cnil.fr/sites/default/files/atoms/files/liste-traitements-avec-aipd-requise-v2.pdf). Ce document ne constitue pas un avis juridique.*

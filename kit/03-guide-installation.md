@@ -1,8 +1,8 @@
 # Guide d'installation et de mise en service
 
-*Pour la DSI (étapes 1 à 3) et l'administrateur fonctionnel, en général un cadre de santé (étapes 4 à 7).*
+*Pour le service informatique — DSI ou direction du numérique, selon l'établissement — (étapes 1 à 3) et l'administrateur fonctionnel, en général un cadre de santé (étapes 4 à 7).*
 
-## 1. Récupérer et vérifier l'application (DSI)
+## 1. Récupérer et vérifier l'application (service informatique)
 
 1. Télécharger la version voulue depuis https://github.com/rodtrip2/Suivi-mesures-isocont (bouton *Code → Download ZIP*, ou page des versions).
 2. Seul le dossier `app/` est nécessaire au fonctionnement.
@@ -14,11 +14,11 @@
 
    Comparer avec `app/EMPREINTES-SHA256.txt`. Toute différence doit être expliquée avant la mise en service.
 
-## 2. Créer le dossier de données (DSI)
+## 2. Créer le dossier de données (service informatique)
 
 1. Créer un dossier vide sur un partage sauvegardé, par exemple `\\serveur\donnees\SuiviIsoCont`.
 2. Droits NTFS : **Modifier** pour le groupe des utilisateurs de l'outil (IDE, secrétariat, cadres des unités concernées) ; retirer l'héritage des groupes plus larges.
-3. Vérifier que le dossier est inclus dans les sauvegardes, avec ces exigences minimales à demander à la DSI :
+3. Vérifier que le dossier est inclus dans les sauvegardes, avec ces exigences minimales à demander au service informatique :
    - sauvegarde **au moins quotidienne** du dossier, versions conservées **30 jours ou plus** ;
    - **une copie hors ligne ou non modifiable** (protection contre un rançongiciel) ;
    - droits du dossier limités aux comptes des agents habilités (pas de suppression possible par d'autres utilisateurs) ;
@@ -26,7 +26,7 @@
    Après l'initialisation, l'administrateur télécharge la **copie du coffre sous scellé** (*Administration → Informations*) et la range au coffre avec le code de secours.
 4. Rendre le dossier accessible depuis les postes : lecteur réseau mappé ou chemin UNC.
 
-## 3. Publier l'application (DSI)
+## 3. Publier l'application (service informatique)
 
 **Intranet (recommandé)** — copier le contenu de `app/` dans un site web statique servi en HTTPS, par exemple `https://intranet.etablissement.fr/isocont/`. Ajouter les en-têtes conseillés dans la fiche technique (section 3). Diffuser le lien sur les postes (favori, raccourci).
 
@@ -59,7 +59,7 @@ Onglet *Administration* :
 | Établissement et services | Nom de l'établissement (en-tête des documents), services (code ; libellé), chambres de soins intensifs par service, liste des psychiatres. |
 | Postes de surveillance | Postes par défaut (matin, après-midi, nuit…) ou propres à un service (par exemple jour et nuit en 12 h). |
 | Règles légales | Valeurs par défaut conformes aux textes en vigueur : ne les modifier qu'en cas d'évolution réglementaire. |
-| Pauses (levées temporaires) | Par défaut, la levée temporaire est active, les pauses restent comptées dans les durées, sans reprise automatique, alerte au-delà de 12 h et refus à 48 h, colonne « Levées temporaires » affichée dans le registre. Si les pauses ne sont pas déduites, la fonction peut être désactivée. Si elles le sont, choisir la portée : délais JLD seulement (registre et statistiques en durée réelle) ou partout. Déduire la durée des pauses du cumul reporte les échéances JLD : décision de la direction, à tracer dans le projet d'établissement. |
+| Pauses (levées temporaires) | Par défaut, la levée temporaire est active, les pauses restent comptées dans les durées, sans reprise automatique, alerte au-delà de 12 h et refus à 48 h, colonne « Levées temporaires » affichée dans le registre. Si les pauses ne sont pas déduites, la fonction peut être désactivée. Si elles le sont, choisir la portée : délais du juge des libertés et de la détention (JLD) seulement (registre et statistiques en durée réelle) ou partout. Déduire la durée des pauses du cumul reporte les échéances JLD : décision de la direction, à tracer dans le projet d'établissement. |
 | Masques du décompte JLD | Un masque pour l'établissement, et si besoin un masque propre à chaque service : en-tête, destinataire, bandeau confidentiel, données d'identité, colonnes (choix et ordre), format des durées et du cumul (heures, jours, ou les deux), durée maximale d'une ligne par type de mesure, mise en évidence de la mesure actuelle ou grisé des mesures antérieures, sections (dont date d'édition et auteur, séparément), pied de page, signature, papier à en-tête (image A4 PNG ou JPEG, marges du texte). Aperçu sur un patient fictif. Pour imprimer avec le papier à en-tête : format A4, marges « par défaut » dans la fenêtre d'impression. À valider avec le greffe du JLD. |
 | Onglet Patients : statistiques annuelles | Colonnes regroupant des catégories du registre (par défaut : isolement seul A–B, contention seule D–E signalée si non nulle, isolement + contention C). |
 | Registre | Dernier numéro du registre papier de l'année en cours, si l'outil démarre en cours d'année. |
@@ -86,14 +86,14 @@ Le mode formation ne demande aucune installation : le jeu de données fictives e
 
 ### Reprise de l'historique
 
-L'historique se reprend **à partir du registre du service**, quel que soit l'outil utilisé jusque-là : *Administration → Reprise des données → Importer un registre…*. Exportez le registre de votre outil (tableur, logiciel métier, DPI) au format CSV ou Excel ; l'écran d'import propose la correspondance des colonnes, et un modèle est téléchargeable. Le format attendu et la reconstitution des mesures sont détaillés dans la fiche 07 — Reprise à partir du registre.
+L'historique se reprend **à partir du registre du service**, quel que soit l'outil utilisé jusque-là : *Administration → Reprise des données → Importer un registre…*. Exportez le registre de votre outil (tableur, logiciel métier, dossier patient informatisé) au format CSV ou Excel ; l'écran d'import propose la correspondance des colonnes, et un modèle est téléchargeable. Le format attendu et la reconstitution des mesures sont détaillés dans la fiche 07 — Reprise à partir du registre.
 
 Avant validation, l'écran d'import :
 - liste les **services du fichier absents de l'outil** : chacun peut être créé (libellé modifiable) ou rattaché à un service existant (toutes ses données y sont reprises) ;
 - propose pour chaque service et chaque année le **compteur du registre** (dernier numéro utilisé avant l'outil), modifiable ;
 - **contrôle la numérotation** : il compare les numéros du fichier (A11, D12…) à ceux que l'outil attribuera, et explique chaque écart (catégorie différente, numéro décalé, mesure formant plusieurs entrées) ;
 - demande comment traiter les entrées **déjà numérotées** : *laisser tel quel* (catégorie et numéro d'origine conservés, l'outil numérote les mesures suivantes en sautant ces numéros — choix par défaut), *recalculer l'année en cours*, ou *recalculer toutes les années* (avertissement : les statistiques des années passées peuvent changer). Ce choix reste modifiable année par année dans *Administration → Registre et statistiques → Registre*, le compteur étant alors recalculé ;
-- affiche, **avant de confirmer**, l'impact de chacun des trois choix sur le registre et les statistiques de chaque année concernée (entrées et durée cumulée par catégorie A à E, durées, heures de CSI, patients, numéros attribués), valeurs différentes surlignées, et le détail des mesures modifiées avec l'explication de leur catégorie (règle appliquée, lieu, case « exception », écart avec le fichier) ;
+- affiche, **avant de confirmer**, l'impact de chacun des trois choix sur le registre et les statistiques de chaque année concernée (entrées et durée cumulée par catégorie A à E, durées, heures en chambre de soins intensifs (CSI), patients, numéros attribués), valeurs différentes surlignées, et le détail des mesures modifiées avec l'explication de leur catégorie (règle appliquée, lieu, case « exception », écart avec le fichier) ;
 - permet, mesure par mesure, de garder le numéro d'origine ou d'appliquer la règle de l'outil, et de corriger le lieu (CSI ou non) ou la case « exception » ; la correction est tracée avec la mesure, le fichier d'origine n'est pas modifié.
 
 Le rapport d'import liste aussi les lignes ignorées et les points à vérifier. Le registre ne contenant ni les cycles JLD ni l'information des tiers, vérifiez les mesures en cours dans l'onglet JLD. Pensez ensuite à compléter les fiches des nouveaux patients et à affecter les services créés aux comptes concernés.
@@ -116,4 +116,4 @@ Le rapport d'import liste aussi les lignes ignorées et les points à vérifier.
 
 1. Former les agents (20 à 30 minutes, guide utilisateur).
 2. Démarrer par une unité pilote, en parallèle de l'outil antérieur pendant quelques semaines, en comparant les échéances.
-3. Faire le point avec la DSI, le DPO et l'encadrement avant d'étendre.
+3. Faire le point avec le service informatique, le délégué à la protection des données (DPO, référent RGPD) et l'encadrement avant d'étendre.

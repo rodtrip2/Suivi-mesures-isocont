@@ -253,7 +253,7 @@
 
   /**
    * Met un fichier de saisie à l'écart dans quarantaine/AAAA/MM (copie relue, puis retrait du dossier
-   * en service). Rien n'est supprimé : la DSI peut l'examiner ou le restaurer.
+   * en service). Rien n'est supprimé : le service informatique peut l'examiner ou le restaurer.
    */
   Dossier.prototype.mettreEnQuarantaine = async function (chemin) {
     var parties = cheminSur(chemin);

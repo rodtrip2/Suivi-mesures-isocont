@@ -24,7 +24,7 @@
   function lignesRapport(a, b) {
     return [
       ['Patients hospitalisés en hospitalisation complète (HC) — à saisir', a.patientsHC, b.patientsHC, n],
-      ['Patients hospitalisés sous contrainte (SSC) — à saisir', a.patientsSSC, b.patientsSSC, n],
+      ['Patients en soins sans consentement (SSC) — à saisir', a.patientsSSC, b.patientsSSC, n],
       ['Nombre de mesures (entrées du registre terminées)', a.mesures, b.mesures, n],
       ['Patients distincts ayant fait l’objet d’un isolement', a.patientsIsolement, b.patientsIsolement, n],
       ['Patients distincts ayant fait l’objet d’une contention', a.patientsContention, b.patientsContention, n],
@@ -37,8 +37,8 @@
       ['Durée maximale', a.duree.max, b.duree.max, heures],
       ['Durée cumulée des mesures', a.duree.total, b.duree.total, heures],
       ['Heures d’utilisation de la CSI (isolement et contention en CSI)', a.heuresCSI, b.heuresCSI, heures],
-      ['Part des patients HC ayant fait l’objet d’une mesure', a.partPatientsHC, b.partPatientsHC, pct],
-      ['Part des patients SSC ayant fait l’objet d’une mesure', a.partPatientsSSC, b.partPatientsSSC, pct]
+      ['Part des patients en hospitalisation complète ayant fait l’objet d’une mesure', a.partPatientsHC, b.partPatientsHC, pct],
+      ['Part des patients en soins sans consentement ayant fait l’objet d’une mesure', a.partPatientsSSC, b.partPatientsSSC, pct]
     ];
   }
 
@@ -115,7 +115,7 @@
 
   function modaleSaisie(svs) {
     var etat = U.st(), champs = [];
-    var corps = h('div', { class: 'pile' }, h('p', { class: 'muted', text: 'Ces chiffres ne figurent pas dans l’outil : ils sont généralement fournis par le DIM ou le bureau des entrées.' }));
+    var corps = h('div', { class: 'pile' }, h('p', { class: 'muted', text: 'Ces chiffres ne figurent pas dans l’outil : ils sont généralement fournis par le département d’information médicale (DIM) ou le bureau des entrées.' }));
     svs.forEach(function (sv) {
       [annee - 1, annee].forEach(function (an) {
         var x = (etat.saisiesStats[sv] || {})[an] || {};
@@ -147,7 +147,7 @@
     return h('div', {},
       h('div', { class: 'barre' }, h('h1', { text: 'Statistiques' }), h('div', { class: 'espace' }),
         h('label', {}, 'Année du rapport', champAn),
-        U.App.session.peut('STATS') ? h('button', { class: 'btn', onclick: function () { modaleSaisie(svs); } }, 'Saisir patients HC / SSC') : null,
+        U.App.session.peut('STATS') ? h('button', { class: 'btn', onclick: function () { modaleSaisie(svs); } }, 'Saisir les effectifs (hospitalisation complète, soins sans consentement)') : null,
         h('button', { class: 'btn', onclick: function () { U.qualite.modaleRapport(svs, annee); } }, 'Rapport annuel (trame)…'),
         h('button', { class: 'btn', onclick: function () { exporterCSV(a, b, svs); } }, 'Exporter (CSV)'),
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),

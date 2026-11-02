@@ -5,13 +5,13 @@
 Application web statique, gratuite et libre (EUPL-1.2) : les données restent dans un dossier du réseau de l'établissement, chiffrées sur le poste avant d'y être écrites. Aucun serveur à installer, aucune connexion sortante.
 
 - **Démonstration** (données fictives) : https://rodtrip2.github.io/Suivi-mesures-isocont/ → *Mode démonstration*
-- **Kit de déploiement** pour tout établissement : [`kit/`](kit/) — fiche projet, fiche technique DSI, guide d'installation, procédures de secours, éléments RGPD/AIPD, guide utilisateur (Markdown et PDF)
+- **Kit de déploiement** pour tout établissement : [`kit/`](kit/) — fiche projet, fiche technique pour le service informatique, guide d'installation, procédures de secours, éléments RGPD et analyse d'impact (AIPD), guide utilisateur (Markdown et PDF)
 
-> Aucune donnée réelle ne doit être saisie avant la validation de l'établissement (DSI, DPO, direction). En mode démonstration, les données restent dans le navigateur.
+> Aucune donnée réelle ne doit être saisie avant la validation de l'établissement (direction, service informatique (DSI ou direction du numérique, selon l'établissement), délégué à la protection des données (DPO, référent RGPD)). En mode démonstration, les données restent dans le navigateur.
 
 ## Positionnement
 
-Le DPI couvre la prescription médicale et la surveillance infirmière. Cet outil complète ce qu'il fait mal : **suivi des durées, calendrier JLD, registre anonymisé et statistiques**. Les IDE y reportent les décisions médicales de début et de fin de mesure ; les psychiatres ne sont pas utilisateurs.
+Le dossier patient informatisé (DPI) couvre la prescription médicale et la surveillance infirmière. Cet outil complète ce qu'il fait mal : **suivi des durées, calendrier JLD, registre anonymisé et statistiques**. Les IDE y reportent les décisions médicales de début et de fin de mesure ; les psychiatres ne sont pas utilisateurs.
 
 ## Fonctions
 
@@ -21,7 +21,7 @@ Le DPI couvre la prescription médicale et la surveillance infirmière. Cet outi
 | Échéances JLD calculées (cumul 15 jours, cycles, rythme des mesures longues, mainlevée), alertes | tous |
 | Envois JLD (information, saisine, décision), décompte imprimable | secrétaire, IDE et AS (en permanence, usage prévu le week-end) |
 | Information des tiers par cycle (psychiatre ou autre fonction paramétrable) | IDE, AS, cadre |
-| Professionnels chargés de la surveillance en CSI, par poste | IDE, AS, cadre |
+| Professionnels chargés de la surveillance en chambre de soins intensifs (CSI), par poste | IDE, AS, cadre |
 | Registre anonymisé A–E, statistiques annuelles N/N-1, exports | cadre |
 | Corrections et annulations tracées, arbitrage des saisies concurrentes | cadre |
 | **Mode formation** choisi à la connexion : jeu de données fictives chiffré à part (sous-dossier du partage), avec son vrai compte, ses rôles et ses services ; bandeau violet ; accès désactivable par compte | tous (sauf accès retiré par l'administrateur) |
@@ -37,7 +37,7 @@ Chaque agent (hors administrateur) ne voit que les services qui lui sont affect�
 - **Journal d'événements en ajout seul** : une saisie = un fichier chiffré, jamais modifié ; saisie simultanée sans perte ; conflits signalés ; instantanés mensuels.
 - **Règles légales isolées et testées** (`npm test`, Node.js ≥ 20).
 
-Détails : [fiche technique](kit/02-fiche-technique-dsi.md) et [architecture](docs/architecture.md). Successeur du classeur Excel/VBA [Suivi_Isolement_Contention](https://github.com/rodtrip2/Suivi_Isolement_Contention) (V1.3), dont il reprend les calculs.
+Détails : [fiche technique](kit/02-fiche-technique-informatique.md) et [architecture](docs/architecture.md). Successeur du classeur Excel/VBA [Suivi_Isolement_Contention](https://github.com/rodtrip2/Suivi_Isolement_Contention) (V1.3), dont il reprend les calculs.
 
 ## Arborescence
 

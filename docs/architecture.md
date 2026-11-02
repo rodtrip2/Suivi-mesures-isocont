@@ -1,6 +1,6 @@
 # Architecture — Suivi-mesures-isocont 1.0
 
-Document de référence pour les développeurs. La présentation destinée à la DSI est dans [kit/02-fiche-technique-dsi.md](../kit/02-fiche-technique-dsi.md).
+Document de référence pour les développeurs. La présentation destinée au service informatique est dans [kit/02-fiche-technique-informatique.md](../kit/02-fiche-technique-informatique.md).
 
 ## 1. Périmètre fonctionnel
 

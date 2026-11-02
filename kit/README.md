@@ -5,16 +5,16 @@ Tout ce qu'il faut pour présenter, valider, installer et exploiter Suivi-mesure
 | Document | Pour qui | Usage |
 | --- | --- | --- |
 | [01 — Fiche projet](01-fiche-projet.md) | Direction, direction des soins, encadrement, instances | Présenter le projet et obtenir les décisions |
-| [02 — Fiche technique](02-fiche-technique-dsi.md) | DSI, RSSI | Architecture, sécurité, prérequis, recette technique |
-| [03 — Guide d'installation](03-guide-installation.md) | DSI, administrateur fonctionnel | Mise en service pas à pas |
-| [04 — Procédures de secours](04-procedures-secours.md) | Administrateur, cadres, DSI | Mots de passe, clés, départs, panne, restauration ; fiche papier dégradée |
-| [05 — Éléments RGPD et AIPD](05-elements-rgpd-aipd.md) | DPO | Fiche du registre des traitements et préparation de l'analyse d'impact |
+| [02 — Fiche technique](02-fiche-technique-informatique.md) | Service informatique (DSI ou direction du numérique), responsable de la sécurité informatique (RSSI) | Architecture, sécurité, prérequis, recette technique |
+| [03 — Guide d'installation](03-guide-installation.md) | Service informatique, administrateur fonctionnel | Mise en service pas à pas |
+| [04 — Procédures de secours](04-procedures-secours.md) | Administrateur, cadres, service informatique | Mots de passe, clés, départs, panne, restauration ; fiche papier dégradée |
+| [05 — Éléments RGPD et analyse d'impact (AIPD)](05-elements-rgpd-aipd.md) | Délégué à la protection des données (DPO, référent RGPD) | Fiche du registre des traitements et préparation de l'analyse d'impact |
 | [06 — Guide utilisateur](06-guide-utilisateur.md) | IDE, secrétariat, cadres | Formation des équipes |
 | [07 — Reprise à partir du registre](07-modele-import-registre.md) | Administrateur fonctionnel, cadres | Format du registre à importer, reconstitution des mesures, contrôles avant import |
 
 ## Parcours de déploiement
 
-1. **Présenter** la fiche projet (01) à la direction, la fiche technique (02) à la DSI, les éléments RGPD (05) au DPO.
+1. **Présenter** la fiche projet (01) à la direction, la fiche technique (02) au service informatique, les éléments RGPD (05) au délégué à la protection des données.
 2. **Valider** : mode d'hébergement, registre des traitements, analyse d'impact, statut du registre légal.
 3. **Installer** selon le guide (03) et faire la recette.
 4. **Former** les équipes avec le guide utilisateur (06) ; imprimer les procédures de secours (04).

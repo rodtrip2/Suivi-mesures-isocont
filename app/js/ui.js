@@ -161,7 +161,7 @@
       h('h1', { text: formation ? 'Ce dossier est un jeu de formation' : App.anomalie === 'coffre-illisible' ? 'Coffre illisible' : 'Coffre introuvable' }),
       h('div', { class: 'erreur', text: formation
         ? 'Vous avez ouvert le sous-dossier « formation », qui contient le jeu de données fictives. Ouvrez le dossier principal (le dossier parent) ; le mode formation se choisit ensuite à la connexion.'
-        : (App.anomalie === 'coffre-illisible' ? 'Le fichier coffre.json de ce dossier est abîmé' : 'Ce dossier contient des saisies mais pas de fichier coffre.json') + ' : sans coffre, les données ne peuvent pas être lues. Ne réinitialisez pas ce dossier. Restaurez une version précédente du coffre ci-dessous, ou la copie sous scellé ; à défaut, faites restaurer coffre.json depuis la sauvegarde par la DSI (voir les procédures de secours).' }),
+        : (App.anomalie === 'coffre-illisible' ? 'Le fichier coffre.json de ce dossier est abîmé' : 'Ce dossier contient des saisies mais pas de fichier coffre.json') + ' : sans coffre, les données ne peuvent pas être lues. Ne réinitialisez pas ce dossier. Restaurez une version précédente du coffre ci-dessous, ou la copie sous scellé ; à défaut, faites restaurer coffre.json depuis la sauvegarde par le service informatique (voir les procédures de secours).' }),
       formation ? null : SIC.ui.sauvegarde.blocRestaurationCoffre(demarrerSession),
       h('div', { class: 'actions' }, h('button', { class: 'btn' + (formation ? ' primaire' : ''), onclick: changerDossier }, 'Choisir un autre dossier'))));
   }
@@ -1452,7 +1452,7 @@
         h('p', { text: '« Le médecin réitère l’information susmentionnée lors de chaque saisine du juge des libertés et de la détention. »' })),
       h('small', { class: 'muted', text: 'Version en vigueur depuis le 1er septembre 2024.' }),
       h('div', { class: 'note-qpc' },
-        h('b', { text: 'À savoir : décision du Conseil constitutionnel n° 2024-1127 QPC du 5 mars 2025' }),
+        h('b', { text: 'À savoir : décision du Conseil constitutionnel n° 2024-1127 QPC (question prioritaire de constitutionnalité) du 5 mars 2025' }),
         h('ul', {},
           h('li', {}, h('b', { text: 'Situation visée : ' }), 'le renouvellement d’un isolement ou d’une contention chez un patient majeur protégé (tutelle, curatelle…).'),
           h('li', {}, h('b', { text: 'Ce qui a été jugé : ' }), 'la loi n’obligeait pas à informer la personne chargée de la mesure de protection. Or un majeur protégé peut ne pas être en état de défendre seul ses droits, notamment de demander au juge la levée de la mesure. Le Conseil y a vu une atteinte au droit à un recours effectif devant un juge.'),

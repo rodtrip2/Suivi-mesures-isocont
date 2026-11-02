@@ -42,7 +42,7 @@
   }
 
   function csv(service, annee, r, reference) {
-    var lignes = [['Registre des mesures d’isolement et de contention — ' + U.libService(service) + ' — ' + annee + ' — version occultée pour communication (CRPA)'],
+    var lignes = [['Registre des mesures d’isolement et de contention — ' + U.libService(service) + ' — ' + annee + ' — version occultée pour communication (code des relations entre le public et l’administration)'],
       ['Occultations : ' + r.occultations.join(' ; ')]];
     if (reference) lignes.push(['Demande : ' + reference]);
     lignes.push([]); lignes.push(r.colonnes);
@@ -77,7 +77,7 @@
       return U.App.session.tracer('EDITION_CADA', { libelle: U.libService(service) + ' ' + annee + ' — ' + format + (reference.value.trim() ? ' — ' + reference.value.trim() : '') + ' — ' + calculer().occultations.join(' ; ') });
     }
     U.modale('Registre pour communication (CADA) — ' + U.libService(service) + ' ' + annee, h('div', { class: 'pile' },
-      h('div', { class: 'alerte', text: 'Le registre légal n’est présenté de droit qu’à la commission départementale des soins psychiatriques, au Contrôleur général des lieux de privation de liberté et aux parlementaires. Pour toute autre demande (accès aux documents administratifs), il ne peut être communiqué qu’après occultation de toute donnée permettant d’identifier les patients ou les soignants (Conseil d’État, 8 février 2023, n° 455887). Les choix recommandés sont présélectionnés ; faites valider la version communiquée par la direction ou le service juridique.' }),
+      h('div', { class: 'alerte', text: 'Le registre légal n’est présenté de droit qu’à la commission départementale des soins psychiatriques, au Contrôleur général des lieux de privation de liberté et aux parlementaires. Pour toute autre demande (droit d’accès aux documents administratifs, sous le contrôle de la Commission d’accès aux documents administratifs, CADA), il ne peut être communiqué qu’après occultation de toute donnée permettant d’identifier les patients ou les soignants (Conseil d’État, 8 février 2023, n° 455887). Les choix recommandés sont présélectionnés ; faites valider la version communiquée par la direction ou le service juridique.' }),
       grille,
       h('label', {}, 'Référence de la demande (figure sur le document et dans le journal)', reference),
       resume, apercu,

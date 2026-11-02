@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.34.1 — 2 novembre 2026
+
+- **Sigles** : « DSI », qui se lit à l'hôpital « Direction des soins infirmiers », est remplacé par « service informatique » (à la première mention : « service informatique (DSI ou direction du numérique, selon l'établissement) ») ; « DPO » par « délégué à la protection des données (DPO, référent RGPD) » ; « RSSI » par « responsable de la sécurité informatique ». Interface et kit.
+- Autres sigles écrits en toutes lettres à leur première mention (CADA, CRPA, CDSP, CGLPL, HDS, DIM, AIPD, QPC, CSI, IPP, JLD, HAS, modes d'hospitalisation SDT, SDTU, SPI, SDRE) ; statistiques : « patients en hospitalisation complète », « patients en soins sans consentement » au lieu de « HC » et « SSC ».
+- La fiche technique du kit devient `02-fiche-technique-informatique` (PDF compris) ; « Recette DSI » devient « Recette technique ».
+
 ## 1.34.0 — 2 novembre 2026
 
 - **Anomalie d'intégrité : que faire ?** Dans *Administration → Informations*, le contrôle d'intégrité détaille désormais chaque anomalie (nature, chemin du fichier, agent, date de la saisie) et propose :
