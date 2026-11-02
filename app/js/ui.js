@@ -451,7 +451,7 @@
     var age = s.derniereSynchro ? Math.round((maintenant - s.derniereSynchro) / 1000) : null;
     zoneEntete.appendChild(h('div', { class: 'entete-haut' }, marque(etablissement() || App.dossier.nom), h('div', { class: 'espace' }), mesSv.length ? selService : null,
       h('div', { class: 'statut-synchro', title: s.evts.length + ' saisies dans le journal' }, h('span', { class: 'point' }), age !== null ? 'Synchronisé' : '—'),
-      h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.ROLES[r]; }).join(' · ')),
+      h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.libRole(config(), r); }).join(' · ')),
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
       boutonTheme(),
       h('button', { class: 'btn petit', title: 'Licence, crédits, signaler un problème', onclick: function () { SIC.ui.apropos.modale(); } }, 'À propos'),
@@ -759,7 +759,7 @@
       h('div', { class: 'barre' }, h('h1', { text: 'Registre des mesures' }), h('div', { class: 'espace' }),
         h('label', {}, 'Année', selAn),
         h('button', { class: 'btn', disabled: !entrees.length, onclick: exporterCSV }, 'Exporter (CSV)'),
-        SIC.ui.actions.registreCADA && (App.session.peut('STATS') || App.session.peut('CONFIG')) ? h('button', { class: 'btn', disabled: !entrees.length, title: 'Registre occulté, pour une demande de communication d’un tiers (CADA)', onclick: function () { SIC.ui.actions.registreCADA(svCode, anneeRegistre); } }, 'Version pour communication (CADA)…') : null,
+        SIC.ui.actions.registreCADA && (App.session.peut('EDITION_CADA') || App.session.peut('CONFIG')) ? h('button', { class: 'btn', disabled: !entrees.length, title: 'Registre occulté, pour une demande de communication d’un tiers (CADA)', onclick: function () { SIC.ui.actions.registreCADA(svCode, anneeRegistre); } }, 'Version pour communication (CADA)…') : null,
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),
       h('div', { class: 'seulement-impression' }, h('h2', { text: (etablissement() ? etablissement() + ' — ' : '') + 'Registre des mesures d’isolement et de contention — ' + libService(svCode) + ' — ' + anneeRegistre }), h('p', { text: 'Article L. 3222-5-1 du code de la santé publique. Édité le ' + date(Date.now()) + '.' })),
       svCode ? h('p', { class: 'muted', text: libService(svCode) + ' — registre prévu par l’article L. 3222-5-1 du CSP, à présenter à la commission départementale des soins psychiatriques, au Contrôleur général des lieux de privation de liberté et aux parlementaires. Le patient y est désigné par son IPP. Pour toute autre demande (CADA), utilisez la version pour communication.' + (App.service === '*' ? ' Choisissez un service en haut de page pour changer de service.' : '') }) : null,
@@ -789,7 +789,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', organisationJLD: 'Organisation des envois au JLD', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -860,6 +860,7 @@
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + lieu(', surveillance hors CSI ') + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
+      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
       case 'organisationJLD': return String(v || '').trim() ? '« ' + String(v).trim() + ' »' : 'aucun texte';
       case 'lieuIsolement': var ll = M.libLieu({ lieuIsolement: v }); return ll.long + ' (' + ll.court + ')';
       case 'sauvegarde': return v && v.rappelJours ? 'tous les ' + v.rappelJours + ' jours' : 'aucun rappel';
@@ -953,7 +954,7 @@
           (cible.type === 'MESURE_DEBUT' ? ' (toute la mesure est annulée)' : cible.type === 'LOT' ? ' (toutes les saisies du lot sont annulées)' : '') +
           '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'COMPTE': if (d.comptes) return LIB_COMPTE[d.action] + ' : ' + d.comptes.length + ' — ' + d.comptes.map(function (x) { return x.login; }).join(', ');
-        return (LIB_COMPTE[d.action] || d.action) + (d.login ? ' — ' + d.login : '') + (d.roles ? ' (' + d.roles.map(function (r) { return M.ROLES[r]; }).join(', ') + ')' : '') + (d.libelle ? ' — ' + d.libelle : '') + (d.finValidite ? ' — accès jusqu’au ' + d.finValidite.split('-').reverse().join('/') : '');
+        return (LIB_COMPTE[d.action] || d.action) + (d.login ? ' — ' + d.login : '') + (d.roles ? ' (' + d.roles.map(function (r) { return M.libRole(config(), r); }).join(', ') + ')' : '') + (d.libelle ? ' — ' + d.libelle : '') + (d.finValidite ? ' — accès jusqu’au ' + d.finValidite.split('-').reverse().join('/') : '');
       case 'PROPOSITION':
         return sur + 'correction proposée (à valider par le cadre) — ' + Object.keys(d.champs || {}).map(function (k) { return (lieu(LIB_CHAMPS[k]) || k) + ' : ' + valeurChamp(k, d.champs[k]); }).join(' ; ') + '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'REFUS_PROPOSITION':
@@ -1805,11 +1806,11 @@
       h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Nom', 'Identifiant', 'Rôles', 'Services', 'État', ''].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, s.comptes.map(function (c) {
-          var admin = c.roles.indexOf('ADMIN') >= 0;
+          var admin = M.voitTousServices(c.roles, config());
           return h('tr', { class: c.actif ? '' : 'ancienne' },
             h('td', { text: c.nom }), h('td', { class: 'mono', text: c.login }),
-            h('td', { text: c.roles.map(function (r) { return M.ROLES[r]; }).join(', ') }),
-            h('td', {}, admin ? h('small', { text: 'Tous (administrateur)' }) : ((c.services || []).length ? (c.services || []).map(libService).join(', ') : h('span', { class: 'badge warn', text: 'aucun' }))),
+            h('td', { text: c.roles.map(function (r) { return M.libRole(config(), r); }).join(', ') }),
+            h('td', {}, admin ? h('small', { text: c.roles.indexOf('ADMIN') >= 0 ? 'Tous (administrateur)' : 'Tous' }) : ((c.services || []).length ? (c.services || []).map(libService).join(', ') : h('span', { class: 'badge warn', text: 'aucun' }))),
             h('td', {}, h('span', { class: 'badge ' + (c.actif ? 'ok' : ''), text: c.actif ? 'actif' : 'désactivé' }), (function () {
               var v = SIC.comptes.validite(c, Date.now());
               if (!c.actif || !v.temporaire) return null;
@@ -2182,7 +2183,7 @@
       ]);
     }
     return sousOngletsAdmin([
-      ['comptes', 'Comptes et sécurité', [comptes, deblocage, SIC.ui.formation.sectionAdmin()]],
+      ['comptes', 'Comptes et sécurité', [comptes, SIC.ui.roles.panneau(), deblocage, SIC.ui.formation.sectionAdmin()]],
       ['services', 'Établissement et services', [pServices, pLieuNom, pSurv, pTiers, pOrgJLD]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
@@ -2212,9 +2213,16 @@
   function casesRoles(actuels) {
     var bloc = h('div', { class: 'pile' });
     var cases = {};
-    Object.keys(M.ROLES).forEach(function (r) {
-      cases[r] = h('input', { type: 'checkbox', checked: actuels.indexOf(r) >= 0 });
-      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: lieu('décisions de début et de fin, tiers, surveillance CSI, envois JLD'), AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
+    M.rolesConfig(config()).forEach(function (r) {
+      cases[r.code] = h('input', { type: 'checkbox', checked: actuels.indexOf(r.code) >= 0 });
+      var resume = r.admin ? 'réglages, comptes, imports, annulations' : SIC.ui.roles.resumeAcces(r.acces);
+      bloc.appendChild(h('label', { class: 'case' }, cases[r.code], h('span', { text: r.libelle + ' — ' + resume + (!r.admin && !r.services ? ' (tous les services)' : '') })));
+    });
+    // Rôle retiré par l'administrateur mais encore porté par le compte : affiché pour pouvoir le décocher
+    actuels.forEach(function (code) {
+      if (cases[code]) return;
+      cases[code] = h('input', { type: 'checkbox', checked: true });
+      bloc.appendChild(h('label', { class: 'case' }, cases[code], h('span', { class: 'texte-bad', text: code + ' — rôle supprimé : sans effet, à décocher' })));
     });
     bloc.cases = cases;
     bloc.valeur = function () { var v = Object.keys(cases).filter(function (r) { return cases[r].checked; }); if (!v.length) throw new Error('Choisissez au moins un rôle.'); return v; };
@@ -2224,21 +2232,22 @@
   function casesServices(actuels, roles) {
     var bloc = h('div', { class: 'pile' });
     var cases = {};
-    var note = h('small', { class: 'muted', text: 'Administrateur : accès à tous les services.' });
+    var note = h('small', { class: 'muted', text: 'Ce rôle donne accès à tous les services.' });
     tousServices().forEach(function (x) {
       cases[x.code] = h('input', { type: 'checkbox', checked: actuels.indexOf(x.code) >= 0 });
       bloc.appendChild(h('label', { class: 'case' }, cases[x.code], h('span', { text: x.libelle + ' (' + x.code + ')' })));
     });
     bloc.appendChild(note);
     function maj() {
-      var admin = roles.cases.ADMIN.checked;
-      note.hidden = !admin;
-      Object.keys(cases).forEach(function (k) { cases[k].disabled = admin; });
+      var choisis = Object.keys(roles.cases).filter(function (r) { return roles.cases[r].checked; });
+      var tous = M.voitTousServices(choisis, config());
+      note.hidden = !tous;
+      Object.keys(cases).forEach(function (k) { cases[k].disabled = tous; });
     }
-    roles.cases.ADMIN.addEventListener('change', maj); maj();
+    Object.keys(roles.cases).forEach(function (r) { roles.cases[r].addEventListener('change', maj); }); maj();
     bloc.valeur = function (rolesChoisis) {
       var v = Object.keys(cases).filter(function (k) { return cases[k].checked; });
-      var exige = rolesChoisis.indexOf('ADMIN') < 0 && rolesChoisis.some(function (r) { return M.ROLES_DE_SERVICE.indexOf(r) >= 0; });
+      var exige = M.exigeService(rolesChoisis, config());
       if (exige && !v.length) throw new Error('Affectez au moins un service.');
       return v;
     };

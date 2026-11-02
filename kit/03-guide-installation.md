@@ -63,7 +63,8 @@ Onglet *Administration* :
 | Masques du décompte JLD | Un masque pour l'établissement, et si besoin un masque propre à chaque service : en-tête, destinataire, bandeau confidentiel, données d'identité, colonnes (choix et ordre), format des durées et du cumul (heures, jours, ou les deux), durée maximale d'une ligne par type de mesure, mise en évidence de la mesure actuelle ou grisé des mesures antérieures, sections (dont date d'édition et auteur, séparément), pied de page, signature, papier à en-tête (image A4 PNG ou JPEG, marges du texte). Aperçu sur un patient fictif. Pour imprimer avec le papier à en-tête : format A4, marges « par défaut » dans la fenêtre d'impression. À valider avec le greffe du JLD. |
 | Onglet Patients : statistiques annuelles | Colonnes regroupant des catégories du registre (par défaut : isolement seul A–B, contention seule D–E signalée si non nulle, isolement + contention C). |
 | Registre | Dernier numéro du registre papier de l'année en cours, si l'outil démarre en cours d'année. |
-| Comptes | Un compte par agent, avec ses rôles (IDE, AS, secrétaire, cadre, administrateur) et ses **services affectés**. Pour toute une équipe : *Créer des comptes en lot…* (voir ci-dessous). Chaque compte reçoit un mot de passe provisoire tiré au hasard ; l'agent doit le remplacer à sa première connexion. |
+| Rôles et accès | Facultatif : adapter le libellé et les accès des rôles fournis (IDE, AS, secrétaire, cadre de santé), créer des rôles propres à l'établissement (ex. direction des soins, consultation seule) ; le rôle Administrateur est fixe. |
+| Comptes | Un compte par agent, avec ses rôles (IDE, AS, secrétaire, cadre, administrateur, ou rôles créés) et ses **services affectés**. Pour toute une équipe : *Créer des comptes en lot…* (voir ci-dessous). Chaque compte reçoit un mot de passe provisoire tiré au hasard ; l'agent doit le remplacer à sa première connexion. |
 
 ### Créer les comptes d'une équipe en une fois
 

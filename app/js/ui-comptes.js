@@ -4,15 +4,15 @@
   'use strict';
   var SIC = self.SIC, U = SIC.ui, M = SIC.model, C = SIC.crypto, h = U.h;
 
-  function libRoles(r) { return r.map(function (x) { return M.ROLES[x] || x; }).join(', '); }
-  function libServices(r, s) { return r.indexOf('ADMIN') >= 0 ? 'tous (administrateur)' : s.map(U.libService).join(', '); }
+  function libRoles(r) { return r.map(function (x) { return M.libRole(U.config(), x); }).join(', '); }
+  function libServices(r, s) { return M.voitTousServices(r, U.config()) ? 'tous' + (r.indexOf('ADMIN') >= 0 ? ' (administrateur)' : '') : s.map(U.libService).join(', '); }
 
   // ---------------------------------------------------------- Création en lot
   U.actions.comptesEnLot = function () {
     var session = U.App.session;
     var texte = h('textarea', { rows: 8, class: 'mono', spellcheck: 'false', placeholder: 'Marie DUPONT ; ; IDE ; U1\nPaul MARTIN ; paul.martin ; AS ; U1, U2\nJeanne PETIT ; ; Secrétaire ; tous' });
     var fichier = h('input', { type: 'file', accept: '.csv,.txt,text/csv,text/plain' });
-    var roleDefaut = h('select', {}, ['IDE', 'AS', 'SECRETAIRE', 'CADRE'].map(function (r) { return h('option', { value: r, text: M.ROLES[r] }); }));
+    var roleDefaut = h('select', {}, M.rolesConfig(U.config()).filter(function (r) { return !r.admin; }).map(function (r) { return h('option', { value: r.code, text: r.libelle }); }));
     var casesSv = {};
     var blocSv = h('div', { class: 'cases-ligne' }, U.tousServices().map(function (x) {
       casesSv[x.code] = h('input', { type: 'checkbox', checked: U.App.service === x.code });
@@ -29,6 +29,8 @@
         services: U.tousServices(),
         loginsExistants: session.comptes.map(function (c) { return c.login; }),
         rolesDefaut: [roleDefaut.value],
+        roles: M.rolesConfig(U.config()).map(function (r) { return { code: r.code, libelle: r.libelle }; }),
+        exigeService: function (roles) { return M.exigeService(roles, U.config()); },
         servicesDefaut: Object.keys(casesSv).filter(function (k) { return casesSv[k].checked; })
       });
       if (!analyse.length) return;
@@ -70,7 +72,7 @@
         var valides = analyse.filter(function (r) { return !r.erreurs.length; });
         if (!valides.length) throw new Error('Aucun compte valide à créer.');
         if (valides.length < analyse.length && !confirm((analyse.length - valides.length) + ' ligne(s) en erreur seront ignorées. Créer les ' + valides.length + ' autres comptes ?')) return false;
-        var liste = valides.map(function (r) { return { nom: r.nom, login: r.login, roles: r.roles, services: r.roles.indexOf('ADMIN') >= 0 ? [] : r.services, motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true, formation: accesForm.checked, finValidite: finLot.value }; });
+        var liste = valides.map(function (r) { return { nom: r.nom, login: r.login, roles: r.roles, services: M.voitTousServices(r.roles, U.config()) ? [] : r.services, motDePasse: C.nouveauMotDePasseProvisoire(), aleatoire: true, formation: accesForm.checked, finValidite: finLot.value }; });
         U.vider(apercu).appendChild(h('div', { class: 'info', text: 'Chiffrement des mots de passe…' }));
         await session.creerComptes(liste, function (n, total) { apercu.firstChild.textContent = 'Chiffrement des mots de passe… ' + n + ' / ' + total; });
         setTimeout(function () { U.actions.fichesRemise(liste, liste.length + ' compte(s) créé(s)'); }, 0);

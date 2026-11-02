@@ -38,15 +38,92 @@
     ADMIN: ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT', 'INTEGRITE']
   };
 
-  function peut(roles, typeEvenement) {
-    return (roles || []).some(function (r) { return (DROITS[r] || []).indexOf(typeEvenement) >= 0; });
+  // ------------------------------------------------ Rôles configurables
+  /**
+   * Accès regroupés, cochés pour chaque rôle (Administration → Comptes et sécurité → Rôles et accès).
+   * Chaque accès ouvre un ou plusieurs types de saisie (ou d'action) contrôlés par `peut`.
+   * Le rôle Administrateur est fixe : droits d'administration, non modifiable (choix du porteur).
+   */
+  var ACCES = [
+    { code: 'patients', libelle: 'Fiches patient et mode d’hospitalisation', types: ['PATIENT', 'MODE_HOSPI'] },
+    { code: 'mesures', libelle: 'Début et fin des mesures, changement de lieu', types: ['MESURE_DEBUT', 'MESURE_FIN'] },
+    { code: 'pauses', libelle: 'Pauses (levées temporaires) et reprises', types: ['PAUSE', 'REPRISE'] },
+    { code: 'tiers', libelle: 'Information du tiers', types: ['TIERS'] },
+    { code: 'jld', libelle: 'Envois au JLD et décisions reçues', types: ['JLD'] },
+    { code: 'recours', libelle: 'Recours et appels', types: ['RECOURS'] },
+    { code: 'surveillance', libelle: 'Surveillance : professionnels par poste', types: ['PROFESSIONNEL'] },
+    { code: 'alertes', libelle: 'Tracer l’information demandée par une alerte', types: ['INFORMATION'] },
+    { code: 'parcours', libelle: 'Transferts, soins somatiques ou urgences', types: ['TRANSFERT', 'SOMATIQUE', 'SOMATIQUE_RETOUR'] },
+    { code: 'entretien', libelle: 'Entretien après la mesure', types: ['ENTRETIEN'] },
+    { code: 'proposition', libelle: 'Proposer une correction (validée ensuite par un cadre)', types: ['PROPOSITION'] },
+    { code: 'correction', libelle: 'Corriger une saisie, valider ou refuser les corrections proposées', types: ['CORRECTION', 'REFUS_PROPOSITION'] },
+    { code: 'annulation', libelle: 'Annuler une saisie (mesures et patients)', types: ['ANNULATION'] },
+    { code: 'fusion', libelle: 'Fusionner deux fiches patient', types: ['FUSION'] },
+    { code: 'stats', libelle: 'Statistiques : saisir les effectifs', types: ['STATS'] },
+    { code: 'communication', libelle: 'Registre pour communication (CADA) et export des données d’un patient', types: ['EDITION_CADA', 'EXPORT_PATIENT'] }
+  ];
+  var TYPES_ADMIN = ['CONFIG', 'ANNULATION', 'COMPTE', 'LOT', 'INTEGRITE', 'EDITION_CADA', 'EXPORT_PATIENT'];
+
+  /** Accès par défaut d'un rôle fourni, déduits de ses droits historiques. */
+  function accesDefaut(code) {
+    var droits = (DROITS[code] || []).slice();
+    if (code === 'CADRE') droits.push('EDITION_CADA', 'EXPORT_PATIENT');
+    return ACCES.filter(function (a) { return a.types.every(function (t) { return droits.indexOf(t) >= 0; }); }).map(function (a) { return a.code; });
+  }
+  var ROLES_FOURNIS = ['IDE', 'AS', 'SECRETAIRE', 'CADRE'];
+
+  /**
+   * Rôles de l'établissement, validés : [{ code, libelle, acces: [], types: [], services, fourni, admin }].
+   * `config.roles` = { CODE: { libelle, acces, services, supprime } } ; sans réglage, les rôles fournis.
+   * `services` : vrai si le rôle voit seulement les services affectés au compte (faux : tous les services).
+   */
+  function rolesConfig(config) {
+    var reg = (config && config.roles) || {}, res = [];
+    var codes = ROLES_FOURNIS.concat(Object.keys(reg).filter(function (k) { return ROLES_FOURNIS.indexOf(k) < 0 && k !== 'ADMIN'; }).sort());
+    codes.forEach(function (code) {
+      var r = reg[code] || {}, fourni = ROLES_FOURNIS.indexOf(code) >= 0;
+      if (!fourni && !reg[code]) return;
+      if (r.supprime) return;
+      var acces = Array.isArray(r.acces) ? r.acces.filter(function (a) { return ACCES.some(function (x) { return x.code === a; }); }) : (fourni ? accesDefaut(code) : []);
+      var types = [];
+      ACCES.forEach(function (a) { if (acces.indexOf(a.code) >= 0) a.types.forEach(function (t) { if (types.indexOf(t) < 0) types.push(t); }); });
+      res.push({ code: code, libelle: String(r.libelle || (fourni ? ROLES[code] : code)).trim() || code, acces: acces, types: types,
+        services: r.services === undefined ? true : !!r.services, fourni: fourni, admin: false });
+    });
+    res.push({ code: 'ADMIN', libelle: ROLES.ADMIN, acces: [], types: TYPES_ADMIN.slice(), services: false, fourni: true, admin: true });
+    return res;
+  }
+
+  /** Libellé d'un rôle (rôle supprimé ou inconnu : son code). */
+  function libRole(config, code) {
+    var r = rolesConfig(config).filter(function (x) { return x.code === code; })[0];
+    return r ? r.libelle : (ROLES[code] || code);
+  }
+
+  function peut(roles, typeEvenement, config) {
+    var rc = rolesConfig(config);
+    return (roles || []).some(function (code) {
+      var r = rc.filter(function (x) { return x.code === code; })[0];
+      return !!r && r.types.indexOf(typeEvenement) >= 0;
+    });
+  }
+
+  /** Vrai si l'un des rôles voit tous les services (administrateur, ou rôle réglé ainsi). */
+  function voitTousServices(roles, config) {
+    var rc = rolesConfig(config);
+    return (roles || []).some(function (code) { var r = rc.filter(function (x) { return x.code === code; })[0]; return !!r && !r.services; });
+  }
+
+  /** Vrai si les rôles exigent au moins un service affecté au compte. */
+  function exigeService(roles, config) {
+    return !voitTousServices(roles, config) && (roles || []).some(function (code) { return rolesConfig(config).some(function (x) { return x.code === code; }); });
   }
 
   /** Services visibles par un compte : tous pour un administrateur, sinon ceux qui lui sont affectés. */
   function servicesDe(compte, config) {
     var tous = (config.services || []).map(function (s) { return s.code; });
     if (!compte) return [];
-    if ((compte.roles || []).indexOf('ADMIN') >= 0) return tous;
+    if (voitTousServices(compte.roles, config)) return tous;
     var affectes = compte.services || [];
     return tous.filter(function (c) { return affectes.indexOf(c) >= 0; });
   }
@@ -115,7 +192,9 @@
     // information au médecin). Chaque établissement complète la liste selon son organisation.
     informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],
     // Organisation des envois au JLD, affichée en tête de l'onglet JLD (texte libre de l'établissement ; vide = rien d'affiché)
-    organisationJLD: '',   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
+    organisationJLD: '',
+    // Rôles de l'établissement (libellé, accès, services) ; vide = rôles fournis avec leurs droits par défaut
+    roles: {},   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
     // Méthode des statistiques (voir optionsStats) : tolérance de regroupement des entrées en séquences (minutes,
     // 0 = entrées qui se touchent, jusqu'à 48 h), unité principale du rapport, mentions affichées, méthode antérieure par année.
     statsMethode: { toleranceMinutes: 0, unitePrincipale: 'entrees', colonneSequences: false,
@@ -257,16 +336,16 @@
    * { action: 'annuler' | 'retablir', droit: 'ANNULATION' | 'CONFIG', cible }.
    * Paramétrage, imports (lots) et décisions d'intégrité : administrateur (droit CONFIG) ; autres saisies : droit ANNULATION.
    */
-  var TYPES_ADMIN = { CONFIG: 1, LOT: 1, INTEGRITE: 1 };
+  var TYPES_ANNUL_ADMIN = { CONFIG: 1, LOT: 1, INTEGRITE: 1 };
   function annulabilite(st, e) {
     if (!e || e.type === 'COMPTE' || e.lot) return null;
     if (e.type === 'ANNULATION') {
       var cible = st.parId[e.data && e.data.cible];
       if (!cible || st.annules[e.id] || st.annules[cible.id] !== e) return null;
-      return { action: 'retablir', droit: TYPES_ADMIN[cible.type] ? 'CONFIG' : 'ANNULATION', cible: cible };
+      return { action: 'retablir', droit: TYPES_ANNUL_ADMIN[cible.type] ? 'CONFIG' : 'ANNULATION', cible: cible };
     }
     if (st.annules[e.id]) return null;
-    return { action: 'annuler', droit: TYPES_ADMIN[e.type] ? 'CONFIG' : 'ANNULATION', cible: e };
+    return { action: 'annuler', droit: TYPES_ANNUL_ADMIN[e.type] ? 'CONFIG' : 'ANNULATION', cible: e };
   }
 
   /** Fiche qui porte aujourd'hui un patient (après fusions éventuelles). */
@@ -1764,7 +1843,7 @@
   }
 
   return {
-    ROLES: ROLES, DROITS: DROITS, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
+    ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
     reduire: reduire, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,

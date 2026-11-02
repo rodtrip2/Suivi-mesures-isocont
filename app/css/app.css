@@ -448,3 +448,6 @@ table.entetes-souples th { white-space: normal; }
 .indicateur .valeur-sec { font-size: .55em; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
 /* Bouton clair / sombre de l'en-tête */
 .btn.theme { min-width: 2.4em; }
+/* Rôles et accès */
+fieldset.role { margin-bottom: 12px; }
+.grille-acces { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 16px; }

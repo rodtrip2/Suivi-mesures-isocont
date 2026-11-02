@@ -236,7 +236,7 @@
   /** Codes des services visibles (tous pour un administrateur). */
   Session.prototype.mesServices = function () { return this.etat ? M.servicesDe(this.utilisateur, this.etat.config) : []; };
   Session.prototype.accesFormation = function () { return M.accesFormation(this.utilisateur); };
-  Session.prototype.peut = function (type) { return M.peut(this.roles(), type); };
+  Session.prototype.peut = function (type) { return M.peut(this.roles(), type, this.etat ? this.etat.config : M.CONFIG_DEFAUT); };
 
   Session.prototype.nomAuteur = function (userId) {
     var c = this.comptes.filter(function (x) { return x.id === userId; })[0];

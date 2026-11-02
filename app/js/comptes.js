@@ -25,6 +25,19 @@
   };
   var MOTIF_IDENTIFIANT = /^[a-z0-9._-]{2,40}$/;
 
+  /**
+   * Code d'un rôle écrit dans la liste : alias usuels, code ou libellé d'un rôle de l'établissement
+   * (`roles` : [{ code, libelle }], rôles configurés ; à défaut, les rôles fournis).
+   */
+  function codeRole(x, roles) {
+    var n = norm(x);
+    var liste = roles || [{ code: 'IDE' }, { code: 'AS' }, { code: 'SECRETAIRE' }, { code: 'CADRE' }, { code: 'ADMIN' }];
+    var trouve = liste.filter(function (r) { return r.code === x || norm(r.code) === n || (r.libelle && norm(r.libelle) === n); })[0];
+    if (trouve) return trouve.code;
+    var alias = ALIAS_ROLES[n];
+    return alias && liste.some(function (r) { return r.code === alias; }) ? alias : null;
+  }
+
   /** « Marie-Hélène DUPONT » → « marie-helene.dupont ». */
   function identifiantDepuisNom(nom) {
     var morceaux = String(nom).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -79,7 +92,7 @@
       var roles = liste(c[2]);
       if (!roles.length) r.roles = (contexte.rolesDefaut || []).slice();
       roles.forEach(function (x) {
-        var code = ALIAS_ROLES[norm(x)] || (/^[A-Z]+$/.test(x) && ['IDE', 'AS', 'SECRETAIRE', 'CADRE', 'ADMIN'].indexOf(x) >= 0 ? x : null);
+        var code = codeRole(x, contexte.roles);
         if (!code) r.erreurs.push('rôle inconnu « ' + x + ' »');
         else if (r.roles.indexOf(code) < 0) r.roles.push(code);
       });
@@ -94,7 +107,7 @@
         if (!s) r.erreurs.push('service inconnu « ' + x + ' »');
         else if (r.services.indexOf(s.code) < 0) r.services.push(s.code);
       });
-      var exigeService = r.roles.indexOf('ADMIN') < 0 && r.roles.some(function (x) { return ['IDE', 'AS', 'SECRETAIRE', 'CADRE'].indexOf(x) >= 0; });
+      var exigeService = contexte.exigeService ? contexte.exigeService(r.roles) : (r.roles.indexOf('ADMIN') < 0 && r.roles.some(function (x) { return ['IDE', 'AS', 'SECRETAIRE', 'CADRE'].indexOf(x) >= 0; }));
       if (exigeService && !r.services.length && !svs.length) r.erreurs.push('aucun service affecté');
 
       // Identifiant

@@ -1,5 +1,17 @@
 # Journal des versions
 
+## 1.40.0 — 2 novembre 2026
+
+- **Rôles configurables** (*Administration → Comptes et sécurité → Rôles et accès*) :
+  - les rôles fournis (IDE, aide-soignant(e), secrétaire, cadre de santé) se renomment et leurs accès se règlent ; *Rétablir les droits par défaut* ramène les droits d'origine ;
+  - **nouveaux rôles** propres à l'établissement, vides ou copiés d'un rôle existant (ex. direction des soins, consultation seule), supprimables tant qu'ils ne sont attribués à aucun compte ;
+  - **16 accès regroupés** en langage courant (fiches patient, début et fin des mesures, pauses, tiers, envois au JLD, recours, surveillance, alertes, transferts et soins somatiques, entretien, proposition et validation des corrections, annulation, fusion, statistiques, registre pour communication et droit d'accès) ;
+  - option « accès à tous les services » par rôle (sans affectation de services au compte) ;
+  - le rôle **Administrateur reste fixe**, pour ne jamais perdre l'accès aux réglages ;
+  - changements résumés et confirmés avant l'enregistrement, tracés au journal et annulables.
+- Les rôles créés sont proposés à la création des comptes, un par un ou en lot (reconnus par leur libellé dans la liste collée).
+- Sans réglage, les droits restent exactement ceux d'avant (vérifié par les tests).
+
 ## 1.39.0 — 2 novembre 2026
 
 - **Annuler depuis le journal** : bouton *Annuler* sur chaque ligne du journal. L'administrateur peut annuler toute saisie, y compris un réglage (qui reprend sa valeur précédente), un import ou une prise d'acte d'intégrité ; le cadre, les saisies sur les mesures et les patients. Une fenêtre rappelle la saisie, décrit l'effet et demande un motif. Les traces de comptes ne s'annulent pas.
