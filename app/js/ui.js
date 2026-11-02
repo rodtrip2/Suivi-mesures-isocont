@@ -305,7 +305,44 @@
   }
 
   // ---------------------------------------------------------------- Minuteurs
+  // ---------------------------------------------------------------- Thème clair / sombre
+  /** Thème affiché : choix de l'agent (attribut data-theme) ou, à défaut, celui du système. */
+  function themeActuel() {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t === 'light' || t === 'dark') return t;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function appliquerTheme(t) {
+    if (t !== 'light' && t !== 'dark') return;
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('sic-theme', t); } catch (e) { /* stockage indisponible */ }
+    var b = document.getElementById('bouton-theme');
+    if (b) majBoutonTheme(b);
+  }
+  function majBoutonTheme(b) {
+    var sombre = themeActuel() === 'dark';
+    b.textContent = sombre ? '☀ Clair' : '☾ Sombre';
+    b.setAttribute('aria-pressed', sombre ? 'true' : 'false');
+    b.title = sombre ? 'Passer à l’affichage clair (choix mémorisé pour votre compte)' : 'Passer à l’affichage sombre (choix mémorisé pour votre compte)';
+  }
+  function boutonTheme() {
+    var b = h('button', { id: 'bouton-theme', class: 'btn petit theme', type: 'button', onclick: function () {
+      var t = themeActuel() === 'dark' ? 'light' : 'dark';
+      appliquerTheme(t);
+      if (App.session && App.session.utilisateur) App.session.enregistrerPreference('theme', t).catch(function () { toast('Thème appliqué sur ce poste ; il n’a pas pu être enregistré pour votre compte.'); });
+    } });
+    majBoutonTheme(b);
+    return b;
+  }
+  /** Après la connexion : thème enregistré pour l'agent (s'il en a choisi un). */
+  function chargerPreferences() {
+    var s = App.session;
+    if (!s || !s.lirePreferences) return;
+    s.lirePreferences().then(function (p) { if (p && p.theme) appliquerTheme(p.theme); }).catch(function () { /* thème du poste */ });
+  }
+
   function demarrerMinuteurs() {
+    chargerPreferences();
     arreterMinuteurs();
     App.derniereActivite = Date.now();
     App.minuteurs.push(setInterval(function () {
@@ -416,6 +453,7 @@
       h('div', { class: 'statut-synchro', title: s.evts.length + ' saisies dans le journal' }, h('span', { class: 'point' }), age !== null ? 'Synchronisé' : '—'),
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.ROLES[r]; }).join(' · ')),
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
+      boutonTheme(),
       h('button', { class: 'btn petit', title: 'Licence, crédits, signaler un problème', onclick: function () { SIC.ui.apropos.modale(); } }, 'À propos'),
       h('button', { class: 'btn petit', onclick: function () { verrouiller(); } }, 'Verrouiller')));
     zoneEntete.appendChild(h('div', { id: 'actualisation-attente', class: 'actualisation-attente', hidden: !App.miseAJourEnAttente },

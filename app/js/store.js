@@ -326,6 +326,22 @@
     } catch (e) { return null; }
   };
 
+  // ------------------------------------------------------ Préférences d'un agent
+  /** Préférences d'affichage d'un agent (thème…), chiffrées, une par agent : preferences/<agent>.enc. */
+  Dossier.prototype.ecrirePreferences = async function (cle, agent, prefs) {
+    var dir = await this.sousDossier(['preferences'], true), nom = agent.replace(/[^a-zA-Z0-9_-]/g, '_') + '.enc';
+    await this.ecrireFichier(dir, nom, await C.chiffrerJSON(cle, Object.assign({}, prefs, { agent: agent }), 'pref:' + nom));
+  };
+
+  Dossier.prototype.lirePreferences = async function (cle, agent) {
+    try {
+      var dir = await this.sousDossier(['preferences'], false), nom = agent.replace(/[^a-zA-Z0-9_-]/g, '_') + '.enc';
+      var o = await this.lireFichier(dir, nom);
+      var p = o ? await C.dechiffrerJSON(cle, o, 'pref:' + nom) : null;
+      return p && p.agent === agent ? p : {};
+    } catch (e) { return {}; }
+  };
+
   Dossier.prototype.lireReperes = async function (cle) {
     var res = [], dir;
     try { dir = await this.sousDossier(['reperes'], false); } catch (e) { return res; }

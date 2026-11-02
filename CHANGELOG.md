@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.38.0 — 2 novembre 2026
+
+- **Affichage clair ou sombre** : bouton *☾ Sombre* / *☀ Clair* dans le bandeau supérieur. Le choix est mémorisé **pour chaque agent** (fichier chiffré `preferences/<agent>.enc` sur le partage) et le suit d'un poste à l'autre ; le dernier choix du poste s'applique dès l'écran de connexion. Sans choix, le thème du système. Les impressions restent en clair.
+
 ## 1.37.2 — 2 novembre 2026
 
 - Fiche du patient : la durée totale de l'année s'affiche en jours et heures et en heures dans la même case (« 3 j 22 h (94 h 14) ») ; trois cases au lieu de quatre.

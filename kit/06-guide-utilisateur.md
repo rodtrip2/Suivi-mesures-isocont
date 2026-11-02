@@ -10,6 +10,7 @@
 2. Cliquer *Reprendre* (ou, la première fois, *Ouvrir le dossier réseau du service* et choisir le dossier indiqué par votre cadre). Autoriser l'accès si le navigateur le demande.
 3. Saisir votre identifiant et le mot de passe de votre fiche de remise.
 4. **Première connexion** (ou après une réinitialisation) : l'application vous demande aussitôt de choisir votre mot de passe personnel, d'au moins 12 caractères. Une courte phrase de quelques mots est facile à retenir. Vous pouvez le changer ensuite à tout moment avec le bouton *Mot de passe*.
+5. **Affichage clair ou sombre** : bouton *☾ Sombre* / *☀ Clair* en haut de l'écran. Le choix est mémorisé pour votre compte et vous suit d'un poste à l'autre ; avant la connexion, l'écran garde le dernier choix fait sur le poste. Les impressions restent toujours en clair.
 5. Vous ne voyez que les services qui vous sont affectés. La session se verrouille seule après quelques minutes sans activité ; pensez à *Verrouiller* en quittant le poste.
 
 ## Les couleurs des échéances

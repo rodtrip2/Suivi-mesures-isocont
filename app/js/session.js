@@ -106,7 +106,7 @@
 
   Session.prototype.verrouiller = function () {
     this.cle = null; this.utilisateur = null; this.evts = []; this.connus = new Set(); this.etat = null; this.comptes = [];
-    this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = []; this.reperesLus = {}; this.integrite = null;
+    this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = []; this.reperesLus = {}; this.integrite = null; this.preferences = null;
   };
 
   /** Relit le coffre, applique `modif`, réécrit (contrôle de révision). */
@@ -281,6 +281,25 @@
     try { await dossierActif(this).ecrireRepere(cleActive(this), by, { n: n, dernier: evt.id, at: at }); } catch (e) { /* sans conséquence sur la saisie */ }
     this.recalculer();
     return evt;
+  };
+
+  // ---------------------------------------------------------- Préférences de l'agent
+  /**
+   * Préférences d'affichage de l'agent connecté (thème clair ou sombre…), rangées avec les données réelles
+   * (même en mode formation) : elles le suivent d'un poste à l'autre. Rien n'est écrit au journal.
+   */
+  Session.prototype.lirePreferences = async function () {
+    if (!this.utilisateur || !this.cle) return {};
+    this.preferences = await this.dossier.lirePreferences(this.cle, this.utilisateur.id);
+    return this.preferences;
+  };
+
+  Session.prototype.enregistrerPreference = async function (cle, valeur) {
+    if (!this.utilisateur || !this.cle) return;
+    var p = Object.assign({}, this.preferences || await this.dossier.lirePreferences(this.cle, this.utilisateur.id));
+    p[cle] = valeur; p.modifieLe = new Date().toISOString();
+    await this.dossier.ecrirePreferences(this.cle, this.utilisateur.id, p);
+    this.preferences = p;
   };
 
   // ---------------------------------------------------------- Intégrité et copies

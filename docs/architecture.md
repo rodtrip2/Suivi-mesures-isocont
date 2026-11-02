@@ -42,6 +42,7 @@ SuiviIsoCont/
   coffre-historique/rev-N.json     30 dernières versions du coffre (la version actuelle comprise)
   reperes/<agent>.enc              repère d'intégrité : nombre de saisies de l'agent, dernière saisie
   quarantaine/AAAA/MM/<id>.enc     fichiers illisibles mis à l'écart par l'administrateur (jamais supprimés)
+  preferences/<agent>.enc          préférences d'affichage de l'agent (thème clair ou sombre), chiffrées
 ```
 
 - Identifiant d'événement : `AAAAMMJJTHHMMSSZ_<auteur>_<aléa>` ; écriture exclusive (refus si le nom existe), atomique (`createWritable`).

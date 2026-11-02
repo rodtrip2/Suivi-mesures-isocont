@@ -359,3 +359,17 @@ test('Intégrité : prise d’acte par l’administrateur (motif obligatoire), n
   await v.enregistrer('ANNULATION', { cible: acte.id, motif: 'test' });
   assert.equal(v.etat.integrite.historique.length, 0);
 });
+
+test('Préférences de l’agent : thème enregistré chiffré pour son compte, retrouvé depuis un autre poste', async () => {
+  const { racine, admin } = await nouveauDossier();
+  await admin.creerCompte({ nom: 'IDE', login: 'ide', motDePasse: 'autre mot de passe', roles: ['IDE'], services: ['U1'] });
+  const ide = await connecter(racine, 'ide', 'autre mot de passe');
+  assert.deepEqual(await ide.lirePreferences(), {});
+  await ide.enregistrerPreference('theme', 'dark');
+  const fichier = [...racine.e.get('preferences').e.values()][0];
+  assert.ok(!new TextDecoder().decode(fichier.data).includes('dark'));   // chiffré
+  const autrePoste = await connecter(racine, 'ide', 'autre mot de passe');
+  assert.equal((await autrePoste.lirePreferences()).theme, 'dark');
+  assert.equal((await admin.lirePreferences()).theme, undefined);          // propre à chaque agent
+  assert.ok(!autrePoste.evts.some((e) => JSON.stringify(e.data || {}).includes('theme')));   // rien au journal
+});
