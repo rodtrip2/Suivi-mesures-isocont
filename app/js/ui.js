@@ -639,6 +639,7 @@
       'Nouvelles saisies depuis un autre poste. ',
       h('button', { class: 'btn petit primaire', onclick: function () { rendreContenu(); } }, 'Actualiser'),
       App.onglet === 'admin' ? h('small', { text: ' (les modifications non enregistrées de cette page seront perdues)' }) : null));
+    var bl = SIC.ui.miroir.bandeauLocal(); if (bl) zoneEntete.appendChild(bl);
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
     ONGLETS.forEach(function (o) {
       if (o[0] === 'admin' && !estAdmin) return;

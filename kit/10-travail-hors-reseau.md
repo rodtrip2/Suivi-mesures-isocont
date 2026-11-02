@@ -49,6 +49,23 @@ La **copie locale des données** est un dossier de secours placé sur le disque 
 4. Les clés de sécurité (YubiKey) ne fonctionnent pas dans une page ouverte depuis le disque : connexion par mot de passe.
 5. Le contrôle des empreintes protège contre une copie abîmée ou incomplète ; il ne protège pas contre une modification volontaire de la source (empreintes comprises) : le dossier source doit rester en lecture seule pour tous, sauf le service informatique.
 
+### 3.3 Copie des données indépendante du navigateur (recommandée)
+
+La copie faite par l'outil n'a lieu que lorsqu'un agent est connecté sur le poste (à la connexion, puis toutes les 10 minutes). Après une nuit ou un week-end sans connexion, elle peut être en retard. Pour qu'elle soit tenue à jour dès que le poste est allumé, le service informatique ajoute sur le poste désigné la tâche planifiée du document 09, en mode « local » :
+
+```
+schtasks /Create /TN "SuiviIsoCont - copie locale" /SC MINUTE /MO 15 /RU DOMAINE\svc-isocont-secours /RP * /RL LIMITED /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\SuiviIsoCont\miroir-robocopy.ps1 -Type local -Principal \\serveur-donnees\partage\SuiviIsoCont -Secours C:\SuiviIsoCont-local"
+```
+
+- La tâche s'exécute même si personne n'est connecté (compte de service avec lecture et écriture sur le dossier principal et sur le dossier local).
+- Elle reprend l'identifiant de la copie créée par l'outil : l'outil et la tâche tiennent à jour la même ligne du tableau des dossiers de secours (*Administration → Informations*).
+- Mêmes garanties que pour le dossier de secours du serveur : contrôles avant copie, aucune suppression, aucun fichier plus récent écrasé, exports exclus. Le retour des saisies faites hors réseau se fait toujours par l'outil (paragraphe 5).
+- Garder aussi la copie locale créée dans l'outil (3.1, étape 3) : c'est elle qui propose *Travailler hors réseau* à l'écran d'accueil et qui reprend les saisies au retour.
+
+### 3.4 Avertissement sur le poste
+
+Sur un poste désigné, un bandeau orange apparaît en haut de l'outil, pour tous les agents et sur tous les onglets, quand la copie locale n'a pas été mise à jour depuis plus d'une heure, quand sa mise à jour échoue, ou quand le navigateur a perdu l'accès au dossier local (après un redémarrage, selon les réglages d'Edge ou de Chrome). Le bouton *Mettre à jour maintenant* (ou *Autoriser l'accès et mettre à jour*) règle la situation en un clic. Pour que l'accès soit gardé, répondre « Autoriser à chaque visite » quand le navigateur le propose.
+
 ## 4. Pendant une panne du réseau
 
 1. Sur le poste désigné, ouvrir l'outil comme d'habitude (il s'ouvre depuis le cache ou la copie locale). « Reprendre » le dossier habituel échoue : cliquer sur **Travailler hors réseau (copie locale de ce poste)**.
@@ -64,5 +81,5 @@ La **copie locale des données** est un dossier de secours placé sur le disque 
 
 ## 6. Vérifications
 
-- **Chaque mois** : liste des copies locales et date de leur dernière mise à jour (*Administration → Informations*) ; postes désignés toujours en service.
+- **Chaque mois** : journal de la tâche planifiée de chaque poste désigné (`%ProgramData%\SuiviIsoCont\miroir-robocopy.log`) ; liste des copies locales et date de leur dernière mise à jour (*Administration → Informations*) ; postes désignés toujours en service.
 - **Chaque année**, avec le test des procédures de secours : sur un poste désigné, débrancher le réseau, ouvrir l'outil, *Travailler hors réseau*, se connecter, vérifier les dernières saisies, puis rebrancher et *Reprendre*. Ne rien saisir pendant le test, ou utiliser le mode formation.

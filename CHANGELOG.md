@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.52.0 — 3 novembre 2026
+
+- **Avertissement sur le poste désigné** : bandeau orange en haut de l'outil, pour tous les agents, quand la copie locale des données n'a pas été mise à jour depuis plus d'une heure, quand sa mise à jour échoue ou quand le navigateur a perdu l'accès au dossier local ; bouton *Mettre à jour maintenant* ou *Autoriser l'accès et mettre à jour*.
+- **Copie locale indépendante du navigateur** : le script robocopy accepte `-Type local` et se lance en tâche planifiée sur le poste désigné ; la copie est tenue à jour dès que le poste est allumé, même sans agent connecté. Le script reprend l'identifiant de la copie créée par l'outil (une seule ligne au tableau des dossiers de secours).
+- Fiches 09 et 10 du kit et guide utilisateur complétés.
+
 ## 1.51.0 — 2 novembre 2026
 
 - **Travail hors réseau sur des postes désignés** (*Administration → Informations*), pour les deux modes d'hébergement :

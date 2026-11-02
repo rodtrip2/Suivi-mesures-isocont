@@ -29,6 +29,9 @@ param(
   [string]$Exports = 'exports',
   # Journal du script (résumé) ; le détail de robocopy va dans le même dossier, fichier « -detail »
   [string]$Journal = (Join-Path $env:ProgramData 'SuiviIsoCont\miroir-robocopy.log'),
+  # Nature de la copie : 'serveur' (dossier de secours du service) ou 'local' (copie locale d'un poste désigné
+  # pour le travail hors réseau, document 10 ; $Secours est alors un dossier du disque du poste, ex. C:\SuiviIsoCont-local)
+  [ValidateSet('serveur', 'local')][string]$Type = 'serveur',
   # Commande robocopy (modifiable pour les tests)
   [string]$Robocopy = 'robocopy.exe'
 )
@@ -88,10 +91,14 @@ $code = $LASTEXITCODE
 # robocopy : 0 à 7 = réussite (avec ou sans fichiers copiés) ; 8 et plus = échec d'au moins un fichier
 if ($code -ge 8) { Ecrire-Journal ('ÉCHEC de robocopy (code ' + $code + ') : voir ' + $Detail); exit 2 }
 
-$id = 'robocopy-' + $env:COMPUTERNAME
+# Identifiant de cette copie : celui déjà inscrit dans le dossier de secours (par l'outil ou un passage précédent),
+# sinon un identifiant propre à la machine ; l'outil et le script tiennent ainsi à jour la même entrée.
+$id = $null
+if ($etatS -and $etatS -ne 'illisible' -and $etatS.id) { $id = [string]$etatS.id }
+if (-not $id) { $id = 'robocopy-' + $(if ($Type -eq 'local') { 'local-' } else { '' }) + $env:COMPUTERNAME }
 $maintenant = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
 # Dossier de secours : son propre état
-$etatSecours = [ordered]@{ role = 'secours'; id = $id; type = 'serveur'; autre = (Split-Path -Leaf $Principal); derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy'; code = $code }
+$etatSecours = [ordered]@{ role = 'secours'; id = $id; type = $Type; autre = (Split-Path -Leaf $Principal); derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy'; code = $code }
 [System.IO.File]::WriteAllText((Join-Path $Secours 'miroir-etat.json'), ($etatSecours | ConvertTo-Json), $utf8)
 # Dossier principal : l'état des autres dossiers de secours (copies locales des postes, autres serveurs) est conservé
 $miroirs = [ordered]@{}
@@ -99,7 +106,7 @@ $ancien = Lire-Json (Join-Path $Principal 'miroir-etat.json')
 if ($ancien -and $ancien -ne 'illisible' -and $ancien.miroirs) {
   foreach ($p in $ancien.miroirs.PSObject.Properties) { $miroirs[$p.Name] = $p.Value }
 }
-$miroirs[$id] = [ordered]@{ nom = (Split-Path -Leaf $Secours); type = 'serveur'; derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy' }
+$miroirs[$id] = [ordered]@{ nom = (Split-Path -Leaf $Secours); type = $Type; derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy' }
 $etatPrincipal = [ordered]@{ role = 'principal'; autre = (Split-Path -Leaf $Secours); derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy'; code = $code; miroirs = $miroirs }
 [System.IO.File]::WriteAllText((Join-Path $Principal 'miroir-etat.json'), ($etatPrincipal | ConvertTo-Json -Depth 5), $utf8)
 Ecrire-Journal ('Copie terminée (code robocopy ' + $code + ')')

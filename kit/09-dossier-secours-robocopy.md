@@ -38,6 +38,10 @@ schtasks /Create /TN "SuiviIsoCont - dossier de secours" /SC MINUTE /MO 15 /RU D
 6. **Dans l'outil**, l'administrateur ouvre *Administration → Informations → Dossier de secours* et clique sur *Surveiller la copie robocopy (alerte après 24 h)*. L'écran indique ensuite la date de la dernière copie et la machine qui l'a faite.
 7. **Dossier d'exploitation** : noter le nom de la machine, le compte de service, les deux chemins et l'emplacement du journal.
 
+## 3 bis. Copie locale d'un poste désigné
+
+Le même script tient à jour la copie locale des données d'un poste désigné pour le travail hors réseau (document 10), avec le paramètre `-Type local` et le dossier du disque du poste en `-Secours` (ex. `C:\SuiviIsoCont-local`). La tâche planifiée est alors créée **sur le poste désigné** lui-même. Le script reprend l'identifiant de la copie créée par l'outil, pour que les deux tiennent à jour la même ligne du tableau des dossiers de secours.
+
 ## 4. Vérifications
 
 - **Chaque mois** : date de la dernière copie (écran de l'outil, ou journal) ; absence de code 2 dans le journal.

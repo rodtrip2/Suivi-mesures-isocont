@@ -48,7 +48,10 @@
     if (type === 'local') etat.autoriseLocal = true; else etat.autorise = true;
     try {
       var r = await s.synchroniserMiroir(d, { tracer: !!manuel, type: type, poste: type === 'local' ? (nomPoste() || 'poste') : '' });
-      if (type === 'local') etat.erreurLocal = null; else etat.erreur = null;
+      if (type === 'local') {
+        etat.erreurLocal = null;
+        try { var el = await d.lireEtatMiroir(); if (el && el.id) localStorage.setItem('sic-id-copie-locale', el.id); } catch (e) { /* sans effet */ }
+      } else etat.erreur = null;
       return r;
     } catch (e) { if (type === 'local') etat.erreurLocal = e.message || String(e); else etat.erreur = e.message || String(e); if (manuel) throw e; return null; }
   }
@@ -85,7 +88,6 @@
         : 'vous travaillez sur le dossier de secours. Dès que le dossier principal est de nouveau accessible, ouvrez-le et synchronisez (Administration → Informations) : les saisies faites ici y seront reprises.')));
       return res;
     }
-    if (etat.erreurLocal) res.push(h('li', {}, h('b', { text: 'Copie locale de ce poste' }), ' — mise à jour impossible : ' + etat.erreurLocal));
     if (!s.peut('CONFIG')) return res;
     var o = optionsMiroir(s.etat.config);
     if (!o.attendu) return res;
@@ -97,10 +99,49 @@
     return res;
   }
 
+  var RETARD_LOCAL_HEURES = 1;
+  /** Entrée du dossier principal qui décrit la copie locale de ce poste (par son identifiant, sinon par le nom du poste). */
+  function entreeLocale() {
+    var id = ''; try { id = localStorage.getItem('sic-id-copie-locale') || ''; } catch (e) { /* sans effet */ }
+    var nom = nomPoste().toLowerCase();
+    var l = miroirsConnus().filter(function (x) { return x.type === 'local' && ((id && x.id === id) || (nom && String(x.poste || '').toLowerCase() === nom)); });
+    return l[0] || null;
+  }
+  /**
+   * Avertissements sur le poste lui-même (tous les agents) : copie locale dont l'accès a été perdu, en échec ou en retard
+   * de plus d'une heure, avec un bouton pour réautoriser l'accès et mettre à jour en un clic.
+   */
+  function vigilanceLocale() {
+    var res = [];
+    if (!etat.local) return res;
+    var e = entreeLocale(), der = e && e.derniere ? dateEtat(e.derniere) : 0;
+    var motif = !etat.autoriseLocal ? 'le navigateur n’a plus l’accès au dossier « ' + etat.local.nom + ' »'
+      : etat.erreurLocal ? 'mise à jour impossible : ' + etat.erreurLocal
+      : (!der || Date.now() - der > RETARD_LOCAL_HEURES * 3600000) ? (der ? 'dernière mise à jour le ' + U.date(der) : 'jamais mise à jour') : '';
+    if (!motif) return res;
+    var bouton = h('button', { class: 'btn petit primaire', type: 'button', onclick: async function () {
+      bouton.disabled = true;
+      try { var r = await synchroniser(true, 'local'); U.toast(r ? 'Copie locale à jour (' + r.versAutre + ' fichier(s) copié(s)).' : 'Accès refusé : la copie locale n’a pas été mise à jour.'); }
+      catch (err) { U.toast(err.message || String(err)); }
+      finally { bouton.disabled = false; U.rendreContenu(); }
+    } }, etat.autoriseLocal ? 'Mettre à jour maintenant' : 'Autoriser l’accès et mettre à jour');
+    res.push(h('li', { class: 'urgent' }, h('b', { text: 'Copie locale de ce poste (travail hors réseau)' }), ' — ' + motif + '. En cas de panne du réseau, ce poste ne disposerait pas des dernières saisies. ', bouton));
+    return res;
+  }
+
+  /** Bandeau de l'en-tête (visible de tous les agents du poste, sur tous les onglets). */
+  function bandeauLocal() {
+    var s = U.App.session;
+    if (!s || s.formation || U.App.dossier.mode !== 'reseau' || (etat.principal && etat.principal.role === 'secours')) return null;
+    var l = vigilanceLocale();
+    if (!l.length) return null;
+    return h('div', { class: 'actualisation-attente', role: 'status' }, Array.prototype.slice.call(l[0].childNodes));
+  }
+
   /** Crée (ou change) la copie locale des données de ce poste. */
   async function relierLocal() {
     var s = U.App.session;
-    var nom = prompt('Nom de ce poste, pour la liste des postes désignés (ex. PC-UHP-IDE-1) :', nomPoste());
+    var nom = prompt('Nom Windows de ce poste, pour la liste des postes désignés (ex. PC-UHP-IDE-1) :', nomPoste());
     if (nom === null) return;
     nom = nom.trim().slice(0, 40);
     if (!nom) throw new Error('Indiquez le nom du poste.');
@@ -226,5 +267,5 @@
       h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: function () { U.changerDossier(); } }, 'Changer de dossier'))));
   }
 
-  U.miroir = { relierLocal: relierLocal, miroirsConnus: miroirsConnus, demarrer: demarrer, arreter: arreter, vigilance: vigilance, panneau: panneau, ecranDeplace: ecranDeplace, synchroniser: synchroniser, etat: etat };
+  U.miroir = { bandeauLocal: bandeauLocal, vigilanceLocale: vigilanceLocale, relierLocal: relierLocal, miroirsConnus: miroirsConnus, demarrer: demarrer, arreter: arreter, vigilance: vigilance, panneau: panneau, ecranDeplace: ecranDeplace, synchroniser: synchroniser, etat: etat };
 })();
