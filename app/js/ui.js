@@ -395,6 +395,8 @@
     var conflits = st().conflits.length;
     var estAdmin = s.roles().indexOf('ADMIN') >= 0;
     if (!estAdmin && App.onglet === 'admin') App.onglet = 'tableau';
+    // Pages de tableaux : toute la largeur de l'écran (les pages de réglage gardent une largeur de lecture)
+    zoneContenu.classList.toggle('large', ['tableau', 'mesures', 'patients', 'jld', 'surveillance', 'registre', 'journal', 'stats'].indexOf(App.onglet) >= 0);
     if (!s.utilisateur.actif) return verrouiller('Votre compte a été désactivé.');
     var mesSv = services();
     if (App.service !== '*' && !mesSv.some(function (x) { return x.code === App.service; })) App.service = '*';

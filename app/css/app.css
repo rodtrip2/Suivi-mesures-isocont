@@ -96,6 +96,7 @@ nav.onglets button { border: none; background: none; padding: 10px 12px; border-
 nav.onglets button[aria-current=page] { color: var(--ink); border-bottom-color: var(--accent); }
 nav.onglets .pastille { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-size: .72rem; margin-left: 4px; }
 main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+main.large { max-width: none; padding-left: 24px; padding-right: 24px; }
 .barre { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .barre .espace { flex: 1; }
 
@@ -125,6 +126,20 @@ tr.ancienne td { color: var(--ink-2); }
 td.nowrap, th.nowrap { white-space: nowrap; }
 td.patient { min-width: 170px; }
 td.actions-ligne { white-space: nowrap; text-align: right; }
+/* Écrans de bureau moyens (1280-1600 px) : boutons d'action sur deux lignes, cellules plus serrées, pour éviter le défilement horizontal */
+@media (max-width: 1600px) {
+  main.large td.actions-ligne { white-space: normal; min-width: 150px; }
+  main.large td.actions-ligne .btn { margin: 2px 0 2px 3px; }
+  main.large th, main.large td { padding: 6px 7px; }
+  main.large td.patient { min-width: 150px; }
+}
+@media (max-width: 1440px) {
+  main.large { padding-left: 12px; padding-right: 12px; }
+  main.large table { font-size: .84rem; }
+  main.large .ech { font-size: .8rem; padding: 2px 5px; }
+  main.large td.actions-ligne { min-width: 120px; }
+  main.large td.actions-ligne .btn.petit { padding: 3px 7px; }
+}
 .vide { padding: 22px; text-align: center; color: var(--ink-2); }
 
 /* ---------- Échéances */

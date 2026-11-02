@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.35.1 — 2 novembre 2026
+
+- **Affichage sur ordinateur** : les pages de tableaux (tableau de bord, Mesures, Patients, JLD, Surveillance, Registre, Statistiques, Journal) occupent toute la largeur de l'écran au lieu de 1 400 pixels ; les pages de réglage gardent une largeur de lecture. Sur les écrans de 1 280 à 1 600 pixels, les boutons d'action passent sur plusieurs lignes et les cellules sont resserrées : plus de défilement horizontal, les boutons *Décompte* et *Détail* restent visibles.
+
 ## 1.35.0 — 2 novembre 2026
 
 - **Appellation des lieux dédiés à l'isolement réglable** (*Administration → Établissement et services*) : « chambre de soins intensifs (CSI) » par défaut, chambre d'isolement (CI), espace d'isolement, chambre de soins intensifs psychiatriques (CSIP), ou appellation propre (sigle, singulier, pluriel), avec aperçu. Elle s'applique aux textes de l'outil : onglet *Surveillance*, tableau de bord, saisie, registre, statistiques, décompte, alertes proposées, journal. Les noms des lieux saisis (« CSI 1 »…), les textes d'alerte rédigés par l'établissement et les calculs ne changent pas. Réglage tracé au journal.
