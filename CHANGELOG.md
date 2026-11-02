@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.43.0 — 2 novembre 2026
+
+- **Exports rangés par service** : `exports\<service>\<catégorie>` (et `exports\Etablissement` pour les exports qui couvrent plusieurs services). La fenêtre *Exports* ne montre à chaque agent que les fichiers de ses services, avec un filtre par service.
+- **Accès direct au dossier Windows** : l'administrateur renseigne le chemin réseau du dossier des données (*Établissement et services → Dossier des exports*). La fenêtre *Exports* affiche alors le chemin du dossier du service, avec *Copier le chemin* (à coller dans l'Explorateur) et *Télécharger un raccourci pour le bureau* (fichier .url qui ouvre ce dossier).
+
 ## 1.42.0 — 2 novembre 2026
 
 - **Durée de conservation des exports** réglable dans *Administration → Établissement et services → Dossier des exports* : aucune purge (par défaut), 1, 3 ou 6 mois, 1, 2, 3 ou 5 ans. Les exports plus anciens sont supprimés automatiquement à la première connexion de la journée sur chaque poste ; chaque purge est inscrite au journal. L'écran indique combien de fichiers sont concernés avant d'enregistrer ; bouton *Purger maintenant*.

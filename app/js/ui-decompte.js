@@ -281,7 +281,7 @@
       h('small', { class: 'muted', text: '« Enregistrer en PDF » crée directement le fichier, sans passer par l’impression (masque et papier à en-tête compris).' + (masque.fond ? ' Pour imprimer : format A4, marges « par défaut ».' : '') + ' Le PDF' + (masque.exportCSV ? ' et l’export CSV contiennent' : ' contient') + ' des données nominatives : enregistrez-les uniquement sur le réseau de l’établissement.' })), [
       { texte: 'Fermer' },
       masque.exportCSV ? { texte: 'Exporter (CSV)', action: function () {
-        U.exporter('decomptes', nomFichier('csv'), csv(etat, m, U.depuisSaisie(ref.value), masque), 'text/csv;charset=utf-8');
+        U.exporter('decomptes', nomFichier('csv'), csv(etat, m, U.depuisSaisie(ref.value), masque), 'text/csv;charset=utf-8', { service: m.service });
         return false;
       } } : null,
       { texte: 'Imprimer', action: function () {
@@ -290,7 +290,7 @@
         return true;
       } },
       { texte: 'Enregistrer en PDF', classe: 'primaire', action: function () {
-        U.exporter('decomptes', nomFichier('pdf'), pdf(etat, m, U.depuisSaisie(ref.value), masque, options), 'application/pdf');
+        U.exporter('decomptes', nomFichier('pdf'), pdf(etat, m, U.depuisSaisie(ref.value), masque, options), 'application/pdf', { service: m.service });
         return false;
       } }].filter(Boolean));
     function nomFichier(ext) {

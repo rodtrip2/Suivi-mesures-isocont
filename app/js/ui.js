@@ -330,24 +330,78 @@
   function typeFichier(nom) { return /\.pdf$/i.test(nom) ? 'application/pdf' : /\.csv$/i.test(nom) ? 'text/csv;charset=utf-8' : 'application/octet-stream'; }
   function taille(o) { return o < 1024 ? o + ' o' : o < 1048576 ? Math.round(o / 1024) + ' Ko' : (o / 1048576).toFixed(1).replace('.', ',') + ' Mo'; }
 
-  /** Fenêtre « Exports » : fichiers du dossier des exports, à ouvrir, télécharger ou (administrateur) supprimer. */
+  /** Raccourci Windows (.url) vers un dossier réseau : à garder sur le bureau, il ouvre l'Explorateur sur ce dossier. */
+  function urlFichier(cheminWindows) {
+    var c = cheminWindows.replace(/\\/g, '/');
+    var url = /^\/\//.test(c) ? 'file:' + c : 'file:///' + c;
+    return url.split('/').map(function (x, i) { return i < 1 || /:$/.test(x) ? x : encodeURIComponent(x).replace(/%24/g, '$'); }).join('/');
+  }
+  function raccourciWindows(nom, cheminWindows) {
+    var contenu = '[InternetShortcut]\r\nURL=' + urlFichier(cheminWindows) + '\r\nIconIndex=0\r\n';
+    telechargerOctets(nom + '.url', new TextEncoder().encode(contenu), 'application/octet-stream');
+  }
+
+  /** Dossiers d'exports visibles par l'agent : ses services ; « Etablissement » si son rôle couvre plusieurs services. */
+  function dossiersExportsVisibles() {
+    var s = App.session, tous = M.voitTousServices(s.roles(), config());
+    var vis = {};
+    (tous ? tousServices() : services()).forEach(function (x) { vis[M.dossierExportService(x.code)] = x.libelle; });
+    if (tous || s.peut('STATS') || s.peut('EXPORT_PATIENT') || s.peut('CONFIG')) vis[M.DOSSIER_ETABLISSEMENT] = 'Établissement (plusieurs services)';
+    return { libelles: vis, tous: tous };
+  }
+
+  /** Fenêtre « Exports » : fichiers du dossier des exports (services de l'agent), à ouvrir, télécharger ou (administrateur) supprimer. */
   function modaleExports() {
     var s = App.session, zone = h('div', { class: 'pile' }, h('div', { class: 'muted', text: 'Lecture du dossier des exports…' }));
+    var vis = dossiersExportsVisibles();
+    var filtreSv = h('select', { 'aria-label': 'Service', class: 'champ-moyen' }, h('option', { value: '', text: 'Tous mes services' }), Object.keys(vis.libelles).map(function (k) { return h('option', { value: k, text: vis.libelles[k], selected: App.service !== '*' && M.dossierExportService(App.service) === k }); }));
     var filtre = h('select', { 'aria-label': 'Catégorie', class: 'champ-moyen' }, h('option', { value: '', text: 'Toutes les catégories' }), Object.keys(LIB_CATEGORIES_EXPORT).map(function (k) { return h('option', { value: k, text: LIB_CATEGORIES_EXPORT[k] }); }));
     var cherche = h('input', { type: 'search', placeholder: 'Rechercher un fichier', class: 'champ-moyen' });
+    var zoneChemin = h('div', { class: 'pile' });
     var liste = [];
+    /** Service et catégorie d'un fichier : exports/<service>/<catégorie>/fichier ; ancien rangement exports/<catégorie>/fichier. */
+    function parts(f) {
+      var p = f.categorie.split('/');
+      if (p.length >= 2) return { service: p[0], categorie: p[1] };
+      return { service: '', categorie: p[0] };   // ancien rangement, sans service
+    }
+    function majChemin() {
+      vider(zoneChemin);
+      var sous = filtreSv.value ? [filtreSv.value] : [];
+      var chemin = M.cheminWindowsExports(config(), sous);
+      if (!chemin) {
+        zoneChemin.appendChild(h('small', { class: 'muted', text: s.peut('CONFIG') ? 'Pour proposer un accès direct au dossier depuis Windows, renseignez le chemin réseau du dossier des données (Administration → Établissement et services → Dossier des exports).' : 'Accès direct au dossier depuis Windows : demandez à l’administrateur de renseigner le chemin réseau.' }));
+        return;
+      }
+      var nomRaccourci = 'Exports isolement-contention' + (filtreSv.value ? ' - ' + filtreSv.value : '');
+      zoneChemin.appendChild(h('div', { class: 'recap' },
+        h('div', {}, 'Dossier Windows : ', h('span', { class: 'mono', text: chemin })),
+        h('div', { class: 'actions gauche' },
+          h('button', { class: 'btn petit', type: 'button', onclick: async function () {
+            try { await navigator.clipboard.writeText(chemin); toast('Chemin copié : collez-le dans la barre d’adresse de l’Explorateur Windows.'); }
+            catch (e) { prompt('Copiez ce chemin :', chemin); }
+          } }, 'Copier le chemin'),
+          h('button', { class: 'btn petit', type: 'button', title: 'Fichier de raccourci à placer sur le bureau : il ouvre ce dossier dans l’Explorateur', onclick: function () { raccourciWindows(nomRaccourci, chemin); toast('Raccourci téléchargé : déplacez-le sur le bureau.'); } }, 'Télécharger un raccourci pour le bureau'),
+          location.protocol === 'file:' ? h('a', { class: 'btn petit', href: urlFichier(chemin), target: '_blank' }, 'Ouvrir le dossier') : null),
+        h('small', { class: 'muted', text: 'Un navigateur ne peut pas ouvrir lui-même l’Explorateur Windows : copiez le chemin, ou gardez le raccourci sur le bureau (à télécharger une fois). Le service informatique peut aussi déployer ce raccourci sur les postes.' })));
+    }
     function dessiner() {
       var q = cherche.value.trim().toLowerCase();
-      var vus = liste.filter(function (f) { return (!filtre.value || f.categorie.split('/')[0] === filtre.value) && (!q || f.nom.toLowerCase().indexOf(q) >= 0); });
+      var vus = liste.filter(function (f) {
+        var x = parts(f);
+        if (!(x.service ? vis.libelles[x.service] !== undefined : vis.tous)) return false;   // fichiers des autres services masqués
+        return (!filtreSv.value || x.service === filtreSv.value) && (!filtre.value || x.categorie === filtre.value) && (!q || f.nom.toLowerCase().indexOf(q) >= 0);
+      });
       vider(zone);
       if (!vus.length) { zone.appendChild(h('div', { class: 'vide', text: liste.length ? 'Aucun fichier ne correspond.' : 'Aucun export pour le moment.' })); return; }
       zone.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['Enregistré le', 'Catégorie', 'Fichier', 'Taille', ''].map(function (t) { return h('th', { text: t }); }))),
+        h('thead', {}, h('tr', {}, ['Enregistré le', 'Service', 'Catégorie', 'Fichier', 'Taille', ''].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, vus.slice(0, 300).map(function (f) {
-          var cat = f.categorie.split('/')[0];
+          var x = parts(f);
           return h('tr', {},
             h('td', { class: 'nowrap', text: date(f.modifieLe) }),
-            h('td', { text: LIB_CATEGORIES_EXPORT[cat] || f.categorie || '—' }),
+            h('td', { text: x.service ? (vis.libelles[x.service] || x.service) : '—' }),
+            h('td', { text: LIB_CATEGORIES_EXPORT[x.categorie] || x.categorie || '—' }),
             h('td', { class: 'mono', text: f.nom }),
             h('td', { class: 'nowrap', text: taille(f.taille) }),
             h('td', { class: 'actions-ligne' },
@@ -361,18 +415,21 @@
               } }, 'Télécharger'), ' ',
               s.peut('CONFIG') ? h('button', { class: 'btn petit danger', type: 'button', onclick: async function () {
                 if (!confirm('Supprimer définitivement « ' + f.nom + ' » du dossier des exports ? La suppression est tracée au journal.')) return;
-                try { await s.supprimerExport(f.chemin); liste = liste.filter(function (x) { return x !== f; }); dessiner(); toast('Fichier supprimé.'); } catch (e) { alert(e.message); }
+                try { await s.supprimerExport(f.chemin); liste = liste.filter(function (y) { return y !== f; }); dessiner(); toast('Fichier supprimé.'); } catch (e) { alert(e.message); }
               } }, 'Supprimer') : null));
         })))));
       if (vus.length > 300) zone.appendChild(h('small', { class: 'muted', text: 'Affichage limité aux 300 fichiers les plus récents.' }));
     }
+    filtreSv.addEventListener('change', function () { dessiner(); majChemin(); });
     filtre.addEventListener('change', dessiner); cherche.addEventListener('input', dessiner);
+    majChemin();
     s.listerExports().then(function (l) { liste = l; dessiner(); }).catch(function (e) { vider(zone).appendChild(h('div', { class: 'erreur', text: e.message })); });
     var dossier = M.dossierExports(config()), nomDossier = App.dossier && App.dossier.handle && App.dossier.handle.name;
     modale('Exports', h('div', { class: 'pile' },
       M.optionsExports(config()).conservationJours ? h('p', { class: 'muted', text: 'Durée de conservation fixée par l’établissement : ' + M.optionsExports(config()).conservationJours + ' jours ; les fichiers plus anciens sont supprimés automatiquement.' }) : null,
-      h('p', { class: 'muted', text: 'Les décomptes, registres, statistiques et autres exports sont enregistrés automatiquement dans le dossier « ' + dossier + ' »' + (nomDossier ? ' du dossier des données (« ' + nomDossier + ' »)' : '') + (App.session.formation ? ', jeu de formation' : '') + '. Ils contiennent des données nominatives : ne les copiez pas hors du réseau de l’établissement. Pour joindre un fichier à un envoi, prenez-le directement dans ce dossier.' }),
-      h('div', { class: 'actions gauche' }, filtre, cherche),
+      h('p', { class: 'muted', text: 'Les décomptes, registres, statistiques et autres exports sont enregistrés automatiquement dans le dossier « ' + dossier + ' »' + (nomDossier ? ' du dossier des données (« ' + nomDossier + ' »)' : '') + (App.session.formation ? ', jeu de formation' : '') + ', un sous-dossier par service. Vous voyez les fichiers de vos services. Ils contiennent des données nominatives : ne les copiez pas hors du réseau de l’établissement.' }),
+      zoneChemin,
+      h('div', { class: 'actions gauche' }, filtreSv, filtre, cherche),
       zone), [{ texte: 'Fermer' }], { large: true });
   }
 
@@ -833,7 +890,7 @@
       });
       if (notePauses) { lignes.push([]); lignes.push([notePauses]); }
       var csv = '\ufeff' + lignes.map(function (l) { return l.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
-      exporter('registres', 'registre_' + svCode + '_' + anneeRegistre + '.csv', csv, 'text/csv;charset=utf-8');
+      exporter('registres', 'registre_' + svCode + '_' + anneeRegistre + '.csv', csv, 'text/csv;charset=utf-8', { service: svCode });
     }
 
     return h('div', {},
@@ -942,7 +999,7 @@
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
       case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
-      case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique');
+      case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return M.optionsSurveillance({ surveillance: v }).minParPoste + ' par poste';
       case 'organisationJLD': return String(v || '').trim() ? '« ' + String(v).trim() + ' »' : 'aucun texte';
       case 'lieuIsolement': var ll = M.libLieu({ lieuIsolement: v }); return ll.long + ' (' + ll.court + ')';
@@ -1988,6 +2045,7 @@
     // -- Dossier des exports
     var tExports = h('input', { type: 'text', maxlength: 120, value: M.dossierExports(cfg), placeholder: 'exports' });
     var oExp = M.optionsExports(cfg);
+    var tReseau = h('input', { type: 'text', maxlength: 200, value: oExp.cheminReseau, placeholder: '\\\\serveur\\partage\\SuiviIsoCont' });
     function libConservation(j) { return !j ? 'Aucune purge automatique' : j < 365 ? Math.round(j / 30.5) + ' mois' : Math.round(j / 365.25) + ' an' + (Math.round(j / 365.25) > 1 ? 's' : ''); }
     var selConservation = h('select', {}, M.CONSERVATION_EXPORTS.map(function (j) { return h('option', { value: j, text: libConservation(j), selected: j === oExp.conservationJours }); }));
     var apercuPurge = h('small', { class: 'muted' });
@@ -2003,6 +2061,8 @@
     var pExports = h('section', { class: 'panneau' }, h('h2', { text: 'Dossier des exports' }),
       h('p', { class: 'muted', text: 'Les décomptes JLD (PDF, CSV), registres, statistiques, registres pour communication, données d’un patient (droit d’accès) et archives sont enregistrés automatiquement dans ce sous-dossier du dossier des données, classés par catégorie, et consultables par le bouton « Exports » en haut de l’écran. Ces fichiers ne sont pas chiffrés : le dossier doit garder les mêmes droits d’accès que le dossier des données. Les copies de sauvegarde et les mots de passe provisoires restent téléchargés à part (ils ne doivent pas rester sur le partage).' }),
       h('label', {}, 'Sous-dossier (ex. « exports », « exports/unite-1 »)', tExports),
+      h('label', {}, 'Chemin réseau du dossier des données (facultatif, pour l’accès direct depuis Windows)', tReseau),
+      h('small', { class: 'muted', text: 'Ex. \\\\serveur\\partage\\SuiviIsoCont ou Z:\\SuiviIsoCont. La fenêtre « Exports » propose alors de copier le chemin du dossier de chaque service et un raccourci Windows à placer sur le bureau. Le navigateur ne connaît pas ce chemin : il est à recopier depuis l’Explorateur.' }),
       h('label', {}, 'Durée de conservation des exports', selConservation), h('div', {}, h('b', {}, apercuPurge)),
       h('small', { class: 'muted', text: 'Purge automatique : à la première connexion de la journée sur chaque poste, les fichiers du dossier des exports plus anciens que cette durée (date d’enregistrement) sont supprimés, et la purge est inscrite au journal. La durée est à fixer avec le délégué à la protection des données ; elle ne concerne que les exports, jamais les données de l’outil ni le registre.' }),
       h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
@@ -2022,7 +2082,9 @@
           var l = await App.session.purgerExports({ simulation: true, conservationJours: j });
           if (l.length && !confirm('Avec une conservation de ' + libConservation(j) + ', ' + l.length + ' fichier(s) existant(s) seront supprimés à la prochaine purge automatique (première connexion de la journée). Enregistrer ?')) return;
         }
-        await enregistrerConfig([['exports', { dossier: SIC.cheminExport(v).join('/'), conservationJours: j }]]);
+        var reseau = tReseau.value.trim().replace(/[\\/]+$/, '');
+        if (reseau && !/^(\\\\[^\\/]+[\\/][^\\/]+|[A-Za-z]:[\\/]?)/.test(reseau)) throw new Error('Chemin réseau inattendu : il commence par \\\\serveur\\partage ou par une lettre de lecteur (Z:\\…).');
+        await enregistrerConfig([['exports', { dossier: SIC.cheminExport(v).join('/'), conservationJours: j, cheminReseau: reseau }]]);
       }));
 
     // -- Organisation des envois au JLD (texte affiché en tête de l'onglet JLD)

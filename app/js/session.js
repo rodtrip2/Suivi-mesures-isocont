@@ -291,7 +291,7 @@
    */
   Session.prototype.exporter = async function (categorie, nom, octets, options) {
     var d = dossierActif(this), dossier = M.dossierExports(this.etat ? this.etat.config : M.CONFIG_DEFAUT);
-    var chemin = await d.ecrireExport(dossier, categorie, nom, octets);
+    var chemin = await d.ecrireExport(dossier, [M.dossierExportService(options && options.service), categorie], nom, octets);
     if (!(options && options.sansTrace)) { try { await this.tracer('EXPORT', { libelle: chemin }); } catch (e) { /* sans conséquence sur l'export */ } }
     return chemin;
   };

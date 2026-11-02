@@ -13,9 +13,9 @@
   var SIC = self.SIC, U = SIC.ui, M = SIC.model, h = U.h;
   var MOTIFS_NON_REALISE = ['Refus du patient', 'État clinique ne le permettant pas', 'Sortie ou transfert du patient', 'Autre'];
 
-  function telecharger(nom, lignes, categorie) {
+  function telecharger(nom, lignes, categorie, service) {
     var csv = '﻿' + lignes.map(function (l) { return l.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
-    return U.exporter(categorie, nom, csv, 'text/csv;charset=utf-8', { sansTrace: true });
+    return U.exporter(categorie, nom, csv, 'text/csv;charset=utf-8', { sansTrace: true, service: service });
   }
   function jour(t) { return new Date(t).toLocaleDateString('fr-FR'); }
 
@@ -233,7 +233,7 @@
     lignes.push([]); lignes.push(['Entrées du registre']); lignes.push(['N°', 'Catégorie', 'Service', 'Début', 'Fin', 'Durée (h)', 'Mode']);
     d.registre.forEach(function (e) { lignes.push([e.numero || 'en cours', e.categorie, U.libService(e.service), U.date(e.debut), e.fin ? U.date(e.fin) : 'en cours', e.dureeHeures.toFixed(2).replace('.', ','), e.modeHospi]); });
     lignes.push([]); lignes.push(['Les noms des professionnels chargés de la surveillance ne sont pas communiqués (données concernant des tiers).']);
-    telecharger('donnees_patient_' + (p.ipp || p.id) + '.csv', lignes, 'patients');
+    telecharger('donnees_patient_' + (p.ipp || p.id) + '.csv', lignes, 'patients', p.service || null);
     U.App.session.tracer('EXPORT_PATIENT', { libelle: 'Données de ' + ((p.nom || '') + ' ' + (p.prenom || '')).trim() + (p.ipp ? ' (IPP ' + p.ipp + ')' : '') + ' — droit d’accès' });
     U.toast('Export enregistré au journal.');
   }

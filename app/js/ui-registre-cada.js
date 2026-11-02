@@ -86,7 +86,7 @@
       { texte: 'Exporter (CSV)', action: async function () {
         var r = calculer();
         await tracer('CSV');
-        await U.exporter('communication', 'registre_communication_' + service + '_' + annee + '.csv', csv(service, annee, r, reference.value.trim()), 'text/csv;charset=utf-8', { sansTrace: true });
+        await U.exporter('communication', 'registre_communication_' + service + '_' + annee + '.csv', csv(service, annee, r, reference.value.trim()), 'text/csv;charset=utf-8', { sansTrace: true, service: service });
         return false;
       } },
       { texte: 'Imprimer / PDF', classe: 'primaire', action: async function () {

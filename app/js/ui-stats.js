@@ -109,7 +109,7 @@
       });
     });
     var csv = '﻿' + lignes.map(function (l) { return l.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
-    U.exporter('statistiques', 'statistiques_' + (svs.length === 1 ? svs[0] : 'services') + '_' + b.annee + '.csv', csv, 'text/csv;charset=utf-8');
+    U.exporter('statistiques', 'statistiques_' + (svs.length === 1 ? svs[0] : 'services') + '_' + b.annee + '.csv', csv, 'text/csv;charset=utf-8', { service: svs.length === 1 ? svs[0] : null });
   }
 
   function modaleSaisie(svs) {

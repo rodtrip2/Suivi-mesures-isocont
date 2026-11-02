@@ -343,7 +343,9 @@
     var base = cheminExport(dossierExports);
     if (!base) throw new Error('Dossier des exports mal défini : « ' + dossierExports + ' ».');
     if (RESERVES.indexOf(base[0].toLowerCase()) >= 0) throw new Error('Le dossier des exports ne peut pas être un dossier réservé de l’outil (« ' + base[0] + ' »).');
-    var chemin = base.concat(categorie ? [categorie] : []);
+    var sous = Array.isArray(categorie) ? categorie : (categorie ? [categorie] : []);
+    if (sous.some(function (x) { return !cheminExport(x) || cheminExport(x).length !== 1; })) throw new Error('Sous-dossier d’export inattendu.');
+    var chemin = base.concat(sous);
     var dir = await this.sousDossier(chemin, true);
     var propre = String(nom).replace(/[\\/:*?"<>|]+/g, '_');
     var point = propre.lastIndexOf('.'), racine = point > 0 ? propre.slice(0, point) : propre, ext = point > 0 ? propre.slice(point) : '';
