@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 1.37.0 — 2 novembre 2026
+
+- **Onglet Patients, statistiques améliorées** :
+  - colonne **Total** de l'année : nombre d'entrées du registre et durée totale (sans double compte, une contention en chambre de soins intensifs couvrant l'isolement qui l'accompagne) ;
+  - menu **Durées en** : jours et heures, heures, ou les deux (« 2 j 8 h (56 h) ») ; choix mémorisé sur le poste ;
+  - fiche du patient (bouton *Mesures*) : bloc **Année** avec durée totale, isolement seul et contention, **histogramme des heures par mois** (empilé) et **frise de l'année** (chaque entrée à sa date, détail au survol), flèches pour changer d'année.
+- Tableau des patients : intitulés de colonnes sur deux lignes et durées insécables, pour tenir sans défilement horizontal sur les écrans de 1 280 pixels et plus.
+
 ## 1.36.0 — 2 novembre 2026
 
 - **Organisation des envois au JLD réglable** (*Administration → Établissement et services*) : le texte affiché en tête de l'onglet *JLD* (« Envois assurés par la secrétaire en semaine, par l'IDE le week-end… », propre à un établissement) est désormais rédigé par chaque établissement ; vide par défaut, rien n'est alors affiché. Réglage tracé au journal.

@@ -1197,12 +1197,14 @@
     var cols = colonnesPatients(st.config), res = {};
     var debutAn = new Date(annee, 0, 1).getTime(), finAn = new Date(annee + 1, 0, 1).getTime();
     function ligne(id) {
-      if (!res[id]) res[id] = { colonnes: cols.map(function () { return { n: 0, heures: 0, enCours: 0 }; }), isolements: 0, contentions: 0 };
+      if (!res[id]) res[id] = { colonnes: cols.map(function () { return { n: 0, heures: 0, enCours: 0 }; }), isolements: 0, contentions: 0, entrees: 0, heuresTotal: 0, enCours: 0 };
       return res[id];
     }
     services.forEach(function (sv) {
       registre(st, sv, annee, maintenant).forEach(function (e) {
         var l = ligne(e.patientId);
+        // Total de l'année : toutes les entrées (elles ne se chevauchent pas : une contention en CSI couvre son isolement)
+        l.entrees++; l.heuresTotal += e.dureeHeures; if (e.fin === null) l.enCours++;
         cols.forEach(function (c, i) {
           if (c.categories.indexOf(e.categorie) < 0) return;
           l.colonnes[i].n++; l.colonnes[i].heures += e.dureeHeures;
@@ -1219,6 +1221,27 @@
       sequences(st, services, annee, maintenant).forEach(function (q) { var l = ligne(q.patientId); l.sequences = (l.sequences || 0) + 1; l.heuresSequences = (l.heuresSequences || 0) + q.dureeHeures; });
     }
     return { colonnes: cols, parPatient: res, sequences: optionsStats(st.config).colonneSequences };
+  }
+
+  /**
+   * Profil annuel d'un patient pour sa fiche : entrées du registre débutées dans l'année (services donnés),
+   * heures par mois de début, en isolement seul (A, B) et en contention (C, D, E), et frise des entrées.
+   * Retourne { annee, mois: [{ iso, cont, n }] × 12, total, iso, cont, entrees: [{ debut, fin, finAffichee, categorie, numero, dureeHeures }] }.
+   */
+  function profilAnnuelPatient(st, patientId, services, annee, maintenant) {
+    var res = { annee: annee, mois: [], total: 0, iso: 0, cont: 0, entrees: [] };
+    for (var i = 0; i < 12; i++) res.mois.push({ iso: 0, cont: 0, n: 0 });
+    services.forEach(function (sv) {
+      registre(st, sv, annee, maintenant).forEach(function (e) {
+        if (e.patientId !== patientId) return;
+        var mo = new Date(e.debut).getMonth(), cont = /[CDE]/.test(e.categorie);
+        res.mois[mo][cont ? 'cont' : 'iso'] += e.dureeHeures; res.mois[mo].n++;
+        res[cont ? 'cont' : 'iso'] += e.dureeHeures; res.total += e.dureeHeures;
+        res.entrees.push({ debut: e.debut, fin: e.fin, finAffichee: e.fin === null ? maintenant : e.fin, categorie: e.categorie, numero: e.numero || '', dureeHeures: e.dureeHeures, service: sv });
+      });
+    });
+    res.entrees.sort(function (a, b) { return a.debut - b.debut; });
+    return res;
   }
 
   // ------------------------------------------ Registre pour communication (CADA)
@@ -1696,7 +1719,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

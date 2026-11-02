@@ -264,6 +264,7 @@ body.en-formation main { background-image: repeating-linear-gradient(135deg, tra
 .badge.pause { white-space: nowrap; background: var(--surface-2); color: var(--ink); border: 1px dashed var(--ink-2); }
 tr.en-pause td { background: repeating-linear-gradient(135deg, transparent 0 10px, color-mix(in srgb, var(--surface-2) 70%, transparent) 10px 20px); }
 tr.en-pause td:first-child { box-shadow: inset 3px 0 0 var(--ink-2); }
+.nowrap { white-space: nowrap; }
 .en-ligne { display: flex; align-items: center; gap: 6px; }
 .en-ligne input[type=number] { width: 5em; }
 .raccourcis { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
@@ -401,3 +402,12 @@ details.extrait-loi blockquote p { margin: 0 0 6px; }
 td.mono { word-break: break-all; }
 /* Texte qui porte une explication au survol */
 .aide-survol { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+/* Fiche patient : heures par mois et frise de l'année */
+.graphique .barre-iso { fill: var(--accent); }
+.graphique .barre-cont { fill: var(--late); }
+.graphique.frise { max-height: 90px; }
+.graphique .frise-fond { fill: var(--surface-2); }
+.puce.iso { background: var(--accent); }
+.puce.cont { background: var(--late); }
+/* Tableau aux nombreuses colonnes : les intitulés peuvent passer sur deux lignes */
+table.entetes-souples th { white-space: normal; }

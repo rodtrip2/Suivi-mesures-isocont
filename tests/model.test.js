@@ -410,6 +410,12 @@ test('Statistiques annuelles par patient : colonnes de catégories paramétrable
   const s2 = M.statistiquesPatients(st2, ['U1'], 2026, local(2026, 12, 1));
   assert.deepEqual(s2.colonnes, [{ libelle: 'En CSI', categories: ['A', 'C'], alerte: false }]);
   assert.deepEqual(s2.parPatient.P1.colonnes.map(c => [c.n, c.heures]), [[3, 12]]);
+  // Total de l'année et profil mensuel de la fiche patient
+  assert.deepEqual([p1.entrees, p1.heuresTotal, p1.enCours], [3, 12, 0]);
+  const prof = M.profilAnnuelPatient(st, 'P1', ['U1'], 2026, local(2026, 12, 1));
+  assert.deepEqual([prof.total, prof.iso, prof.cont, prof.entrees.length], [12, 8, 4, 3]);
+  assert.equal(prof.mois.reduce((t, m) => t + m.iso + m.cont, 0), 12);
+  assert.equal(M.profilAnnuelPatient(st, 'P1', ['U1'], 2025, local(2026, 12, 1)).total, 0);
 });
 
 test('Scénario : isolement, contention ajoutée, pause de la contention, contention retirée, isolement maintenu', () => {
