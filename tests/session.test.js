@@ -400,3 +400,19 @@ test('Exports : enregistrés dans le dossier des exports, jamais écrasés, list
   await admin.supprimerExport(c2);
   assert.ok(!racine.e.get('exports').e.get('decomptes').e.has('decompte_fictif-2.pdf'));
 });
+
+test('Exports : purge selon la durée de conservation réglée, simulée puis appliquée, tracée', async () => {
+  const { racine, admin } = await nouveauDossier();
+  const o = new TextEncoder().encode('fictif');
+  const ancien = await admin.exporter('registres', 'ancien.csv', o, { sansTrace: true });
+  await admin.exporter('registres', 'recent.csv', o, { sansTrace: true });
+  // Le fichier « ancien » date de 100 jours
+  racine.e.get('exports').e.get('registres').e.get('ancien.csv').getFile = async function () { return { size: 6, lastModified: Date.now() - 100 * 864e5, arrayBuffer: async () => o.buffer }; };
+  assert.deepEqual(await admin.purgerExports(), []);                               // aucune règle : rien
+  await admin.enregistrer('CONFIG', { cle: 'exports', valeur: { dossier: 'exports', conservationJours: 92 } });
+  assert.deepEqual((await admin.purgerExports({ simulation: true })).map((f) => f.chemin), [ancien]);
+  assert.ok(racine.e.get('exports').e.get('registres').e.has('ancien.csv'));       // simulation : rien supprimé
+  assert.equal((await admin.purgerExports()).length, 1);
+  assert.deepEqual([...racine.e.get('exports').e.get('registres').e.keys()], ['recent.csv']);
+  assert.ok(admin.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'PURGE_EXPORTS'));
+});

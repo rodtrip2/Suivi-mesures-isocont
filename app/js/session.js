@@ -299,6 +299,24 @@
     return dossierActif(this).listerExports(M.dossierExports(this.etat ? this.etat.config : M.CONFIG_DEFAUT));
   };
   Session.prototype.lireExport = function (chemin) { return dossierActif(this).lireExport(chemin); };
+
+  /**
+   * Purge des exports selon la durée de conservation réglée par l'administrateur (`config.exports.conservationJours`).
+   * `options.simulation` : liste seulement. Sinon supprime les fichiers trop anciens et trace la purge au journal
+   * (règle de l'établissement appliquée à la connexion de n'importe quel agent, ou par l'administrateur).
+   * Retourne la liste des fichiers concernés.
+   */
+  Session.prototype.purgerExports = async function (options) {
+    var cfg = this.etat ? this.etat.config : M.CONFIG_DEFAUT, o = M.optionsExports(cfg);
+    var maintenant = (options && options.maintenant) || Date.now();
+    var jours = options && options.conservationJours !== undefined ? options.conservationJours : o.conservationJours;
+    var cibles = M.exportsAPurger(await this.listerExports(), jours, maintenant);
+    if ((options && options.simulation) || !cibles.length) return cibles;
+    var d = dossierActif(this), faits = [];
+    for (var i = 0; i < cibles.length; i++) { try { await d.supprimerExport(cibles[i].chemin); faits.push(cibles[i]); } catch (e) { /* fichier déjà supprimé ou verrouillé */ } }
+    if (faits.length) await this.tracer('PURGE_EXPORTS', { libelle: faits.length + ' fichier(s) de plus de ' + jours + ' jours supprimé(s) du dossier « ' + o.dossier + ' »' });
+    return faits;
+  };
   Session.prototype.supprimerExport = async function (chemin) {
     if (!this.peut('CONFIG')) throw new Error('Réservé à l’administrateur.');
     await dossierActif(this).supprimerExport(chemin);

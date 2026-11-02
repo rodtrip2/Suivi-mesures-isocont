@@ -194,7 +194,7 @@
     // Organisation des envois au JLD, affichée en tête de l'onglet JLD (texte libre de l'établissement ; vide = rien d'affiché)
     organisationJLD: '',
     // Exports (PDF, CSV) enregistrés automatiquement dans ce sous-dossier du dossier des données
-    exports: { dossier: 'exports' },
+    exports: { dossier: 'exports', conservationJours: 0 },   // 0 = aucune purge automatique
     // Surveillance en CSI : nombre minimal de professionnels attendus par poste
     surveillance: { minParPoste: 2 },
     // Rôles de l'établissement (libellé, accès, services) ; vide = rôles fournis avec leurs droits par défaut
@@ -537,6 +537,20 @@
     var v = (config && config.surveillance) || {};
     var n = Math.round(+v.minParPoste);
     return { minParPoste: isFinite(n) && n >= 1 && n <= 6 ? n : 2 };
+  }
+
+  /** Durées de conservation proposées pour les exports (jours ; 0 = aucune purge). */
+  var CONSERVATION_EXPORTS = [0, 31, 92, 183, 366, 731, 1096, 1827];
+  /** Réglages des exports, validés : { dossier, conservationJours }. */
+  function optionsExports(config) {
+    var v = (config && config.exports) || {}, j = Math.round(+v.conservationJours);
+    return { dossier: dossierExports(config), conservationJours: isFinite(j) && j > 0 ? Math.min(j, 3653) : 0 };
+  }
+  /** Exports à purger : fichiers modifiés depuis plus de `conservationJours` (liste de { chemin, modifieLe… }). */
+  function exportsAPurger(fichiers, conservationJours, maintenant) {
+    if (!conservationJours) return [];
+    var limite = maintenant - conservationJours * J;
+    return (fichiers || []).filter(function (f) { return f.modifieLe < limite; });
   }
 
   /** Dossier des exports (chemin relatif au dossier des données), « exports » par défaut. */
@@ -1871,7 +1885,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

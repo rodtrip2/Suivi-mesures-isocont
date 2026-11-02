@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.42.0 — 2 novembre 2026
+
+- **Durée de conservation des exports** réglable dans *Administration → Établissement et services → Dossier des exports* : aucune purge (par défaut), 1, 3 ou 6 mois, 1, 2, 3 ou 5 ans. Les exports plus anciens sont supprimés automatiquement à la première connexion de la journée sur chaque poste ; chaque purge est inscrite au journal. L'écran indique combien de fichiers sont concernés avant d'enregistrer ; bouton *Purger maintenant*.
+
 ## 1.41.0 — 2 novembre 2026
 
 - **Exports enregistrés automatiquement sur le réseau** : décomptes JLD (PDF, CSV), registres, statistiques, registres pour communication, données d'un patient et archives sont écrits dans le **dossier des exports** (sous-dossier du dossier des données, « exports » par défaut, réglable dans *Administration → Établissement et services*), classés par catégorie, jamais écrasés et tracés au journal. Plus de fichiers nominatifs laissés dans les téléchargements des postes (téléchargement seulement en secours si le dossier est inaccessible).
