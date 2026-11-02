@@ -37,10 +37,10 @@
 
 ## Dossier réseau indisponible, dossier de secours en place
 
-Si l'établissement a mis en place un **dossier de secours** (*Administration → Informations*, sur un autre serveur) :
+Si l'établissement a mis en place un **dossier de secours** (*Administration → Informations*, sur un autre serveur, tenu à jour par des postes reliés ou par une copie robocopy du service informatique, document 09) :
 1. Sur chaque poste : *Verrouiller* puis *Changer de dossier*, et ouvrir le dossier de secours (le service informatique ou le cadre en donne l'emplacement). Un bandeau rouge rappelle qu'il s'agit du dossier de secours ; les comptes et mots de passe sont les mêmes.
 2. Travailler normalement. Les saisies faites depuis la dernière synchronisation (10 minutes au plus en temps normal) peuvent manquer : les ressaisir à leur heure réelle si besoin.
-3. Au retour du dossier principal : l'administrateur l'ouvre (*Changer de dossier*), puis *Administration → Informations → Synchroniser maintenant* : les saisies faites sur le dossier de secours sont reprises, rien n'est écrasé. Chaque poste rouvre ensuite le dossier principal.
+3. Au retour du dossier principal : l'administrateur l'ouvre (*Changer de dossier*), puis *Administration → Informations → Synchroniser maintenant* : les saisies faites sur le dossier de secours sont reprises, rien n'est écrasé. Chaque poste rouvre ensuite le dossier principal. Avec une copie robocopy : suspendre la tâche planifiée pendant la panne et ne la réactiver qu'après cette synchronisation (document 09).
 
 ## Dossier réseau ou application indisponible — procédure dégradée
 

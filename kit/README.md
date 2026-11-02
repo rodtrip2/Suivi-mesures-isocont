@@ -11,6 +11,7 @@ Tout ce qu'il faut pour présenter, valider, installer et exploiter Suivi-mesure
 | [05 — Éléments RGPD et analyse d'impact (AIPD)](05-elements-rgpd-aipd.md) | Délégué à la protection des données (DPO, référent RGPD) | Fiche du registre des traitements et préparation de l'analyse d'impact |
 | [06 — Guide utilisateur](06-guide-utilisateur.md) | IDE, secrétariat, cadres | Formation des équipes |
 | [08 — Guide pratique IDE et AS](08-guide-ide-as.md) | IDE, aides-soignant(e)s | Les gestes du quotidien avec captures : créer une mesure, pause et reprise, tiers, décompte et envoi au JLD, surveillance en CSI, fin |
+| [09 — Dossier de secours copié par robocopy](09-dossier-secours-robocopy.md) | Service informatique | Copie automatique des données vers un second serveur (tâche planifiée, script `outils/miroir-robocopy.ps1`), retour après une panne |
 | [07 — Reprise à partir du registre](07-modele-import-registre.md) | Administrateur fonctionnel, cadres | Format du registre à importer, reconstitution des mesures, contrôles avant import |
 
 ## Parcours de déploiement

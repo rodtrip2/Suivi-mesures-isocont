@@ -59,7 +59,10 @@
     var o = optionsMiroir(s.etat.config);
     if (!o.attendu) return res;
     var der = etat.principal && etat.principal.derniere ? Date.parse(etat.principal.derniere) : 0;
-    if (!der || Date.now() - der > ALERTE_HEURES * 3600000) res.push(h('li', {}, h('b', { text: 'Dossier de secours' }), ' — ' + (der ? 'dernière synchronisation le ' + U.date(der) : 'jamais synchronisé') + '. Reliez un poste utilisé chaque jour au dossier de secours (Administration → Informations).'));
+    var robo = etat.principal && etat.principal.outil === 'robocopy';
+    if (!der || Date.now() - der > ALERTE_HEURES * 3600000) res.push(h('li', {}, h('b', { text: 'Dossier de secours' }), ' — ' + (der ? 'dernière synchronisation le ' + U.date(der) : 'jamais synchronisé') + '. ' + (robo
+      ? 'La copie est faite par une tâche planifiée robocopy' + (etat.principal.poste ? ' (poste ou serveur ' + etat.principal.poste + ')' : '') + ' : prévenez le service informatique (machine éteinte, tâche arrêtée, accès refusé ?).'
+      : 'Reliez un poste utilisé chaque jour au dossier de secours (Administration → Informations).')));
     return res;
   }
 
@@ -79,10 +82,14 @@
       }
       zone.appendChild(h('div', { class: 'recap' },
         h('div', { text: 'Dossier de secours : ' + (o.attendu ? '« ' + (o.nom || (p && p.autre) || '?') + ' »' : 'aucun') }),
-        h('div', { text: 'Dernière synchronisation : ' + (p && p.derniere ? U.date(Date.parse(p.derniere)) + (p.poste ? ' (session de ' + p.poste + ')' : '') : 'jamais') }),
+        h('div', { text: 'Dernière synchronisation : ' + (p && p.derniere ? U.date(Date.parse(p.derniere)) + (p.outil === 'robocopy' ? ' — copie robocopy par la tâche planifiée' + (p.poste ? ' de « ' + p.poste + ' »' : '') : (p.poste ? ' (session de ' + p.poste + ')' : '')) : 'jamais') }),
         h('div', { text: 'Ce poste : ' + (etat.poste ? 'relié au dossier « ' + etat.poste.nom + ' »' + (etat.autorise ? '' : ' — accès à autoriser') : 'non relié') }),
         etat.erreur ? h('div', { class: 'texte-bad', text: 'Dernière tentative : ' + etat.erreur }) : null));
       var actions = h('div', { class: 'actions gauche' });
+      if (p && p.outil === 'robocopy' && !o.attendu) actions.appendChild(h('button', { class: 'btn primaire', type: 'button', onclick: function () { action(async function () {
+        await U.enregistrerConfig([['miroir', { attendu: true, nom: p.autre || '' }]]);
+        U.toast('Copie robocopy surveillée : un point de vigilance apparaîtra après 24 h sans copie.');
+      }); } }, 'Surveiller la copie robocopy (alerte après 24 h)'));
       actions.appendChild(h('button', { class: 'btn', type: 'button', disabled: !reseau, onclick: function () { action(async function () {
         var d = await choisir('sic-miroir');
         var nature = await s.controlerMiroir(d);
@@ -137,7 +144,7 @@
 
     remplir().catch(function (e) { U.erreurDans(zoneErr, e); });
     return h('section', { class: 'panneau' }, h('h2', { text: 'Dossier de secours et déplacement des données' }),
-      h('p', { class: 'muted', text: 'Dossier de secours : un second dossier, de préférence sur un autre serveur, qui reçoit une copie des données chiffrées (coffre, saisies, repères ; ni les exports, ni le jeu de formation). Il est tenu à jour par chaque poste relié, à la connexion puis toutes les 10 minutes ; reliez au moins un poste utilisé chaque jour (le navigateur demande l’accès au dossier une première fois). Si le dossier principal devient inaccessible, ouvrez le dossier de secours avec « Changer de dossier » : il s’utilise normalement (mêmes comptes, mêmes mots de passe) ; au retour du dossier principal, ouvrez-le et synchronisez : les saisies faites entre-temps sont reprises. Il ne remplace pas les sauvegardes du service informatique.' }),
+      h('p', { class: 'muted', text: 'Dossier de secours : un second dossier, de préférence sur un autre serveur, qui reçoit une copie des données chiffrées (coffre, saisies, repères ; ni les exports, ni le jeu de formation). Il est tenu à jour par chaque poste relié, à la connexion puis toutes les 10 minutes ; reliez au moins un poste utilisé chaque jour (le navigateur demande l’accès au dossier une première fois). Si le dossier principal devient inaccessible, ouvrez le dossier de secours avec « Changer de dossier » : il s’utilise normalement (mêmes comptes, mêmes mots de passe) ; au retour du dossier principal, ouvrez-le et synchronisez : les saisies faites entre-temps sont reprises. Il ne remplace pas les sauvegardes du service informatique. Autre possibilité, sans poste relié : une copie par robocopy, tâche planifiée du service informatique (kit, document 09) ; le retour après une panne se fait alors ici, en reliant ce poste au dossier de secours puis « Synchroniser maintenant ».' }),
       zoneErr, zone, res,
       h('h3', { text: 'Déplacer les données' }),
       h('p', { class: 'muted', text: 'Pour changer de serveur ou de partage : choisissez un dossier vide ; toutes les données (exports compris) y sont copiées et vérifiées, puis l’ancien dossier est marqué « déplacé » et ne s’ouvre plus. Il n’est pas effacé : le service informatique le supprime après vérification.' }),
