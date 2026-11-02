@@ -6,9 +6,9 @@ const assert = require('node:assert/strict');
 
 // Dossier simulé : sous-ensemble de l'API File System Access utilisé par store.js
 class Fichier {
-  constructor(name) { this.name = name; this.kind = 'file'; this.data = new Uint8Array(); }
-  async getFile() { const d = this.data; return { arrayBuffer: async () => d.slice().buffer }; }
-  async createWritable() { let tampon; return { write: async (o) => { tampon = new Uint8Array(o); }, close: async () => { this.data = tampon; } }; }
+  constructor(name) { this.name = name; this.kind = 'file'; this.data = new Uint8Array(); this.modifie = 0; }
+  async getFile() { const d = this.data; return { size: d.length, lastModified: this.modifie, arrayBuffer: async () => d.slice().buffer }; }
+  async createWritable() { let tampon; return { write: async (o) => { tampon = new Uint8Array(o); }, close: async () => { this.data = tampon; this.modifie = Date.now() + (Fichier.horloge = (Fichier.horloge || 0) + 1); } }; }
 }
 class Repertoire {
   constructor(name) { this.name = name; this.kind = 'directory'; this.e = new Map(); }
@@ -21,6 +21,7 @@ class Repertoire {
   async *values() { for (const v of [...this.e.values()]) yield v; }
   async *keys() { for (const k of [...this.e.keys()]) yield k; }
   async removeEntry(n) { this.e.delete(n); }
+  async isSameEntry(o) { return o === this; }
 }
 
 globalThis.self = globalThis;
@@ -419,4 +420,57 @@ test('Exports : purge selon la durée de conservation réglée, simulée puis ap
   assert.equal((await admin.purgerExports()).length, 1);
   assert.deepEqual([...racine.e.get('exports').e.get('Etablissement').e.get('registres').e.keys()], ['recent.csv']);
   assert.ok(admin.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'PURGE_EXPORTS'));
+});
+
+// ------------------------------------------------------ Dossier de secours et déplacement
+function compterFichiers(rep, prefixe, res) {
+  for (const [n, v] of rep.e) { if (v.kind === 'directory') compterFichiers(v, prefixe + n + '/', res); else res.push(prefixe + n); }
+  return res;
+}
+
+test('Dossier de secours : copie, travail sur le secours, reprise des saisies au retour', async () => {
+  const { racine, admin } = await nouveauDossier();
+  await admin.enregistrer('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
+  const secoursRep = new Repertoire('Secours');
+  const secours = new Dossier(secoursRep, 'reseau');
+  assert.equal(await admin.controlerMiroir(secours), 'vide');
+  const r1 = await admin.synchroniserMiroir(secours);
+  assert.ok(r1.versAutre >= 2);
+  assert.equal(r1.coffre, 'vers');
+  assert.ok(compterFichiers(secoursRep, '', []).some((c) => c.startsWith('evenements/')));
+  assert.equal((await secours.lireEtatMiroir()).role, 'secours');
+  assert.equal(await admin.controlerMiroir(secours), 'meme');
+  // Le dossier principal est indisponible : on travaille sur le secours
+  const surSecours = await connecter(secoursRep, 'admin', 'mot de passe solide');
+  assert.ok(surSecours.etat.mesures.M1);
+  await surSecours.enregistrer('MESURE_FIN', { mesureId: 'M1', fin: Date.now() }, surSecours.etat.mesures.M1.version);
+  // Retour du principal : les saisies faites sur le secours sont reprises, rien n'est écrasé
+  const r2 = await admin.synchroniserMiroir(secours);
+  assert.ok(r2.depuisAutre >= 1);
+  assert.equal(typeof admin.etat.mesures.M1.fin, 'number');
+  await admin.synchroniserMiroir(secours);                              // trace de la reprise et repère copiés vers le secours
+  const r4 = await admin.synchroniserMiroir(secours);
+  assert.equal(r4.versAutre + r4.depuisAutre, 0);                      // plus rien à copier
+  // Un dossier contenant d'autres données est refusé
+  const autre = await nouveauDossier();
+  await assert.rejects(admin.controlerMiroir(new Dossier(autre.racine, 'reseau')), /autres données/);
+  await assert.rejects(admin.controlerMiroir(new Dossier(racine, 'reseau')), /dossier des données lui-même|n’est pas vide|autres données/);
+});
+
+test('Déplacement des données : copie vérifiée, ancien dossier marqué, nouveau dossier utilisable', async () => {
+  const { racine, admin } = await nouveauDossier();
+  await admin.enregistrer('MESURE_DEBUT', { mesureId: 'M1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut: Date.now() - 3600e3, csi: true });
+  await admin.exporter('registres', 'registre_U1_2026.csv', new TextEncoder().encode('fictif'), { service: 'U1' });
+  const plein = new Repertoire('Plein'); plein.e.set('x.txt', new Fichier('x.txt'));
+  await assert.rejects(admin.deplacerDonnees(new Dossier(plein, 'reseau')), /pas vide/);
+  const neuf = new Repertoire('Nouveau');
+  const n = await admin.deplacerDonnees(new Dossier(neuf, 'reseau'));
+  assert.ok(n >= 4);
+  assert.ok(compterFichiers(neuf, '', []).some((c) => c.startsWith('exports/')));
+  const dep = await new Dossier(racine, 'reseau').lireDeplacement();
+  assert.equal(dep.vers, 'Nouveau');
+  const s = await connecter(neuf, 'admin', 'mot de passe solide');
+  assert.ok(s.etat.mesures.M1);
+  assert.ok(s.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'DEPLACEMENT'));
+  await assert.rejects(admin.deplacerDonnees(new Dossier(new Repertoire('Encore'), 'reseau')), /déjà été déplacé/);
 });

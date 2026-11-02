@@ -52,6 +52,7 @@ a { color: var(--accent); }
 code, .mono { font-family: var(--mono); font-size: .92em; }
 
 /* ---------- Bandeau démonstration */
+.bandeau-secours { background: var(--bad-soft); color: var(--bad); text-align: center; padding: 4px 12px; font-size: .85rem; font-weight: 700; }
 .bandeau-demo { background: var(--demo-soft); color: var(--demo); text-align: center; padding: 4px 12px; font-size: .85rem; font-weight: 600; }
 
 /* ---------- Écrans d'accueil */
@@ -189,7 +190,7 @@ dialog .pied { padding: 12px 20px; border-top: 1px solid var(--line); display: f
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: var(--radius); box-shadow: var(--shadow); z-index: 50; font-size: .9rem; }
 .chargement { display: grid; place-items: center; min-height: 40vh; color: var(--ink-2); }
 @media print {
-  .entete, .barre .btn, .actions-ligne, .bandeau-demo { display: none !important; }
+  .entete, .barre .btn, .actions-ligne, .bandeau-demo, .bandeau-secours { display: none !important; }
   body { background: #fff; }
 }
 

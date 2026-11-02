@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.49.0 — 2 novembre 2026
+
+- **Dossier de secours** (*Administration → Informations*) : un second dossier, de préférence sur un autre serveur, reçoit une copie des données chiffrées, tenue à jour par les postes reliés (à la connexion puis toutes les 10 minutes). Si le dossier principal est inaccessible, on travaille sur le dossier de secours (bandeau rouge) ; au retour, *Synchroniser maintenant* reprend les saisies faites entre-temps, sans rien écraser. Point de vigilance après 24 h sans synchronisation ; dossier contenant d'autres données refusé.
+- **Déplacement des données** vers un nouveau dossier vide : copie de tous les fichiers relue et vérifiée, ancien dossier marqué « déplacé » (il ne s'ouvre plus et indique le nouveau dossier), tracé au journal.
+- Stockage sur un partage autre que SMB : étude ajoutée aux évolutions futures.
+- Procédures de secours (document 04) et fiche technique complétées.
+
 ## 1.48.0 — 2 novembre 2026
 
 - **Registre en PDF** (bouton *Enregistrer en PDF* de l'onglet *Registre*) : synthèse par catégorie et entrées, avec le papier à en-tête, les marges, l'en-tête, le pied de page et le bloc signature du masque du décompte JLD du service, mention « document confidentiel », numéros de page. Fichier rangé dans les exports du service.

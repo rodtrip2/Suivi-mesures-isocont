@@ -70,7 +70,7 @@
     MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', PROPOSITION: 'Correction proposée', REFUS_PROPOSITION: 'Correction proposée refusée', TRANSFERT: 'Transfert entre services', SOMATIQUE: 'Soins somatiques ou urgences', SOMATIQUE_RETOUR: 'Retour dans le service', RECOURS: 'Recours ou appel (JLD)', ENTRETIEN: 'Entretien après la mesure', INTEGRITE: 'Intégrité des données', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
-  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', EXPORT: 'fichier exporté', EXPORT_SUPPRIME: 'fichier exporté supprimé', PURGE_EXPORTS: 'purge des anciens exports', REPARATION: 'réparation depuis une copie de sauvegarde', QUARANTAINE: 'mise en quarantaine', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
+  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', EXPORT: 'fichier exporté', EXPORT_SUPPRIME: 'fichier exporté supprimé', PURGE_EXPORTS: 'purge des anciens exports', REPARATION: 'réparation depuis une copie de sauvegarde', QUARANTAINE: 'mise en quarantaine', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré', MIROIR: 'synchronisation avec le dossier de secours', MIROIR_REPRISE: 'saisies reprises du dossier de secours', MIROIR_LIEN: 'dossier de secours relié', DEPLACEMENT: 'données déplacées vers un nouveau dossier' };
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -109,6 +109,8 @@
     vider(racine);
     if (App.dossier && App.dossier.mode === 'demo') racine.appendChild(h('div', { class: 'bandeau-demo', text: 'Mode démonstration — données fictives uniquement, stockées dans ce navigateur. Ne saisissez aucune donnée réelle.' }));
     if (!App.dossier) return racine.appendChild(ecranAccueil());
+    if (App.deplacement) return racine.appendChild(SIC.ui.miroir.ecranDeplace(App.deplacement));
+    if (App.secours) racine.appendChild(h('div', { class: 'bandeau-secours', role: 'alert', text: 'Dossier de secours — à n’utiliser que si le dossier principal est inaccessible. Au retour du dossier principal, l’administrateur l’ouvre et synchronise.' }));
     if (!App.session.coffre) return racine.appendChild(App.anomalie ? ecranAnomalie() : ecranInitialisation());
     if (!App.session.cle) return racine.appendChild(ecranConnexion());
     if (App.session.utilisateur && App.session.utilisateur.mdpProvisoire) return racine.appendChild(ecranMotDePasseObligatoire());
@@ -175,6 +177,11 @@
     App.session.sur(function (s, info) { if (App.session.cle) apresNotification(info); });
     await App.session.chargerCoffre();
     App.anomalie = App.session.coffre ? null : await App.dossier.anomalie();
+    App.deplacement = null; App.secours = false;
+    if (App.dossier.mode === 'reseau') {
+      try { App.deplacement = await App.dossier.lireDeplacement(); } catch (e) { /* lecture impossible */ }
+      try { var em = await App.dossier.lireEtatMiroir(); App.secours = !!(em && em.role === 'secours'); } catch (e) { /* lecture impossible */ }
+    }
     rendre();
   }
 
@@ -503,6 +510,7 @@
 
   function demarrerMinuteurs() {
     chargerPreferences();
+    try { SIC.ui.miroir.demarrer(); } catch (e) { /* sans effet sur la session */ }
     retenirAccueil();
     setTimeout(purgeAutomatique, 4000);
     arreterMinuteurs();
@@ -520,7 +528,7 @@
       if (App.session && App.session.cle && Date.now() - App.derniereActivite > limite) verrouiller('Session verrouillée après ' + (config().inactiviteMinutes || 10) + ' minutes d’inactivité.');
     }, 15000));
   }
-  function arreterMinuteurs() { App.minuteurs.forEach(clearInterval); App.minuteurs = []; }
+  function arreterMinuteurs() { App.minuteurs.forEach(clearInterval); App.minuteurs = []; if (SIC.ui.miroir) SIC.ui.miroir.arreter(); }
   ['pointerdown', 'keydown'].forEach(function (t) { document.addEventListener(t, function () { App.derniereActivite = Date.now(); }, true); });
 
   // ================================================================ Application
@@ -698,6 +706,7 @@
     var mineurs = enCours.filter(function (m) { return M.estMineur(st(), m.patientId, maintenant); });
     var vigilance = [];
     SIC.ui.sauvegarde.vigilance().forEach(function (li) { vigilance.push(li); });
+    SIC.ui.miroir.vigilance().forEach(function (li) { vigilance.push(li); });
     var aTracer = SIC.ui.alertes.aTracer();
     SIC.ui.qualite.entretiensARenseigner(maintenant).slice(0, 6).forEach(function (m) {
       vigilance.push(h('li', {}, h('b', { text: nomPatient(m.patientId) }), ' — ' + m.type.toLowerCase() + ' terminé' + (m.type === 'Contention' ? 'e' : '') + ' le ' + court(m.fin) + ' : ' + M.optionsQualite(config()).nomEntretien.toLowerCase() + ' à renseigner. ',
@@ -976,7 +985,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', miroir: 'Dossier de secours', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -1050,6 +1059,7 @@
       case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return M.optionsSurveillance({ surveillance: v }).minParPoste + ' par poste';
+      case 'miroir': return v && v.attendu ? '« ' + v.nom + ' »' : 'aucun';
       case 'listes': return (v && v.fonctionsSurveillance ? v.fonctionsSurveillance.length : 0) + ' fonction(s), ' + (v && v.motifsPause ? v.motifsPause.length : 0) + ' motif(s) de pause, ' + (v && v.motifsFin ? v.motifsFin.length : 0) + ' motif(s) de fin propres, raccourcis ' + ((v && v.raccourcisPause) || []).map(M.libRaccourci).join(', ');
       case 'vigilance': return v ? 'rouge ' + v.isolementRouge + ' h / ' + v.contentionRouge + ' h, orange ' + v.isolementJaune + ' h / ' + v.contentionJaune + ' h (isolement / contention)' : '—';
       case 'affichage': return v ? 'mesures terminées visibles ' + v.mesuresTermineesJours + ' j' + (v.contact ? ', contact renseigné' : '') + (v.consigne ? ', consigne renseignée' : '') + (v.logo ? ', logo' : ', sans logo') : '—';
@@ -1234,7 +1244,7 @@
           return h('tr', { class: annule ? 'ancienne' : '' },
             h('td', { class: 'nowrap', text: date(Date.parse(e.at)) }),
             h('td', { text: App.session.nomAuteur(e.by) }),
-            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE') ? 'Sauvegarde' : e.type === 'COMPTE' && e.data && (e.data.action === 'EXPORT' || e.data.action === 'EXPORT_SUPPRIME' || e.data.action === 'PURGE_EXPORTS') ? 'Export' : (lieu(LIB_EVT[e.type]) || e.type)),
+            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE' || /^(MIROIR|DEPLACEMENT)/.test(e.data.action)) ? 'Sauvegarde' : e.type === 'COMPTE' && e.data && (e.data.action === 'EXPORT' || e.data.action === 'EXPORT_SUPPRIME' || e.data.action === 'PURGE_EXPORTS') ? 'Export' : (lieu(LIB_EVT[e.type]) || e.type)),
             h('td', {}, resumeEvt(e)),
             h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null),
             h('td', { class: 'actions-ligne' }, boutonAnnulationJournal(etat, e)));
@@ -2482,7 +2492,7 @@
       ['registre', 'Registre et statistiques', [pDocs, pColsP, SIC.ui.methode.panneauAdmin(), SIC.ui.qualite.panneauAdmin()]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
-      ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), demo]],
+      ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), SIC.ui.miroir.panneau(), demo]],
       ['apropos', 'À propos', [SIC.ui.apropos.panneau(), SIC.ui.version.panneau()]]
     ]);
 
@@ -2629,7 +2639,7 @@
     App: App, st: st, config: config, services: services, tousServices: tousServices, libService: libService, etablissement: etablissement,
     patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
     badgeType: badgeType, badgePause: badgePause, alerteChamp: alerteChamp, tiersBadge: tiersBadge,
-    boutonEnregistrer: boutonEnregistrer, enregistrerConfig: enregistrerConfig,
+    boutonEnregistrer: boutonEnregistrer, enregistrerConfig: enregistrerConfig, changerDossier: function () { return changerDossier(); },
     lieu: lieu, exporter: exporter, telechargerOctets: telechargerOctets, detailMesure: function (m) { modaleDetail(m); }, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
     demarrer: rendre, verrouiller: verrouiller

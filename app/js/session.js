@@ -522,6 +522,45 @@
     return r.evenements.length;
   };
 
+  // ------------------------------------------- Dossier de secours (miroir) et déplacement
+  /**
+   * Vérifie qu'un dossier peut servir de dossier de secours : vide, ou copie des mêmes données (même coffre d'origine).
+   * Retourne 'vide' ou 'meme'.
+   */
+  Session.prototype.controlerMiroir = async function (autre) {
+    if (await this.dossier.memeQue(autre)) throw new Error('C’est le dossier des données lui-même : choisissez un dossier sur un autre partage ou un autre serveur.');
+    var coffre = await autre.lireCoffre();
+    if (coffre) {
+      if (coffre.creeLe !== this.coffre.creeLe) throw new Error('Ce dossier contient d’autres données (autre établissement, autre service ou jeu de démonstration) : choisissez un dossier vide.');
+      return 'meme';
+    }
+    if (autre.coffreIllisible) throw new Error('Ce dossier contient un coffre illisible : choisissez un dossier vide.');
+    for await (var k of autre.handle.keys()) { if (k !== 'miroir-etat.json') throw new Error('Ce dossier n’est pas vide : choisissez un dossier vide (ou un dossier de secours de ces mêmes données).'); }
+    return 'vide';
+  };
+  /** Synchronise le dossier des données et le dossier de secours ; relit les saisies venues du secours. */
+  Session.prototype.synchroniserMiroir = async function (miroir, options) {
+    options = options || {};
+    if (!this.cle || !this.coffre) throw new Error('Session fermée.');
+    await this.controlerMiroir(miroir);
+    var r = await this.dossier.synchroniserAvec(miroir, { poste: options.poste || (this.utilisateur && this.utilisateur.nom) || '' });
+    if (r.depuisAutre) {
+      try { await this.tracer('MIROIR_REPRISE', { libelle: r.depuisAutre + ' fichier(s) repris du dossier de secours « ' + miroir.nom + ' »' }); } catch (e) { /* trace facultative */ }
+      if (r.coffre === 'depuis') { this.coffre = await this.dossier.lireCoffre(); await lireComptes(this); }
+      await this.synchroniser();
+    }
+    if (options.tracer || r.coffre === 'conflit') { try { await this.tracer('MIROIR', { libelle: 'Synchronisation avec « ' + miroir.nom + ' » : ' + r.versAutre + ' fichier(s) copié(s)' + (r.coffre === 'conflit' ? ' ; coffres différents de même révision, celui du dossier principal retenu' : '') }); } catch (e) { /* trace facultative */ } }
+    return r;
+  };
+  /** Déplace toutes les données vers `cible` (vide) ; ce dossier est ensuite marqué « déplacé » et ne s'ouvre plus. */
+  Session.prototype.deplacerDonnees = async function (cible, progres) {
+    if (!this.peut('CONFIG')) throw new Error('Réservé à l’administrateur.');
+    if (this.formation) throw new Error('Quittez le mode formation avant de déplacer les données.');
+    if (await this.dossier.memeQue(cible)) throw new Error('Choisissez un autre dossier que le dossier actuel.');
+    await this.tracer('DEPLACEMENT', { libelle: 'Données déplacées de « ' + this.dossier.nom + ' » vers « ' + cible.nom + ' »' });
+    return this.dossier.deplacerVers(cible, { par: this.utilisateur.nom, progres: progres });
+  };
+
   // ---------------------------------------------------------- Mode formation
   /*
    * Le jeu de formation est un second jeu de données, entièrement fictif, rangé dans le

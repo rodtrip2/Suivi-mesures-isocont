@@ -506,6 +506,146 @@
     for await (var k of this.handle.keys()) await this.handle.removeEntry(k, { recursive: true });
   };
 
+  // ---------------------------------------- Dossier de secours (miroir) et déplacement des données
+  // Demande du porteur : un second dossier, sur un autre serveur, tenu à jour par les postes qui y sont reliés ;
+  // déplacement des données vers un nouveau dossier. Les saisies (fichiers jamais modifiés) sont réunies dans les
+  // deux sens ; le coffre retenu est celui de plus haute révision ; les autres fichiers, le plus récent.
+  var EXCLUS_MIROIR = ['instantanes', 'formation', 'exports'];
+  var FICHIERS_RACINE = ['coffre.json'];
+
+  /** Inventaire d'un dossier : { chemin: { fichier (handle), parent (handle dossier), nom } }. */
+  async function inventaire(racine, exclus, fichiersRacine) {
+    var res = {};
+    async function parcourir(dir, prefixe, niveau) {
+      for await (var x of dir.values()) {
+        if (x.kind === 'directory') {
+          if (niveau === 0 && exclus.indexOf(x.name) >= 0) continue;
+          await parcourir(x, prefixe + x.name + '/', niveau + 1);
+        } else if (niveau > 0 || !fichiersRacine || fichiersRacine.indexOf(x.name) >= 0) {
+          res[prefixe + x.name] = { fichier: x, parent: dir, nom: x.name };
+        }
+      }
+    }
+    await parcourir(racine, '', 0);
+    return res;
+  }
+  async function dossierDe(racine, chemin) {
+    var parties = chemin.split('/').slice(0, -1), h = racine;
+    for (var i = 0; i < parties.length; i++) h = await h.getDirectoryHandle(parties[i], { create: true });
+    return h;
+  }
+  function memesOctets(a, b) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  async function copier(entree, cibleRacine, chemin) {
+    var octets = new Uint8Array(await (await entree.fichier.getFile()).arrayBuffer());
+    var dir = await dossierDe(cibleRacine, chemin), nom = chemin.split('/').pop();
+    var w = await (await dir.getFileHandle(nom, { create: true })).createWritable();
+    await w.write(octets); await w.close();
+    return octets.length;
+  }
+
+  /** Rôle d'un dossier dans le couple principal / secours, ou dossier abandonné après un déplacement. */
+  Dossier.prototype.lireEtatMiroir = async function () {
+    var o = await this.lireFichier(this.handle, 'miroir-etat.json');
+    try { return o ? JSON.parse(new TextDecoder().decode(o)) : null; } catch (e) { return null; }
+  };
+  Dossier.prototype.ecrireEtatMiroir = function (etat) {
+    return this.ecrireFichier(this.handle, 'miroir-etat.json', new TextEncoder().encode(JSON.stringify(etat, null, 1)));
+  };
+  Dossier.prototype.lireDeplacement = async function () {
+    var o = await this.lireFichier(this.handle, 'deplace.json');
+    try { return o ? JSON.parse(new TextDecoder().decode(o)) : null; } catch (e) { return { vers: '?', le: null }; }
+  };
+
+  /**
+   * Synchronise ce dossier (principal) avec `autre` (secours), dans les deux sens.
+   * Retourne { versAutre, depuisAutre, octets, coffre: 'egal'|'vers'|'depuis'|'conflit'|null }.
+   */
+  Dossier.prototype.synchroniserAvec = async function (autre, options) {
+    options = options || {};
+    var a = await inventaire(this.handle, EXCLUS_MIROIR, FICHIERS_RACINE), b = await inventaire(autre.handle, EXCLUS_MIROIR, FICHIERS_RACINE);
+    var res = { versAutre: 0, depuisAutre: 0, octets: 0, coffre: null };
+    var chemins = Object.keys(a).concat(Object.keys(b).filter(function (k) { return !a[k]; }));
+    for (var i = 0; i < chemins.length; i++) {
+      var c = chemins[i], x = a[c], y = b[c];
+      if (c === 'coffre.json') continue;
+      if (x && !y) { res.octets += await copier(x, autre.handle, c); res.versAutre++; continue; }
+      if (y && !x) { res.octets += await copier(y, this.handle, c); res.depuisAutre++; continue; }
+      if (c.indexOf('evenements/') === 0) continue;                 // saisies : jamais modifiées
+      var fx = await x.fichier.getFile(), fy = await y.fichier.getFile();
+      if (fx.size === fy.size && memesOctets(new Uint8Array(await fx.arrayBuffer()), new Uint8Array(await fy.arrayBuffer()))) continue;
+      if (fx.lastModified >= fy.lastModified) { res.octets += await copier(x, autre.handle, c); res.versAutre++; }
+      else { res.octets += await copier(y, this.handle, c); res.depuisAutre++; }
+    }
+    // Coffre : la plus haute révision l'emporte ; la version remplacée est gardée dans l'historique.
+    var ca = await this.lireCoffre(), cb = await autre.lireCoffre();
+    if (ca && !cb && !autre.coffreIllisible) { await autre.ecrireFichier(autre.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(ca, null, 1))); res.coffre = 'vers'; }
+    else if (cb && !ca && !this.coffreIllisible) { await this.ecrireFichier(this.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(cb, null, 1))); res.coffre = 'depuis'; }
+    else if (ca && cb) {
+      var ja = JSON.stringify(ca), jb = JSON.stringify(cb);
+      if (ja === jb) res.coffre = 'egal';
+      else if ((cb.rev || 0) > (ca.rev || 0)) { await this.archiverCoffre(ca); await this.ecrireFichier(this.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(cb, null, 1))); res.coffre = 'depuis'; }
+      else {
+        res.coffre = (cb.rev || 0) === (ca.rev || 0) ? 'conflit' : 'vers';   // même révision, contenus différents : le principal l'emporte
+        await autre.archiverCoffre(cb); await autre.ecrireFichier(autre.handle, 'coffre.json', new TextEncoder().encode(JSON.stringify(ca, null, 1)));
+      }
+    }
+    var maintenant = new Date().toISOString();
+    var etat = { derniere: maintenant, poste: options.poste || '', versAutre: res.versAutre, depuisAutre: res.depuisAutre };
+    await this.ecrireEtatMiroir(Object.assign({ role: 'principal', autre: autre.nom }, etat));
+    await autre.ecrireEtatMiroir(Object.assign({ role: 'secours', autre: this.nom }, etat));
+    return res;
+  };
+
+  /**
+   * Copie toutes les données de ce dossier dans `cible` (vide), vérifie chaque fichier relu, puis marque ce dossier
+   * comme déplacé (deplace.json) : il ne s'ouvre plus. Les instantanés, reconstruits automatiquement, ne sont pas copiés.
+   */
+  Dossier.prototype.deplacerVers = async function (cible, options) {
+    options = options || {};
+    for await (var k of cible.handle.keys()) { if (k) throw new Error('Le nouveau dossier n’est pas vide : choisissez un dossier vide.'); }
+    if (await this.lireDeplacement()) throw new Error('Ce dossier a déjà été déplacé.');
+    var src = await inventaire(this.handle, ['instantanes'], null), chemins = Object.keys(src).filter(function (c) { return c !== 'miroir-etat.json'; });
+    var n = 0;
+    for (var i = 0; i < chemins.length; i++) {
+      var c = chemins[i], octets = new Uint8Array(await (await src[c].fichier.getFile()).arrayBuffer());
+      var dir = await dossierDe(cible.handle, c), nom = c.split('/').pop();
+      var w = await (await dir.getFileHandle(nom, { create: true })).createWritable();
+      await w.write(octets); await w.close();
+      var relu = new Uint8Array(await (await (await dir.getFileHandle(nom)).getFile()).arrayBuffer());
+      if (!memesOctets(octets, relu)) throw new Error('Copie non vérifiée : ' + c + '. Le dossier d’origine reste utilisé ; videz le nouveau dossier avant de recommencer.');
+      n++;
+      if (options.progres) options.progres(n, chemins.length);
+    }
+    if (!(await cible.lireCoffre())) throw new Error('Le coffre copié est illisible : déplacement interrompu, le dossier d’origine reste utilisé.');
+    await this.ecrireFichier(this.handle, 'deplace.json', new TextEncoder().encode(JSON.stringify({ vers: cible.nom, le: new Date().toISOString(), par: options.par || '' }, null, 1)));
+    await this.ecrireFichier(this.handle, 'DONNEES-DEPLACEES-LISEZMOI.txt', new TextEncoder().encode(
+      'Les données de l\'outil de suivi des mesures d\'isolement et de contention ont été déplacées le ' + new Date().toLocaleString('fr-FR') +
+      ' vers le dossier « ' + cible.nom + ' ».\r\nCe dossier n\'est plus utilisé : ouvrez le nouveau dossier depuis l\'outil (« Changer de dossier »).\r\nNe le supprimez qu\'après vérification du nouveau dossier et de ses sauvegardes.\r\n'));
+    return n;
+  };
+
+  /** Dossier choisi par l'utilisateur, sans le retenir comme dossier de travail (secours, nouveau dossier). */
+  Dossier.choisirAutre = async function (id) {
+    if (!window.showDirectoryPicker) throw new Error("Ce navigateur ne permet pas d'ouvrir un dossier réseau. Utilisez Edge ou Chrome à jour.");
+    return new Dossier(await window.showDirectoryPicker({ id: id || 'sic-autre', mode: 'readwrite' }), 'reseau');
+  };
+  /** Dossier de secours relié à ce poste (mémorisé dans le navigateur). */
+  Dossier.miroirPoste = async function () { var h = await relire('miroir'); return h ? new Dossier(h, 'reseau') : null; };
+  Dossier.relierMiroir = function (d) { return memoriser('miroir', d ? d.handle : null); };
+  Dossier.prototype.autorise = async function (demander) {
+    if (this.mode !== 'reseau' || !this.handle.queryPermission) return true;
+    var o = { mode: 'readwrite' };
+    if ((await this.handle.queryPermission(o)) === 'granted') return true;
+    return demander ? (await this.handle.requestPermission(o)) === 'granted' : false;
+  };
+  Dossier.prototype.memeQue = function (autre) { return !!(autre && this.handle.isSameEntry) ? this.handle.isSameEntry(autre.handle) : Promise.resolve(false); };
+  /** Retient ce dossier comme dossier de travail de ce poste (après un déplacement). */
+  Dossier.prototype.retenir = async function () { await memoriser('dossier', this.handle); await memoriser('mode', 'reseau'); };
+
   SIC.Dossier = Dossier;
   SIC.horodatageCompact = horodatageCompact;
 })(typeof self !== 'undefined' ? self : this);

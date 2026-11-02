@@ -202,6 +202,8 @@
     vigilance: { isolementRouge: 48, contentionRouge: 24, isolementJaune: 24, contentionJaune: 12 },
     // Affichage : mesures terminées visibles dans la liste (jours), contact et consigne de l'écran de connexion, logo (image data:)
     affichage: { mesuresTermineesJours: 15, contact: '', consigne: '', logo: '' },
+    // Dossier de secours (miroir) : attendu ou non, nom du dossier (le lien est propre à chaque poste) — Administration → Informations
+    miroir: { attendu: false, nom: '' },
     // Page GitHub : vérifier que la version utilisée est la dernière publiée (désactivable)
     verificationVersion: true,
     // Exports (PDF, CSV) enregistrés automatiquement dans ce sous-dossier du dossier des données

@@ -35,6 +35,13 @@
 3. Informer le responsable de la sécurité informatique (RSSI) et le délégué à la protection des données (DPO, référent RGPD) : éventuelle violation de données à notifier.
 4. La version 1.0 ne propose pas de rotation automatique de la clé de données. Si l'on craint que la clé de données elle-même ait été exposée (session déverrouillée sur un poste compromis), le responsable de la sécurité informatique décide des suites, en s'appuyant sur le fait qu'une copie du dossier reste nécessaire pour l'exploiter.
 
+## Dossier réseau indisponible, dossier de secours en place
+
+Si l'établissement a mis en place un **dossier de secours** (*Administration → Informations*, sur un autre serveur) :
+1. Sur chaque poste : *Verrouiller* puis *Changer de dossier*, et ouvrir le dossier de secours (le service informatique ou le cadre en donne l'emplacement). Un bandeau rouge rappelle qu'il s'agit du dossier de secours ; les comptes et mots de passe sont les mêmes.
+2. Travailler normalement. Les saisies faites depuis la dernière synchronisation (10 minutes au plus en temps normal) peuvent manquer : les ressaisir à leur heure réelle si besoin.
+3. Au retour du dossier principal : l'administrateur l'ouvre (*Changer de dossier*), puis *Administration → Informations → Synchroniser maintenant* : les saisies faites sur le dossier de secours sont reprises, rien n'est écrasé. Chaque poste rouvre ensuite le dossier principal.
+
 ## Dossier réseau ou application indisponible — procédure dégradée
 
 1. Poursuivre la traçabilité **sur papier** avec la fiche ci-dessous (une par mesure), en reportant les heures réelles.
@@ -74,6 +81,8 @@ Le fichier `coffre.json` contient les copies protégées de la clé des données
 5. Ensuite : *Administration → Informations → Vérifier maintenant*, puis télécharger une nouvelle copie sous scellé.
 
 ## Perte du dossier entier
+
+Si un dossier de secours existe, l'ouvrir et l'utiliser (paragraphe ci-dessus), puis le **déplacer** vers un nouveau dossier principal (*Administration → Informations → Déplacer les données*) et en recréer un autre comme secours. Sinon :
 
 1. Créer un dossier vide sur le partage (droits limités aux agents habilités) et l'ouvrir dans l'outil.
 2. Sur l'écran d'initialisation, *Restaurer une copie de sauvegarde dans ce dossier* : choisir la dernière copie de sauvegarde complète téléchargée par l'administrateur.
