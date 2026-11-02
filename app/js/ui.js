@@ -637,6 +637,7 @@
   }
 
   // ---------------------------------------------------------------- JLD
+  var TITRE_TIERS_JLD = 'Le médecin informe du renouvellement au moins un membre de la famille ou un proche, et de son droit de saisir le juge ; pour un majeur protégé, informer aussi le tuteur ou le curateur.';
   function vueJLD(maintenant) {
     var enCours = mesuresVisibles().filter(function (m) { return typeof m.fin !== 'number'; }).map(function (m) {
       var j = M.suiviJLD(st(), m, maintenant); return { m: m, j: j, p: prochaineEcheance(j) };
@@ -650,7 +651,7 @@
         h('td', {}, String(x.j.cycle), x.j.rythmeLong ? h('div', {}, h('small', { text: 'rythme long' })) : null),
         h('td', { class: 'nowrap', text: duree(x.j.cumulAvant) }),
         h('td', {}, cellEcheance(x.j.info)), h('td', {}, cellEcheance(x.j.saisine)), h('td', {}, cellEcheance(x.j.decision)),
-        h('td', {}, tiersBadge(x.m), t ? null : h('div', {}, h('small', { text: 'tiers à informer avec le juge' }))),
+        h('td', {}, tiersBadge(x.m), t ? null : h('div', {}, h('small', { class: 'aide-survol', title: TITRE_TIERS_JLD, text: x.j.info && x.j.info.statut !== 'na' && x.j.info.echeance ? 'Proche à informer avant le ' + court(x.j.info.echeance) + ', comme le juge' : 'Proche à informer, comme le juge' }))),
         h('td', { class: 'actions-ligne' }, App.session.peut('JLD') ? h('button', { class: 'btn petit primaire', onclick: function () { modaleJLD(x.m); } }, 'Saisir un envoi ou une décision') : null)));
     });
     return h('div', {},

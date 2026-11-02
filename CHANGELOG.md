@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.35.3 — 2 novembre 2026
+
+- Onglet *JLD*, colonne *Tiers* : « tiers à informer avec le juge » devient « Proche à informer avant le [échéance de l'information du juge], comme le juge », avec la règle au survol (le médecin informe du renouvellement au moins un membre de la famille ou un proche, et de son droit de saisir le juge ; pour un majeur protégé, aussi le tuteur ou le curateur).
+
 ## 1.35.2 — 2 novembre 2026
 
 - Onglet *JLD* : le bouton « Saisir un envoi » devient « Saisir un envoi ou une décision » (il sert aussi à enregistrer les décisions reçues) ; la fenêtre s'intitule « Envoi au JLD ou décision reçue ».

@@ -399,3 +399,5 @@ details.extrait-loi blockquote p { margin: 0 0 6px; }
 .texte-dsi { width: 100%; font-size: .85em; }
 .panneau h4 { margin: 14px 0 4px; }
 td.mono { word-break: break-all; }
+/* Texte qui porte une explication au survol */
+.aide-survol { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
