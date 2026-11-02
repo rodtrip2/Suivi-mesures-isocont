@@ -163,11 +163,12 @@
         h('button', { class: 'btn petit', type: 'button', onclick: function () { an--; dessiner(); } }, '◀ ' + (an - 1)),
         h('button', { class: 'btn petit', type: 'button', disabled: an >= new Date(maintenant).getFullYear(), onclick: function () { an++; dessiner(); } }, (an + 1) + ' ▶')));
       if (!pr.entrees.length) { zone.appendChild(h('p', { class: 'muted', text: 'Aucune entrée du registre en ' + an + '.' })); return; }
-      zone.appendChild(h('div', { class: 'grille-4' },
-        h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: fd(pr.total) }), h('div', { class: 'libelle', text: 'Durée totale (' + pr.entrees.length + ' entrée(s))' })),
+      // Durée totale en jours et heures et en heures dans la même case (l'unité principale suit le menu « Durées en »)
+      var principal = format === 'h' ? enHeures(pr.total) : U.duree(pr.total), autre = format === 'h' ? U.duree(pr.total) : enHeures(pr.total);
+      zone.appendChild(h('div', { class: 'grille-3' },
+        h('div', { class: 'indicateur' }, h('div', { class: 'valeur' }, insecable(principal), ' ', h('span', { class: 'valeur-sec', text: '(' + insecable(autre) + ')' })), h('div', { class: 'libelle', text: 'Durée totale (' + pr.entrees.filter(function (e) { return e.anneeDebut === an; }).length + ' entrée(s))' })),
         h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: fd(pr.iso) }), h('div', { class: 'libelle', text: 'Isolement seul (A, B)' })),
-        h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: fd(pr.cont) }), h('div', { class: 'libelle', text: 'Contention (C, D, E)' })),
-        h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: format === 'h' ? U.duree(pr.total) : enHeures(pr.total) }), h('div', { class: 'libelle', text: format === 'h' ? 'Soit, en jours et heures' : 'Soit, en heures' }))));
+        h('div', { class: 'indicateur' }, h('div', { class: 'valeur', text: fd(pr.cont) }), h('div', { class: 'libelle', text: 'Contention (C, D, E)' }))));
       zone.appendChild(graphiqueMois(pr));
       zone.appendChild(frise(pr));
       zone.appendChild(h('small', { class: 'muted', text: 'Entrées du registre des services affichés. Les totaux comptent les entrées débutées dans l’année, comme les statistiques ; l’histogramme et la frise montrent les heures à leur date réelle'

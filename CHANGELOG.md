@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.37.2 — 2 novembre 2026
+
+- Fiche du patient : la durée totale de l'année s'affiche en jours et heures et en heures dans la même case (« 3 j 22 h (94 h 14) ») ; trois cases au lieu de quatre.
+
 ## 1.37.1 — 2 novembre 2026
 
 - Fiche du patient, histogramme de l'année : les heures d'une mesure à cheval sur plusieurs mois (ou sur deux années) sont **réparties sur les mois réellement couverts**, pauses déduites si le registre les déduit ; la frise montre aussi une entrée débutée l'année précédente. Les totaux restent ceux des statistiques (entrées débutées dans l'année) ; l'écart éventuel est indiqué sous la frise.

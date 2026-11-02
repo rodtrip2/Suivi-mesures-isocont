@@ -411,3 +411,4 @@ td.mono { word-break: break-all; }
 .puce.cont { background: var(--late); }
 /* Tableau aux nombreuses colonnes : les intitulés peuvent passer sur deux lignes */
 table.entetes-souples th { white-space: normal; }
+.indicateur .valeur-sec { font-size: .55em; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
