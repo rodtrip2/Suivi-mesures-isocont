@@ -178,9 +178,9 @@
   }
 
   /** Une mesure terminée depuis 15 jours ou moins compte encore dans les cumuls. */
-  function etatAffichage(mesure, maintenant) {
+  function etatAffichage(mesure, maintenant, jours) {
     if (typeof mesure.fin !== 'number') return 'en-cours';
-    return maintenant - mesure.fin <= 15 * J ? 'recente' : 'ancienne';
+    return maintenant - mesure.fin <= (jours || 15) * J ? 'recente' : 'ancienne';
   }
 
   return {

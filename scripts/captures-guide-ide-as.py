@@ -112,7 +112,7 @@ with sync_playwright() as p:
     # ---------------- Surveillance
     a.locator('nav.onglets button', has_text='Surveillance').click(); time.sleep(1)
     shot(a, '13-surveillance')
-    a.locator('main button', has_text='Ajouter').first.click(); time.sleep(0.8)
+    a.locator('main button').filter(has_text=re.compile(r'^Ajouter$')).first.click(); time.sleep(0.8)
     d = a.locator('dialog'); print('surv labels:', d.locator('label').all_inner_texts()[:8])
     champ(d, 'Nom').fill('Alex IDE (fictif)')
     if champ(d, 'Fonction').count():
@@ -123,7 +123,7 @@ with sync_playwright() as p:
     d.get_by_role('button', name='Enregistrer', exact=True).click(); time.sleep(1.5)
     print('erreurs:', a.locator('dialog .erreur').all_inner_texts())
     # Second professionnel, lieux précisés
-    a.locator('main button', has_text='Ajouter').first.click(); time.sleep(0.8)
+    a.locator('main button').filter(has_text=re.compile(r'^Ajouter$')).first.click(); time.sleep(0.8)
     d = a.locator('dialog'); champ(d, 'Nom').fill('Sam AS (fictif)'); champ(d, 'Fonction').select_option(label='AS')
     d.locator('label.case', has_text='Tous les lieux').locator('input').uncheck(); time.sleep(0.2)
     d.locator('label.case', has_text='CSI 1').locator('input').check(); time.sleep(0.3)

@@ -455,3 +455,9 @@ table.entetes-souples th { white-space: normal; }
 /* Rôles et accès */
 fieldset.role { margin-bottom: 12px; }
 .grille-acces { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 16px; }
+
+/* Logo de l'établissement, contact et consigne de l'écran de connexion, actions d'un poste de surveillance */
+.marque img.logo-etab { max-height: 44px; max-width: 120px; object-fit: contain; border-radius: 6px; }
+.accueil-etab { background: var(--accent-soft); border-radius: var(--radius); padding: 8px 12px; font-size: .92rem; }
+.accueil-etab p { margin: 4px 0; }
+.actions-poste { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }

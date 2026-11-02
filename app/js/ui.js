@@ -71,7 +71,6 @@
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
   var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', EXPORT: 'fichier exporté', EXPORT_SUPPRIME: 'fichier exporté supprimé', PURGE_EXPORTS: 'purge des anciens exports', REPARATION: 'réparation depuis une copie de sauvegarde', QUARANTAINE: 'mise en quarantaine', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré' };
-  var MOTIFS_PAUSE = ['Repas', 'Hygiène, douche', 'Visite', 'Appel téléphonique', 'Sortie accompagnée dans l’unité', 'Activité thérapeutique', 'Examen ou soin', 'Autre'];
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -118,9 +117,32 @@
     rendreContenu();   // une fois la page insérée dans le document
   }
 
+  /** Logo de l'établissement : réglage du coffre, ou dernier connu sur ce poste (écran de connexion). */
+  function logoEtablissement() {
+    var s = App.session;
+    if (s && s.etat && s.etat.config) return M.optionsAffichage(s.etat.config).logo;
+    return accueilPoste().logo || '';
+  }
+  /** Contact, consigne et logo de l'établissement retenus sur le poste (affichés avant la connexion, le coffre étant chiffré). */
+  function cleAccueil() { return 'sic-accueil:' + ((App.dossier && App.dossier.nom) || ''); }
+  function accueilPoste() { try { return JSON.parse(localStorage.getItem(cleAccueil()) || '{}') || {}; } catch (e) { return {}; } }
+  function retenirAccueil() {
+    var s = App.session; if (!s || !s.etat || s.formation) return;
+    var a = M.optionsAffichage(s.etat.config);
+    try { localStorage.setItem(cleAccueil(), JSON.stringify({ contact: a.contact, consigne: a.consigne, logo: a.logo })); } catch (e) { /* stockage plein ou indisponible */ }
+  }
+  function blocAccueil() {
+    var a = accueilPoste();
+    if (!a.contact && !a.consigne) return null;
+    return h('div', { class: 'accueil-etab' },
+      a.consigne ? h('p', { class: 'consigne' }, multiligne(a.consigne)) : null,
+      a.contact ? h('p', {}, h('b', { text: 'En cas de difficulté : ' }), multiligne(a.contact)) : null);
+  }
+  function multiligne(t) { var l = String(t).split('\n'); return l.map(function (x, i) { return [x, i < l.length - 1 ? h('br') : null]; }); }
+
   function marque(sousTitre) {
     return h('div', { class: 'marque' },
-      h('div', { class: 'logo', 'aria-hidden': 'true', text: 'IC' }),
+      logoEtablissement() ? h('img', { class: 'logo-etab', src: logoEtablissement(), alt: '' }) : h('div', { class: 'logo', 'aria-hidden': 'true', text: 'IC' }),
       h('div', {}, h('b', { text: 'Suivi des mesures d’isolement et de contention' }), h('small', { text: sousTitre || ('Version ' + SIC.VERSION) })));
   }
 
@@ -249,7 +271,7 @@
     autres.appendChild(h('button', { class: 'btn lien', onclick: function () { blocCode.hidden = !blocCode.hidden; } }, 'Mot de passe perdu ? Utiliser le code de secours'));
     autres.appendChild(blocCode);
 
-    return h('div', { class: 'ecran-pile' }, h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), zoneErr, form,
+    return h('div', { class: 'ecran-pile' }, h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), blocAccueil(), zoneErr, form,
       h('div', { class: 'separateur', text: 'secours' }), autres,
       h('div', { class: 'actions' }, h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier')))));
   }
@@ -298,6 +320,7 @@
   }
 
   function verrouiller(message) {
+    retenirAccueil();
     arreterMinuteurs();
     App.session.verrouiller();
     App.message = message || null;
@@ -480,6 +503,7 @@
 
   function demarrerMinuteurs() {
     chargerPreferences();
+    retenirAccueil();
     setTimeout(purgeAutomatique, 4000);
     arreterMinuteurs();
     App.derniereActivite = Date.now();
@@ -767,7 +791,8 @@
   // ---------------------------------------------------------------- Mesures
   var afficherAnciennes = false;
   function vueMesures(maintenant) {
-    var ms = mesuresVisibles().filter(function (m) { return afficherAnciennes || R.etatAffichage(m, maintenant) !== 'ancienne'; });
+    var joursTerm = M.optionsAffichage(config()).mesuresTermineesJours;
+    var ms = mesuresVisibles().filter(function (m) { return afficherAnciennes || R.etatAffichage(m, maintenant, joursTerm) !== 'ancienne'; });
     ms.sort(function (a, b) {
       var ea = typeof a.fin === 'number' ? 1 : 0, eb = typeof b.fin === 'number' ? 1 : 0;
       return ea - eb || b.debut - a.debut;
@@ -775,13 +800,13 @@
     var cb = h('input', { type: 'checkbox', checked: afficherAnciennes, onchange: function () { afficherAnciennes = cb.checked; rendreContenu(); } });
     var barre = h('div', { class: 'barre' },
       h('h1', { text: 'Mesures' }), h('div', { class: 'espace' }),
-      h('label', { class: 'case' }, cb, h('span', { text: 'Afficher les mesures terminées depuis plus de 15 jours' })),
+      h('label', { class: 'case' }, cb, h('span', { text: 'Afficher les mesures terminées depuis plus de ' + joursTerm + ' jour' + (joursTerm > 1 ? 's' : '') })),
       App.session.peut('MESURE_DEBUT') ? h('button', { class: 'btn primaire', onclick: modaleNouvelleMesure }, '+ Nouvelle mesure') : null);
     if (!ms.length) return h('div', {}, barre, h('div', { class: 'panneau vide', text: 'Aucune mesure à afficher.' }));
 
     var tbody = h('tbody');
     ms.forEach(function (m) {
-      var etat = R.etatAffichage(m, maintenant);
+      var etat = R.etatAffichage(m, maintenant, joursTerm);
       var j = M.suiviJLD(st(), m, maintenant);
       var enCours = etat === 'en-cours';
       var pause = enCours ? M.pauseEnCours(m, maintenant, config()) : null;
@@ -858,7 +883,10 @@
           return h('div', { class: 'poste ' + (p.complet ? 'complet' : 'incomplet') },
             h('div', {}, h('b', { text: p.libelle }), h('br'), h('small', { text: fmtJour.format(p.debut) }), p.lieux.length ? h('div', {}, h('small', { class: 'muted', text: 'Lieux occupés : ' + p.lieux.join(', ') })) : null),
             h('div', { class: 'creneaux' }, creneaux),
-            App.session.peut('PROFESSIONNEL') ? h('button', { class: 'btn petit', onclick: function () { modaleProfessionnel(sv.code, p.date, p.periode); } }, 'Ajouter') : null);
+            App.session.peut('PROFESSIONNEL') ? h('div', { class: 'actions-poste' },
+              p.professionnels.some(function (x) { return x.nom.toLowerCase() === App.session.utilisateur.nom.toLowerCase(); }) ? null
+                : h('button', { class: 'btn petit' + (p.complet ? '' : ' primaire'), title: 'Vous enregistrer pour ce poste (tous les lieux du service)', onclick: function () { ajouterMoi(sv.code, p).catch(function (e) { toast(e.message); }); } }, 'M’ajouter'),
+              h('button', { class: 'btn petit', onclick: function () { modaleProfessionnel(sv.code, p.date, p.periode); } }, 'Ajouter')) : null);
         })) : h('div', { class: 'vide', text: lieu('Aucune mesure en CSI sur les 7 derniers jours.') })));
     });
     return h('div', {},
@@ -930,7 +958,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -1004,6 +1032,9 @@
       case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return M.optionsSurveillance({ surveillance: v }).minParPoste + ' par poste';
+      case 'listes': return (v && v.fonctionsSurveillance ? v.fonctionsSurveillance.length : 0) + ' fonction(s), ' + (v && v.motifsPause ? v.motifsPause.length : 0) + ' motif(s) de pause, ' + (v && v.motifsFin ? v.motifsFin.length : 0) + ' motif(s) de fin propres, raccourcis ' + ((v && v.raccourcisPause) || []).map(M.libRaccourci).join(', ');
+      case 'vigilance': return v ? 'rouge ' + v.isolementRouge + ' h / ' + v.contentionRouge + ' h, orange ' + v.isolementJaune + ' h / ' + v.contentionJaune + ' h (isolement / contention)' : '—';
+      case 'affichage': return v ? 'mesures terminées visibles ' + v.mesuresTermineesJours + ' j' + (v.contact ? ', contact renseigné' : '') + (v.consigne ? ', consigne renseignée' : '') + (v.logo ? ', logo' : ', sans logo') : '—';
       case 'verificationVersion': return v === false ? 'désactivée' : 'activée';
       case 'organisationJLD': return String(v || '').trim() ? '« ' + String(v).trim() + ' »' : 'aucun texte';
       case 'lieuIsolement': var ll = M.libLieu({ lieuIsolement: v }); return ll.long + ' (' + ll.court + ')';
@@ -1495,11 +1526,15 @@
     var fin = h('input', { type: 'datetime-local', value: versSaisie(pause ? pause.debut : Date.now()) });
     var psy = selectPsychiatre(m.psychiatreDebut);
     var lies = M.listeMesures(st()).filter(function (x) { return x.patientId === m.patientId && x.id !== m.id && typeof x.fin !== 'number'; });
-    var motif = h('select', {}, M.MOTIFS_FIN.map(function (x) { return h('option', { value: x, text: x, selected: m.leveeJLD ? x === 'Suite à la mainlevée du JLD' : false }); }));
+    var motif = h('select', {}, M.listesConfig(config()).motifsFin.map(function (x) { return h('option', { value: x, text: x, selected: m.leveeJLD ? x === 'Suite à la mainlevée du JLD' : false }); }));
     var precision = h('input', { type: 'text', placeholder: 'Précision (facultatif)' });
+    var lblPrecision = h('label', {}, 'Précision', precision);
     var infoMotif = h('div', { class: 'alerte-etab information', hidden: true });
     function majMotif() {
       vider(infoMotif);
+      var autre = motif.value === 'Autre';
+      lblPrecision.firstChild.textContent = autre ? 'Motif (à préciser, obligatoire)' : 'Précision';
+      precision.placeholder = autre ? 'Précisez le motif de fin' : 'Précision (facultatif)';
       var txt = motif.value === 'Décès' ? 'Décès pendant une mesure d’isolement ou de contention : s’il est inattendu au regard de l’état de santé du patient, c’est un événement indésirable grave associé à des soins, à déclarer sans délai à l’agence régionale de santé sur le portail de signalement (art. L. 1413-14 et R. 1413-67 et suivants du code de la santé publique), selon la procédure de l’établissement. Prévenir la direction et le cadre.'
         : motif.value === 'Fugue' ? 'Fugue : suivre la procédure de l’établissement (information de la direction, et du représentant de l’État pour un patient en SDRE).'
         : motif.value === 'Passage en soins somatiques ou aux urgences' ? 'Si la mesure doit se poursuivre pendant les soins somatiques, utilisez plutôt « Soins somatiques ou urgences… » dans le détail de la mesure.' : '';
@@ -1509,7 +1544,7 @@
     modale('Fin de mesure — report de la décision médicale', h('div', { class: 'pile' }, recapMesure(m),
       pause ? h('div', { class: 'info', text: 'Mesure en pause depuis le ' + date(pause.debut) + '. Si elle n’a pas repris (le psychiatre décide de ne pas la reprendre), la fin correspond en principe au début de la pause : la date est préremplie ainsi. Modifiez-la si la décision est autre.' }) : null,
       h('label', {}, 'Date et heure de la décision de fin', fin), h('label', {}, 'Psychiatre décisionnaire', psy),
-      h('div', { class: 'grille-2' }, h('label', {}, 'Motif de fin', motif), h('label', {}, 'Précision', precision)), infoMotif,
+      h('div', { class: 'grille-2' }, h('label', {}, 'Motif de fin', motif), lblPrecision), infoMotif,
       lies.length ? h('div', { class: 'info', text: 'Autre mesure en cours pour ce patient : ' + lies.map(function (x) { return x.type + ' depuis ' + court(x.debut); }).join(', ') + '. Elle reste en cours.' }) : null,
       m.leveeJLD ? h('div', { class: 'info', text: 'Le JLD a ordonné la levée : à compter de cette fin, le cumul des 15 jours repartira de zéro pour ce patient et ce type de mesure.' }) : null), [
       { texte: 'Annuler' },
@@ -1517,6 +1552,7 @@
         var t = depuisSaisie(fin.value);
         if (t < m.debut) throw new Error('La fin ne peut pas précéder le début (' + date(m.debut) + ').');
         if (t > Date.now() + 10 * 60000) throw new Error('La date de fin ne peut pas être dans le futur.');
+        if (motif.value === 'Autre' && !precision.value.trim()) throw new Error('Précisez le motif de fin.');
         await App.session.enregistrer('MESURE_FIN', { mesureId: m.id, fin: t, psychiatre: psy.valeur(), motif: motif.value + (precision.value.trim() ? ' (' + precision.value.trim() + ')' : '') }, base);
         toast('Fin de mesure enregistrée.');
       } }]);
@@ -1539,15 +1575,19 @@
     var mode = h('select', {}, h('option', { value: 'duree', text: 'Pour une durée' }), h('option', { value: 'heure', text: 'Jusqu’à une heure de reprise' }));
     var dH = h('input', { type: 'number', min: 0, max: 47, step: 1, value: 1, 'aria-label': 'Heures' });
     var dM = h('select', { 'aria-label': 'Minutes' }, [0, 15, 30, 45].map(function (x) { return h('option', { value: x, text: String(x).padStart(2, '0') + ' min' }); }));
-    var raccourcis = h('div', { class: 'raccourcis' }, [[0, 30, '30 min'], [1, 0, '1 h'], [2, 0, '2 h'], [4, 0, '4 h']].map(function (r) {
-      return h('button', { type: 'button', class: 'btn petit', onclick: function () { dH.value = r[0]; dM.value = r[1]; maj(); } }, r[2]);
+    var dMinutes = [0, 15, 30, 45];
+    var raccourcis = h('div', { class: 'raccourcis' }, M.listesConfig(config()).raccourcisPause.map(function (min) {
+      return h('button', { type: 'button', class: 'btn petit', onclick: function () {
+        dH.value = Math.floor(min / 60); var mm = min % 60;
+        if (dMinutes.indexOf(mm) < 0) { dMinutes.push(mm); dM.appendChild(h('option', { value: mm, text: String(mm).padStart(2, '0') + ' min' })); }
+        dM.value = mm; maj(); } }, M.libRaccourci(min));
     }));
     var blocDuree = h('label', {}, 'Durée de la pause', h('div', { class: 'en-ligne' }, dH, h('span', { text: 'h' }), dM), raccourcis);
     var reprise = h('input', { type: 'datetime-local', value: versSaisie(maintenant + H) });
     var blocHeure = h('label', { hidden: true }, 'Date et heure de reprise prévue', reprise);
     var resume = h('div', { class: 'info' });
     var psy = selectPsychiatre(m.psychiatreDebut);
-    var motif = h('select', {}, MOTIFS_PAUSE.map(function (x) { return h('option', { value: x, text: x }); }));
+    var motif = h('select', {}, M.listesConfig(config()).motifsPause.map(function (x) { return h('option', { value: x, text: x }); }));
     var precision = h('input', { type: 'text', placeholder: 'Précision (facultatif)' });
     var conts = contentionsLiees(m, maintenant, false);
     var avecCont = h('input', { type: 'checkbox', checked: true });
@@ -1883,12 +1923,32 @@
   }
 
   // ---------------------------------------------------------------- Professionnel
+  /** Fonction de l'agent connecté dans la liste des fonctions de surveillance (d'après le code ou le libellé de ses rôles). */
+  function fonctionDe(u) {
+    var liste = M.listesConfig(config()).fonctionsSurveillance, norm = function (t) { return String(t).toLowerCase(); };
+    var cands = [];
+    (u.roles || []).forEach(function (r) { if (r !== 'ADMIN') cands.push(r, M.libRole(config(), r)); });
+    if (cands.map(norm).indexOf('cadre') >= 0) cands.push('Cadre de santé');
+    for (var i = 0; i < cands.length; i++) { var t = liste.filter(function (f) { return norm(f) === norm(cands[i]); })[0]; if (t) return t; }
+    return '';
+  }
+  /** « M'ajouter » : l'agent connecté est enregistré pour ce poste (tous les lieux), en un clic. */
+  async function ajouterMoi(service, p) {
+    var u = App.session.utilisateur;
+    var data = { service: service, date: p.date, periode: p.periode, nom: u.nom, fonction: fonctionDe(u) || '' };
+    await App.session.enregistrer('PROFESSIONNEL', data);
+    toast(u.nom + ' enregistré(e) pour le poste « ' + p.libelle + ' ». Pour préciser les lieux, utilisez « Ajouter ».');
+  }
+
   function modaleProfessionnel(service, dateISO, periode) {
     var selSv = h('select', {}, services().map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: x.code === service }); }));
     var jour = h('input', { type: 'date', value: dateISO || M.dateLocaleISO(Date.now()) });
     var selP = h('select', {}, (config().periodes || []).map(function (p) { return h('option', { value: p.code, text: p.libelle + ' (' + p.debut + '–' + p.fin + ')', selected: p.code === periode }); }));
     var nom = h('input', { type: 'text', placeholder: 'Prénom NOM' });
-    var fonction = h('select', {}, ['IDE', 'AS', 'ASH', 'Psychiatre', 'Médecin', 'Cadre de santé', 'Autre'].map(function (x) { return h('option', { value: x, text: x }); }));
+    var fonction = h('select', {}, M.listesConfig(config()).fonctionsSurveillance.map(function (x) { return h('option', { value: x, text: x }); }));
+    var moi = h('button', { type: 'button', class: 'btn petit', onclick: function () {
+      var u = App.session.utilisateur; nom.value = u.nom; var f = fonctionDe(u); if (f) fonction.value = f;
+    } }, 'Moi-même');
     var ajoutes = h('div', { class: 'recap', hidden: true });
     // Lieux surveillés : tous par défaut ; l'agent peut préciser
     var tous = h('input', { type: 'checkbox', checked: true }), zoneLieux = h('div', { class: 'cases-ligne', hidden: true }), casesLieux = {};
@@ -1919,7 +1979,7 @@
     modale('Professionnel chargé de la surveillance', h('div', { class: 'pile' },
       h('div', { class: 'grille-2' }, h('label', {}, 'Service', selSv), h('label', {}, 'Date', jour)),
       h('label', {}, 'Période', selP),
-      h('div', { class: 'grille-2' }, h('label', {}, 'Nom', nom), h('label', {}, 'Fonction', fonction)), blocLieux, ajoutes), [
+      h('div', { class: 'grille-2' }, h('label', {}, 'Nom', h('div', { class: 'en-ligne' }, nom, moi)), h('label', {}, 'Fonction', fonction)), blocLieux, ajoutes), [
       { texte: 'Fermer' },
       { texte: 'Enregistrer et ajouter un autre', action: async function () {
         await enregistrer();
@@ -1949,7 +2009,7 @@
   async function enregistrerConfig(changements) {
     var cfg = config(), n = 0;
     for (var i = 0; i < changements.length; i++) {
-      if (JSON.stringify(cfg[changements[i][0]]) !== JSON.stringify(changements[i][1])) { await App.session.enregistrer('CONFIG', { cle: changements[i][0], valeur: changements[i][1] }); n++; }
+      if (JSON.stringify(cfg[changements[i][0]]) !== JSON.stringify(changements[i][1])) { await App.session.enregistrer('CONFIG', { cle: changements[i][0], valeur: changements[i][1] }); n++; if (changements[i][0] === 'affichage') retenirAccueil(); }
     }
     toast(n ? 'Paramétrage enregistré (' + n + ' modification' + (n > 1 ? 's' : '') + ').' : 'Aucune modification.');
   }
@@ -2397,7 +2457,7 @@
     }
     return sousOngletsAdmin([
       ['comptes', 'Comptes et sécurité', [comptes, SIC.ui.roles.panneau(), deblocage, SIC.ui.formation.sectionAdmin()]],
-      ['services', 'Établissement et services', [pServices, pLieuNom, pSurv, pTiers, pOrgJLD, pExports]],
+      ['services', 'Établissement et services', [pServices, pLieuNom, SIC.ui.listes.panneauModes(), pSurv, SIC.ui.listes.panneauListes(), pTiers, pOrgJLD, SIC.ui.listes.panneauVigilance(), SIC.ui.listes.panneauAccueil(), pExports]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
       ['cas', 'Cas particuliers', [SIC.ui.cas.panneauAdmin()]],

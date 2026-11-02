@@ -558,3 +558,23 @@ test('Comparaison des numéros de version (vérification de la page GitHub)', ()
   assert.equal(M.comparerVersions('1.45.0', '1.45.0'), 0);
   assert.equal(M.CONFIG_DEFAUT.verificationVersion, true);
 });
+
+test('Listes, vigilance et affichage de l’établissement : défauts et validation', () => {
+  const l = M.listesConfig({});
+  assert.ok(l.fonctionsSurveillance.includes('ASH'));
+  assert.equal(l.motifsFin[l.motifsFin.length - 1], 'Autre');
+  assert.deepEqual(l.raccourcisPause, [30, 60, 120, 240]);
+  const p = M.listesConfig({ listes: { fonctionsSurveillance: ['ISP', 'isp', ' ', 'IPA'], motifsPause: [], motifsFin: ['Décès', 'Retour à domicile (fictif)'], raccourcisPause: [90, 3, 30, 30, 5000] } });
+  assert.deepEqual(p.fonctionsSurveillance, ['ISP', 'IPA']);
+  assert.ok(p.motifsPause.includes('Repas'));                              // liste vide : défaut
+  assert.deepEqual(p.motifsFinPropres, ['Retour à domicile (fictif)']);     // motif de l'outil écarté (déjà proposé)
+  assert.equal(p.motifsFin.indexOf('Retour à domicile (fictif)'), p.motifsFin.length - 2);
+  assert.deepEqual(p.raccourcisPause, [30, 90]);
+  assert.equal(M.libRaccourci(90), '1 h 30'); assert.equal(M.libRaccourci(30), '30 min'); assert.equal(M.libRaccourci(120), '2 h');
+  assert.deepEqual(M.optionsVigilance({}), { isolementRouge: 48, contentionRouge: 24, isolementJaune: 24, contentionJaune: 12 });
+  assert.equal(M.optionsVigilance({ vigilance: { isolementRouge: 36, isolementJaune: 40 } }).isolementJaune, 36);
+  assert.equal(M.optionsAffichage({}).mesuresTermineesJours, 15);
+  assert.equal(M.optionsAffichage({ affichage: { mesuresTermineesJours: 500, logo: 'javascript:alert(1)' } }).logo, '');
+  assert.equal(M.optionsAffichage({ affichage: { mesuresTermineesJours: 500 } }).mesuresTermineesJours, 15);
+  assert.equal(M.optionsAffichage({ affichage: { logo: 'data:image/png;base64,AAAA' } }).logo, 'data:image/png;base64,AAAA');
+});

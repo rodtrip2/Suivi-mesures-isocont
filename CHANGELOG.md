@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 1.47.0 — 2 novembre 2026
+
+- **Modes d'hospitalisation modifiables** (*Administration → Établissement et services*) : ajout (soins sur décision de justice, personne détenue, ordonnance de placement provisoire d'un mineur…), libellé, soins sans consentement ou soins libres ; un code déjà employé reste protégé.
+- **Listes de saisie de l'établissement** : fonctions des professionnels de surveillance, motifs de pause, motifs de fin propres, raccourcis de durée des pauses.
+- **Motif de fin « Autre »** : précision obligatoire.
+- **Seuils des points de vigilance** (cumul élevé sur 15 jours, rouge et orange) et **durée d'affichage des mesures terminées** réglables.
+- **Écran de connexion** : contact en cas de difficulté et consigne de l'établissement (le contact figure aussi sur les fiches de remise des identifiants) ; **logo de l'établissement** dans l'en-tête.
+- **Surveillance en CSI** : bouton *M'ajouter* sur chaque poste (l'agent connecté, en un clic) et *Moi-même* dans la fenêtre *Ajouter*.
+
 ## 1.46.1 — 2 novembre 2026
 
 - Tableau de bord : la tuile « Échéances JLD dans les … h » reprend le seuil « échéance proche » réglé par l'établissement (12 h par défaut) au lieu d'afficher toujours 12 h.

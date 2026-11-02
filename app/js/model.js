@@ -193,6 +193,15 @@
     informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],
     // Organisation des envois au JLD, affichée en tête de l'onglet JLD (texte libre de l'établissement ; vide = rien d'affiché)
     organisationJLD: '',
+    // Listes de l'établissement (voir listesConfig) : fonctions des professionnels de surveillance, motifs de pause,
+    // motifs de fin propres (ajoutés à ceux de l'outil), raccourcis de durée des pauses (minutes)
+    listes: { fonctionsSurveillance: ['IDE', 'AS', 'ASH', 'Psychiatre', 'Médecin', 'Cadre de santé', 'Autre'],
+      motifsPause: ['Repas', 'Hygiène, douche', 'Visite', 'Appel téléphonique', 'Sortie accompagnée dans l’unité', 'Activité thérapeutique', 'Examen ou soin', 'Autre'],
+      motifsFin: [], raccourcisPause: [30, 60, 120, 240] },
+    // Points de vigilance « cumul élevé » sur 15 jours (heures) : rouge et orange, par type de mesure
+    vigilance: { isolementRouge: 48, contentionRouge: 24, isolementJaune: 24, contentionJaune: 12 },
+    // Affichage : mesures terminées visibles dans la liste (jours), contact et consigne de l'écran de connexion, logo (image data:)
+    affichage: { mesuresTermineesJours: 15, contact: '', consigne: '', logo: '' },
     // Page GitHub : vérifier que la version utilisée est la dernière publiée (désactivable)
     verificationVersion: true,
     // Exports (PDF, CSV) enregistrés automatiquement dans ce sous-dossier du dossier des données
@@ -898,6 +907,45 @@
   var MOTIFS_FIN = ['Décision médicale', 'Suite à la mainlevée du JLD', 'Sortie du patient', 'Transfert hors de l’établissement',
     'Passage en soins somatiques ou aux urgences', 'Fugue', 'Décès', 'Autre'];
 
+  function texteListe(v, max, defaut) {
+    if (!Array.isArray(v)) return defaut.slice();
+    var vus = {}, r = [];
+    v.forEach(function (x) { var t = String(x == null ? '' : x).trim().slice(0, 80); if (t && !vus[t.toLowerCase()]) { vus[t.toLowerCase()] = 1; r.push(t); } });
+    return r.slice(0, max);
+  }
+  /** Listes de l'établissement, validées (valeurs par défaut si absentes ou vides). */
+  function listesConfig(config) {
+    var v = (config && config.listes) || {}, d = CONFIG_DEFAUT.listes;
+    var fonctions = texteListe(v.fonctionsSurveillance, 30, d.fonctionsSurveillance);
+    var pauses = texteListe(v.motifsPause, 30, d.motifsPause);
+    if (!fonctions.length) fonctions = d.fonctionsSurveillance.slice();
+    if (!pauses.length) pauses = d.motifsPause.slice();
+    var propres = texteListe(v.motifsFin, 20, []).filter(function (x) { return MOTIFS_FIN.map(function (y) { return y.toLowerCase(); }).indexOf(x.toLowerCase()) < 0; });
+    var racc = (Array.isArray(v.raccourcisPause) ? v.raccourcisPause : d.raccourcisPause).map(Number)
+      .filter(function (x) { return isFinite(x) && x >= 5 && x <= 47 * 60; }).map(Math.round)
+      .filter(function (x, i, a) { return a.indexOf(x) === i; }).sort(function (a, b) { return a - b; }).slice(0, 8);
+    return { fonctionsSurveillance: fonctions, motifsPause: pauses, motifsFinPropres: propres,
+      // Motifs de fin proposés : ceux de l'outil (qui déclenchent un traitement), les motifs propres, puis « Autre » (à préciser)
+      motifsFin: MOTIFS_FIN.slice(0, -1).concat(propres, ['Autre']), raccourcisPause: racc };
+  }
+  /** Libellé d'une durée de raccourci (minutes) : « 30 min », « 1 h », « 1 h 30 ». */
+  function libRaccourci(min) { var hh = Math.floor(min / 60), mm = min % 60; return hh ? hh + ' h' + (mm ? ' ' + String(mm).padStart(2, '0') : '') : mm + ' min'; }
+
+  /** Seuils des points de vigilance (heures sur 15 jours), validés. */
+  function optionsVigilance(config) {
+    var v = (config && config.vigilance) || {}, d = CONFIG_DEFAUT.vigilance, r = {};
+    Object.keys(d).forEach(function (k) { var x = +v[k]; r[k] = isFinite(x) && x > 0 && x <= 360 ? x : d[k]; });
+    if (r.isolementJaune > r.isolementRouge) r.isolementJaune = r.isolementRouge;
+    if (r.contentionJaune > r.contentionRouge) r.contentionJaune = r.contentionRouge;
+    return r;
+  }
+  /** Réglages d'affichage, validés. */
+  function optionsAffichage(config) {
+    var v = (config && config.affichage) || {}, j = Math.round(+v.mesuresTermineesJours);
+    return { mesuresTermineesJours: isFinite(j) && j >= 1 && j <= 90 ? j : 15, contact: String(v.contact || '').trim().slice(0, 300),
+      consigne: String(v.consigne || '').trim().slice(0, 600), logo: /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(v.logo || '') && v.logo.length < 120000 ? v.logo : '' };
+  }
+
   // ------------------------------------------------------- Fiches en double
   function normaliserNom(t) {
     return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\(fictif\)/gi, '').replace(/[^a-z]/gi, '').toLowerCase();
@@ -1082,6 +1130,7 @@
 
   /** Cumuls glissants d'un patient (heures) et niveau d'alerte V1.3 (vert / jaune / rouge). */
   function cumulsPatient(st, patientId, maintenant) {
+    var vg = optionsVigilance(st.config);
     var toutes = mesuresCalcul(st, maintenant);
     var c = {
       iso48: rules.cumulHeures(toutes, patientId, 'Isolement', maintenant, 2),
@@ -1089,7 +1138,7 @@
       iso15: rules.cumulHeures(toutes, patientId, 'Isolement', maintenant, 15),
       cont15: rules.cumulHeures(toutes, patientId, 'Contention', maintenant, 15)
     };
-    c.niveau = (c.iso15 >= 48 || c.cont15 >= 24) ? 'rouge' : (c.iso15 >= 24 || c.cont15 >= 12) ? 'jaune' : 'vert';
+    c.niveau = (c.iso15 >= vg.isolementRouge || c.cont15 >= vg.contentionRouge) ? 'rouge' : (c.iso15 >= vg.isolementJaune || c.cont15 >= vg.contentionJaune) ? 'jaune' : 'vert';
     return c;
   }
 
@@ -1940,7 +1989,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, comparerVersions: comparerVersions, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

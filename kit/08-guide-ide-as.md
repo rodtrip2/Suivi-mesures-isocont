@@ -124,7 +124,7 @@ Le registre légal doit indiquer les professionnels qui ont assuré la surveilla
 
 ![Onglet Surveillance](images/guide-ide-as/13-surveillance.png)
 
-**Ajouter** sur la ligne du poste → **nom** et **fonction** (IDE, AS…) → **Enregistrer**, ou **Enregistrer et ajouter un autre** pour le professionnel suivant.
+**M'ajouter** sur la ligne du poste vous enregistre en un clic (votre nom, votre fonction, tous les lieux). Pour un collègue : **Ajouter** → **nom** et **fonction** (IDE, AS…) → **Enregistrer**, ou **Enregistrer et ajouter un autre** pour le professionnel suivant ; dans cette fenêtre, *Moi-même* remplit votre nom.
 
 ![Fenêtre « Professionnel chargé de la surveillance »](images/guide-ide-as/14-professionnel.png)
 

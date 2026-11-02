@@ -89,7 +89,7 @@
             h('td', {}, mode ? h('span', { class: 'badge ' + (M.estContrainte(U.config(), mode) ? '' : 'warn'), text: mode }) : '—', depuis ? h('div', {}, h('small', { title: 'depuis le ' + U.date(depuis), text: 'depuis le ' + U.date(depuis).slice(0, 10) })) : null),
             h('td', { text: fd(x.c.iso48) + ' / ' + fd(x.c.iso15) }),
             h('td', { text: fd(x.c.cont48) + ' / ' + fd(x.c.cont15) }),
-            h('td', {}, h('span', { class: 'badge ' + niveaux[x.c.niveau], title: 'Rouge : isolement ≥ 48 h ou contention ≥ 24 h sur 15 jours. Jaune : isolement ≥ 24 h ou contention ≥ 12 h.', text: x.c.niveau })),
+            h('td', {}, h('span', { class: 'badge ' + niveaux[x.c.niveau], title: (function (v) { return 'Rouge : isolement ≥ ' + v.isolementRouge + ' h ou contention ≥ ' + v.contentionRouge + ' h sur 15 jours. Jaune : isolement ≥ ' + v.isolementJaune + ' h ou contention ≥ ' + v.contentionJaune + ' h.'; })(M.optionsVigilance(U.config())), text: x.c.niveau })),
             h('td', { text: x.enCours ? x.enCours + ' en cours / ' + x.total : String(x.total) }),
             (function () { var s = stats.parPatient[p.id]; return s && s.entrees ? h('td', { class: 'col-annuelle' }, h('b', { text: String(s.entrees) }), h('br'), h('b', { text: fd(s.heuresTotal) }), s.enCours ? h('div', {}, h('small', { text: 'dont ' + s.enCours + ' en cours' })) : null) : h('td', { class: 'col-annuelle muted', text: '0' }); })(),
             stats.colonnes.map(function (c, i) { var s = stats.parPatient[p.id]; return celluleAnnuelle(c, s && s.colonnes[i]); }),
