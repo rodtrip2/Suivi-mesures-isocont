@@ -944,6 +944,10 @@
       case 'ANNULATION':
         var cible = st().parId[d.cible];
         if (!cible) return 'Annulation d’une saisie introuvable (' + (d.cible || '?') + ')' + (d.motif ? ' — motif : ' + d.motif : '');
+        if (cible.type === 'ANNULATION') {
+          var origine = st().parId[cible.data && cible.data.cible];
+          return 'Rétablissement' + (origine ? ' de la saisie « ' + (lieu(LIB_EVT[origine.type]) || origine.type) + ' » du ' + date(Date.parse(origine.at)) + ' (' + resumeEvt(origine) + ')' : '') + ' : son annulation du ' + date(Date.parse(cible.at)) + ' est annulée. Motif : ' + (d.motif || 'non précisé') + '.';
+        }
         var libCible = cible.type === 'COMPTE' ? 'Comptes et clés' : (lieu(LIB_EVT[cible.type]) || cible.type);
         return 'Annulation de la saisie « ' + libCible + ' » faite le ' + date(Date.parse(cible.at)) + ' par ' + App.session.nomAuteur(cible.by) + ' : ' + resumeEvt(cible) +
           (cible.type === 'MESURE_DEBUT' ? ' (toute la mesure est annulée)' : cible.type === 'LOT' ? ' (toutes les saisies du lot sont annulées)' : '') +
@@ -967,6 +971,38 @@
       case 'STATS': return 'Statistiques ' + libService(d.service) + ' ' + d.annee + ' : patients en hospitalisation complète ' + (d.hc == null ? '—' : d.hc) + ', sous contrainte ' + (d.ssc == null ? '—' : d.ssc);
       default: return e.type;
     }
+  }
+
+  // ---------------------------------------------------------------- Annulation depuis le journal
+  var EFFET_ANNULATION = {
+    MESURE_DEBUT: 'Toute la mesure est annulée (doublon, mauvais patient…), avec les saisies qui la concernent.',
+    LOT: 'Toutes les saisies de ce lot (import ou données de démonstration) sont annulées.',
+    CONFIG: 'Le réglage reprend la valeur qu’il avait avant cette saisie.',
+    FUSION: 'Les deux fiches patient sont de nouveau séparées.',
+    INTEGRITE: 'Les anomalies dont il avait été pris acte seront de nouveau signalées.',
+    PATIENT: 'La fiche du patient reprend les valeurs précédentes.'
+  };
+  function boutonAnnulationJournal(etat, e) {
+    var a = M.annulabilite(etat, e);
+    if (!a || !App.session.peut(a.droit) || !App.session.peut('ANNULATION')) return null;
+    return h('button', { class: 'btn petit', title: a.action === 'retablir' ? 'Annuler cette annulation : la saisie d’origine produit de nouveau son effet' : 'Annuler cette saisie (motif obligatoire ; elle reste au journal)', onclick: function () { modaleAnnulationJournal(e, a); } }, a.action === 'retablir' ? 'Rétablir' : 'Annuler');
+  }
+  function modaleAnnulationJournal(e, a) {
+    var motif = h('textarea', { rows: 2, placeholder: a.action === 'retablir' ? 'Ex. : annulation faite par erreur' : 'Ex. : saisie en double, erreur de patient…' });
+    var cible = a.cible;
+    var effet = a.action === 'retablir' ? 'La saisie annulée produit de nouveau son effet.' : (EFFET_ANNULATION[cible.type] || 'La saisie cesse de produire son effet (échéances, registre et statistiques sont recalculés).');
+    modale(a.action === 'retablir' ? 'Rétablir une saisie annulée' : 'Annuler une saisie', h('div', { class: 'pile' },
+      h('div', { class: 'recap' },
+        h('div', {}, h('b', { text: (lieu(LIB_EVT[cible.type]) || cible.type) + ' — ' }), date(Date.parse(cible.at)) + ', ' + App.session.nomAuteur(cible.by)),
+        h('div', { text: resumeEvt(cible) })),
+      h('div', { class: 'alerte', text: effet + ' Rien n’est effacé : la saisie et son annulation restent au journal, et l’annulation peut elle-même être annulée.' }),
+      h('label', {}, 'Motif (obligatoire)', motif)), [
+      { texte: 'Fermer' },
+      { texte: a.action === 'retablir' ? 'Rétablir' : 'Annuler la saisie', classe: a.action === 'retablir' ? 'primaire' : 'danger', action: async function () {
+        if (!motif.value.trim()) { motif.focus(); throw new Error('Indiquez le motif.'); }
+        await App.session.enregistrer('ANNULATION', { cible: e.id, motif: motif.value.trim() });
+        toast(a.action === 'retablir' ? 'Saisie rétablie.' : 'Saisie annulée.');
+      } }], { focus: motif });
   }
 
   function vueJournal() {
@@ -1006,7 +1042,8 @@
             h('td', { text: App.session.nomAuteur(e.by) }),
             h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE') ? 'Sauvegarde' : (lieu(LIB_EVT[e.type]) || e.type)),
             h('td', {}, resumeEvt(e)),
-            h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null));
+            h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null),
+            h('td', { class: 'actions-ligne' }, boutonAnnulationJournal(etat, e)));
         })))),
       etat.journal.length > 400 ? h('p', { class: 'muted', text: 'Affichage limité aux 400 saisies les plus récentes.' }) : null);
   }

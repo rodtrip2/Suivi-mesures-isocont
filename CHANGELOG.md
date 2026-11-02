@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.39.0 — 2 novembre 2026
+
+- **Annuler depuis le journal** : bouton *Annuler* sur chaque ligne du journal. L'administrateur peut annuler toute saisie, y compris un réglage (qui reprend sa valeur précédente), un import ou une prise d'acte d'intégrité ; le cadre, les saisies sur les mesures et les patients. Une fenêtre rappelle la saisie, décrit l'effet et demande un motif. Les traces de comptes ne s'annulent pas.
+- **Rétablir** : une annulation faite par erreur s'annule à son tour (bouton *Rétablir* sur la ligne de l'annulation) ; la saisie d'origine produit de nouveau son effet. Rien n'est jamais effacé.
+
 ## 1.38.0 — 2 novembre 2026
 
 - **Affichage clair ou sombre** : bouton *☾ Sombre* / *☀ Clair* dans le bandeau supérieur. Le choix est mémorisé **pour chaque agent** (fichier chiffré `preferences/<agent>.enc` sur le partage) et le suit d'un poste à l'autre ; le dernier choix du poste s'applique dès l'écran de connexion. Sans choix, le thème du système. Les impressions restent en clair.

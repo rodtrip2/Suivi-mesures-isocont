@@ -187,10 +187,23 @@
     };
     var tries = trierEvenements(deplier(evts));
 
-    // 1) Annulations d'abord (elles neutralisent leur cible, quelle que soit leur date).
+    // 1) Annulations d'abord (elles neutralisent leur cible, quelle que soit leur date). Une annulation peut
+    //    elle-même être annulée (« Rétablir ») : seule une annulation qui n'est pas neutralisée produit son effet.
+    var contre = {};
     tries.forEach(function (e) {
       st.parId[e.id] = e;
-      if (e.type === 'ANNULATION' && e.data && e.data.cible) st.annules[e.data.cible] = e;
+      if (e.type === 'ANNULATION' && e.data && e.data.cible) (contre[e.data.cible] = contre[e.data.cible] || []).push(e);
+    });
+    var memo = {};
+    function effective(a, n) {
+      if (memo[a.id] !== undefined) return memo[a.id];
+      if (n > 50) return true;
+      var r = !(contre[a.id] || []).some(function (x) { return effective(x, n + 1); });
+      memo[a.id] = r;
+      return r;
+    }
+    tries.forEach(function (e) {
+      if (e.type === 'ANNULATION' && e.data && e.data.cible && effective(e, 0)) st.annules[e.data.cible] = e;
     });
 
     // Chaînage : chaque saisie cite la précédente du même agent ; un maillon absent signale un fichier supprimé.
@@ -236,6 +249,24 @@
     out.illisibles = out.fichiersIllisibles.length;
     out.acquis = acquis + (res.manquantsAcquis || 0);
     return out;
+  }
+
+  /**
+   * Annulation depuis le journal : ce qu'il est possible d'annuler (ou de rétablir) et avec quel droit.
+   * Retourne null si la saisie ne s'annule pas (trace de compte, saisie déjà annulée), sinon
+   * { action: 'annuler' | 'retablir', droit: 'ANNULATION' | 'CONFIG', cible }.
+   * Paramétrage, imports (lots) et décisions d'intégrité : administrateur (droit CONFIG) ; autres saisies : droit ANNULATION.
+   */
+  var TYPES_ADMIN = { CONFIG: 1, LOT: 1, INTEGRITE: 1 };
+  function annulabilite(st, e) {
+    if (!e || e.type === 'COMPTE' || e.lot) return null;
+    if (e.type === 'ANNULATION') {
+      var cible = st.parId[e.data && e.data.cible];
+      if (!cible || st.annules[e.id] || st.annules[cible.id] !== e) return null;
+      return { action: 'retablir', droit: TYPES_ADMIN[cible.type] ? 'CONFIG' : 'ANNULATION', cible: cible };
+    }
+    if (st.annules[e.id]) return null;
+    return { action: 'annuler', droit: TYPES_ADMIN[e.type] ? 'CONFIG' : 'ANNULATION', cible: e };
   }
 
   /** Fiche qui porte aujourd'hui un patient (après fusions éventuelles). */
@@ -1735,7 +1766,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

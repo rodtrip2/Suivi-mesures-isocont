@@ -498,3 +498,26 @@ test('Fiche patient : heures réparties sur les mois et les années réellement 
   const pr25 = M.profilAnnuelPatient(st, 'P', ['U1'], 2025, local(2026, 12, 1));
   assert.equal(Math.round(pr25.mois[11].iso), 2);   // 2 h en décembre 2025
 });
+
+test('Journal : annuler puis rétablir une saisie ; droits selon le type de saisie', () => {
+  const debut = local(2026, 3, 1, 10);
+  const d = evt('MESURE_DEBUT', { mesureId: 'R1', patientId: 'P', service: 'U1', typeMesure: 'Isolement', debut, csi: true, lieu: 'CSI 1' });
+  const f = evt('MESURE_FIN', { mesureId: 'R1', fin: debut + 5 * H });
+  const c = evt('CONFIG', { cle: 'organisationJLD', valeur: 'Texte (fictif)' });
+  const a1 = evt('ANNULATION', { cible: f.id, motif: 'erreur' });
+  let st = M.reduire([d, f, c, a1]);
+  assert.equal(st.mesures.R1.fin, null);                                 // fin annulée
+  assert.deepEqual(M.annulabilite(st, a1), { action: 'retablir', droit: 'ANNULATION', cible: f });
+  assert.equal(M.annulabilite(st, f), null);                             // déjà annulée
+  assert.equal(M.annulabilite(st, c).droit, 'CONFIG');                   // paramétrage : administrateur
+  assert.equal(M.annulabilite(st, evt('COMPTE', { action: 'CREATION' })), null);
+  // Rétablir = annuler l'annulation
+  const a2 = evt('ANNULATION', { cible: a1.id, motif: 'annulation faite par erreur' });
+  st = M.reduire([d, f, c, a1, a2]);
+  assert.equal(st.mesures.R1.fin, debut + 5 * H);
+  assert.ok(st.annules[a1.id] && !st.annules[f.id]);
+  assert.equal(M.annulabilite(st, a2).action, 'retablir');               // et ainsi de suite
+  // Annuler le paramétrage rétablit la valeur précédente
+  st = M.reduire([d, f, c, a1, a2, evt('ANNULATION', { cible: c.id, motif: 'test' })]);
+  assert.equal(st.config.organisationJLD, '');
+});
