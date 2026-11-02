@@ -474,3 +474,32 @@ test('Déplacement des données : copie vérifiée, ancien dossier marqué, nouv
   assert.ok(s.evts.some((e) => e.type === 'COMPTE' && e.data.action === 'DEPLACEMENT'));
   await assert.rejects(admin.deplacerDonnees(new Dossier(new Repertoire('Encore'), 'reseau')), /déjà été déplacé/);
 });
+
+test('Plusieurs dossiers de secours (serveur et copies locales) : état de chacun gardé, saisies hors réseau reprises', async () => {
+  const { racine, admin } = await nouveauDossier();
+  const serveur = new Dossier(new Repertoire('Secours-serveur'), 'reseau');
+  const localA = new Dossier(new Repertoire('Local-A'), 'reseau');
+  const localB = new Dossier(new Repertoire('Local-B'), 'reseau');
+  await admin.synchroniserMiroir(serveur, { type: 'serveur' });
+  await admin.synchroniserMiroir(localA, { type: 'local', poste: 'PC-A (fictif)' });
+  await admin.synchroniserMiroir(localB, { type: 'local', poste: 'PC-B (fictif)' });
+  const ep = await new Dossier(racine, 'reseau').lireEtatMiroir();
+  const liste = Object.values(ep.miroirs);
+  assert.equal(liste.length, 3);
+  assert.deepEqual(liste.map((x) => x.type).sort(), ['local', 'local', 'serveur']);
+  assert.equal((await localA.lireEtatMiroir()).type, 'local');
+  // Panne réseau : chaque poste travaille sur sa copie locale
+  const surA = await connecter(localA.handle, 'admin', 'mot de passe solide');
+  const surB = await connecter(localB.handle, 'admin', 'mot de passe solide');
+  await surA.enregistrer('PATIENT', { patientId: 'PA', nom: 'A (fictif)' });
+  await surB.enregistrer('PATIENT', { patientId: 'PB', nom: 'B (fictif)' });
+  // Retour du réseau : les deux copies sont reprises, l'identifiant de chaque copie est conservé
+  const idA = (await localA.lireEtatMiroir()).id;
+  await admin.synchroniserMiroir(localA, { type: 'local' });
+  await admin.synchroniserMiroir(localB, { type: 'local' });
+  assert.ok(admin.etat.patients.PA && admin.etat.patients.PB);
+  assert.equal((await localA.lireEtatMiroir()).id, idA);
+  assert.equal(Object.keys((await new Dossier(racine, 'reseau').lireEtatMiroir()).miroirs).length, 3);
+  await new Dossier(racine, 'reseau').oublierMiroir(idA);
+  assert.equal(Object.keys((await new Dossier(racine, 'reseau').lireEtatMiroir()).miroirs).length, 2);
+});

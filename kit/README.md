@@ -12,6 +12,7 @@ Tout ce qu'il faut pour présenter, valider, installer et exploiter Suivi-mesure
 | [06 — Guide utilisateur](06-guide-utilisateur.md) | IDE, secrétariat, cadres | Formation des équipes |
 | [08 — Guide pratique IDE et AS](08-guide-ide-as.md) | IDE, aides-soignant(e)s | Les gestes du quotidien avec captures : créer une mesure, pause et reprise, tiers, décompte et envoi au JLD, surveillance en CSI, fin |
 | [09 — Dossier de secours copié par robocopy](09-dossier-secours-robocopy.md) | Service informatique | Copie automatique des données vers un second serveur (tâche planifiée, script `outils/miroir-robocopy.ps1`), retour après une panne |
+| [10 — Travail hors réseau](10-travail-hors-reseau.md) | Service informatique, administrateur, délégué à la protection des données | Postes désignés : outil disponible sans réseau (cache du navigateur ou copie locale par script), copie locale des données, conduite en cas de panne |
 | [07 — Reprise à partir du registre](07-modele-import-registre.md) | Administrateur fonctionnel, cadres | Format du registre à importer, reconstitution des mesures, contrôles avant import |
 
 ## Parcours de déploiement

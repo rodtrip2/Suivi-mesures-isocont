@@ -35,6 +35,10 @@
 3. Informer le responsable de la sécurité informatique (RSSI) et le délégué à la protection des données (DPO, référent RGPD) : éventuelle violation de données à notifier.
 4. La version 1.0 ne propose pas de rotation automatique de la clé de données. Si l'on craint que la clé de données elle-même ait été exposée (session déverrouillée sur un poste compromis), le responsable de la sécurité informatique décide des suites, en s'appuyant sur le fait qu'une copie du dossier reste nécessaire pour l'exploiter.
 
+## Panne du réseau sur un poste désigné pour le travail hors réseau
+
+Sur les postes désignés (document 10) : ouvrir l'outil comme d'habitude, puis **Travailler hors réseau (copie locale de ce poste)** et se connecter (bandeau rouge « Hors réseau »). Au retour du réseau : *Verrouiller*, *Changer de dossier*, **Reprendre** le dossier habituel ; les saisies faites hors réseau sont reprises automatiquement. Les autres postes appliquent la procédure dégradée sur papier ci-dessous.
+
 ## Dossier réseau indisponible, dossier de secours en place
 
 Si l'établissement a mis en place un **dossier de secours** (*Administration → Informations*, sur un autre serveur, tenu à jour par des postes reliés ou par une copie robocopy du service informatique, document 09) :

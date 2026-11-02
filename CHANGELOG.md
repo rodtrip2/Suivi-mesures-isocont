@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 1.51.0 — 2 novembre 2026
+
+- **Travail hors réseau sur des postes désignés** (*Administration → Informations*), pour les deux modes d'hébergement :
+  - outil servi en HTTPS (intranet ou page GitHub) : *Garder l'outil disponible hors réseau sur ce poste* — mise en cache par le navigateur, chaque fichier contrôlé par son empreinte SHA-256, mise à jour automatique ;
+  - outil ouvert sans HTTPS : script fourni au service informatique (`kit/outils/copie-locale-outil.ps1`) qui copie l'outil sur le poste après contrôle des empreintes et crée le raccourci du bureau ;
+  - *Créer une copie locale des données sur ce poste* : copie chiffrée sur le disque du poste, tenue à jour toutes les 10 minutes. En cas de panne : *Travailler hors réseau* à l'écran d'accueil (bandeau rouge) ; au retour, *Reprendre* le dossier habituel et les saisies sont reprises sans rien écraser.
+- **Plusieurs dossiers de secours** suivis ensemble (serveur, copie robocopy, copies locales des postes) : tableau avec la dernière copie de chacun, *Retirer de la liste* pour un poste réformé. Le script robocopy conserve l'état des autres copies.
+- Kit : nouvelle fiche 10 (travail hors réseau) ; fiche technique (en-têtes de sécurité, `worker-src 'self'`), guide d'installation, procédures de secours, éléments RGPD et guide utilisateur complétés.
+
 ## 1.50.0 — 2 novembre 2026
 
 - **Dossier de secours copié par robocopy** : script PowerShell fourni (`kit/outils/miroir-robocopy.ps1`) à lancer par une tâche planifiée, de préférence sur un serveur. Contrôles avant copie (dossier principal valide, dossier de secours vide ou copie des mêmes données, chemins non inversés), copie sans jamais supprimer ni écraser un fichier plus récent, exports exclus, journal. Nouvelle fiche du kit pour le service informatique (document 09) : installation, compte de service, tâche planifiée, vérifications, retour après une panne.

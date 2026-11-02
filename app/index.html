@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Aucune connexion sortante, aucun script externe : même un code altéré ne peut rien envoyer sur Internet. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' data: file:; connect-src 'none'; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' data: file:; connect-src 'none'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Suivi mesures iso/cont</title>
   <link rel="icon" type="image/png" sizes="32x32" href="img/icone-32.png">
@@ -51,6 +51,7 @@
   <script src="js/ui-listes.js"></script>
   <script src="js/ui-pdf-etab.js"></script>
   <script src="js/ui-miroir.js"></script>
+  <script src="js/ui-hors-reseau.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

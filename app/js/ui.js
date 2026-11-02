@@ -70,7 +70,7 @@
     MESURE_FIN: 'Fin de mesure', PAUSE: 'Pause de mesure', REPRISE: 'Reprise de mesure', TIERS: 'Information du tiers', INFORMATION: 'Information (alerte de l’établissement)', FUSION: 'Fusion de fiches patient', PROPOSITION: 'Correction proposée', REFUS_PROPOSITION: 'Correction proposée refusée', TRANSFERT: 'Transfert entre services', SOMATIQUE: 'Soins somatiques ou urgences', SOMATIQUE_RETOUR: 'Retour dans le service', RECOURS: 'Recours ou appel (JLD)', ENTRETIEN: 'Entretien après la mesure', INTEGRITE: 'Intégrité des données', JLD: 'JLD', PROFESSIONNEL: 'Professionnel en CSI',
     CORRECTION: 'Correction', ANNULATION: 'Annulation', COMPTE: 'Comptes et clés', LOT: 'Lot de saisies', STATS: 'Statistiques'
   };
-  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', EXPORT: 'fichier exporté', EXPORT_SUPPRIME: 'fichier exporté supprimé', PURGE_EXPORTS: 'purge des anciens exports', REPARATION: 'réparation depuis une copie de sauvegarde', QUARANTAINE: 'mise en quarantaine', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré', MIROIR: 'synchronisation avec le dossier de secours', MIROIR_REPRISE: 'saisies reprises du dossier de secours', MIROIR_LIEN: 'dossier de secours relié', DEPLACEMENT: 'données déplacées vers un nouveau dossier' };
+  var LIB_COMPTE = { EDITION_CADA: 'registre édité pour communication (CADA)', EXPORT_PATIENT: 'données d’un patient exportées (droit d’accès)', ARCHIVE: 'archive annuelle téléchargée', SCELLE: 'copie du coffre sous scellé téléchargée', SAUVEGARDE: 'copie de sauvegarde complète téléchargée', EXPORT: 'fichier exporté', EXPORT_SUPPRIME: 'fichier exporté supprimé', PURGE_EXPORTS: 'purge des anciens exports', REPARATION: 'réparation depuis une copie de sauvegarde', QUARANTAINE: 'mise en quarantaine', FORMATION_CREEE: 'jeu de formation créé ou régénéré', CREATION_LOT: 'comptes créés en lot', CREATION: 'compte créé', ROLES: 'rôles modifiés', MDP_CHANGE: 'mot de passe changé', MDP_REINIT: 'mot de passe réinitialisé', CLE_AJOUT: 'clé de sécurité enregistrée', CLE_RETRAIT: 'clé de sécurité retirée', CODE_SECOURS: 'nouveau code de secours généré', MIROIR: 'synchronisation avec le dossier de secours', MIROIR_REPRISE: 'saisies reprises du dossier de secours', MIROIR_LIEN: 'dossier de secours relié', DEPLACEMENT: 'données déplacées vers un nouveau dossier', HORS_RESEAU: 'travail hors réseau sur un poste' };
   var LIB_STATUT = { ok: 'dans les temps', proche: 'échéance proche', depasse: 'dépassée', fait: 'fait à temps', 'fait-retard': 'fait hors délai', na: 'sans objet' };
 
   // ================================================================ État
@@ -110,7 +110,9 @@
     if (App.dossier && App.dossier.mode === 'demo') racine.appendChild(h('div', { class: 'bandeau-demo', text: 'Mode démonstration — données fictives uniquement, stockées dans ce navigateur. Ne saisissez aucune donnée réelle.' }));
     if (!App.dossier) return racine.appendChild(ecranAccueil());
     if (App.deplacement) return racine.appendChild(SIC.ui.miroir.ecranDeplace(App.deplacement));
-    if (App.secours) racine.appendChild(h('div', { class: 'bandeau-secours', role: 'alert', text: 'Dossier de secours — à n’utiliser que si le dossier principal est inaccessible. Au retour du dossier principal, l’administrateur l’ouvre et synchronise.' }));
+    if (App.secours) racine.appendChild(h('div', { class: 'bandeau-secours', role: 'alert', text: App.secours === 'local'
+      ? 'Hors réseau — copie locale de ce poste. Au retour du réseau : Verrouiller, Changer de dossier, puis « Reprendre » le dossier habituel ; les saisies faites ici seront reprises.'
+      : 'Dossier de secours — à n’utiliser que si le dossier principal est inaccessible. Au retour du dossier principal, l’administrateur l’ouvre et synchronise.' }));
     if (!App.session.coffre) return racine.appendChild(App.anomalie ? ecranAnomalie() : ecranInitialisation());
     if (!App.session.cle) return racine.appendChild(ecranConnexion());
     if (App.session.utilisateur && App.session.utilisateur.mdpProvisoire) return racine.appendChild(ecranMotDePasseObligatoire());
@@ -158,6 +160,11 @@
       try { App.dossier = await fn(); await demarrerSession(); }
       catch (e) { if (e.name !== 'AbortError') erreurDans(zoneErr, e); }
     }
+    SIC.Dossier.miroirPoste('local').then(function (local) {
+      if (!local) return;
+      pile.appendChild(h('div', { class: 'separateur', text: 'panne du réseau' }));
+      pile.appendChild(h('button', { class: 'btn', title: 'Copie locale des données de ce poste, tenue à jour toutes les 10 minutes', onclick: function () { ouvrir(SIC.Dossier.ouvrirLocal); } }, 'Travailler hors réseau (copie locale de ce poste)'));
+    }).catch(function () {});
     SIC.Dossier.precedent().then(function (prec) {
       if (prec) {
         pile.insertBefore(h('button', { class: 'btn primaire', onclick: function () { ouvrir(function () { return SIC.Dossier.rouvrir(prec); }); } }, 'Reprendre : ' + prec.nom), pile.firstChild);
@@ -180,7 +187,7 @@
     App.deplacement = null; App.secours = false;
     if (App.dossier.mode === 'reseau') {
       try { App.deplacement = await App.dossier.lireDeplacement(); } catch (e) { /* lecture impossible */ }
-      try { var em = await App.dossier.lireEtatMiroir(); App.secours = !!(em && em.role === 'secours'); } catch (e) { /* lecture impossible */ }
+      try { var em = await App.dossier.lireEtatMiroir(); App.secours = em && em.role === 'secours' ? (em.type || 'serveur') : false; } catch (e) { /* lecture impossible */ }
     }
     rendre();
   }
@@ -321,7 +328,8 @@
   async function changerDossier() {
     arreterMinuteurs();
     if (App.session) App.session.verrouiller();
-    await SIC.Dossier.oublier();
+    if (App.secours !== 'local') await SIC.Dossier.oublier();   // la copie locale n'a jamais remplacé le dossier habituel retenu
+    App.secours = false;
     App.dossier = null; App.session = null;
     rendre();
   }
@@ -1244,7 +1252,7 @@
           return h('tr', { class: annule ? 'ancienne' : '' },
             h('td', { class: 'nowrap', text: date(Date.parse(e.at)) }),
             h('td', { text: App.session.nomAuteur(e.by) }),
-            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE' || /^(MIROIR|DEPLACEMENT)/.test(e.data.action)) ? 'Sauvegarde' : e.type === 'COMPTE' && e.data && (e.data.action === 'EXPORT' || e.data.action === 'EXPORT_SUPPRIME' || e.data.action === 'PURGE_EXPORTS') ? 'Export' : (lieu(LIB_EVT[e.type]) || e.type)),
+            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE' || /^(MIROIR|DEPLACEMENT|HORS_RESEAU)/.test(e.data.action)) ? 'Sauvegarde' : e.type === 'COMPTE' && e.data && (e.data.action === 'EXPORT' || e.data.action === 'EXPORT_SUPPRIME' || e.data.action === 'PURGE_EXPORTS') ? 'Export' : (lieu(LIB_EVT[e.type]) || e.type)),
             h('td', {}, resumeEvt(e)),
             h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null),
             h('td', { class: 'actions-ligne' }, boutonAnnulationJournal(etat, e)));

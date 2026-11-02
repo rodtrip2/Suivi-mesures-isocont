@@ -6,7 +6,7 @@
 
 Une tâche planifiée lance toutes les 15 à 30 minutes le script fourni `kit/outils/miroir-robocopy.ps1`. Le script copie le dossier des données de l'outil vers un dossier de secours, de préférence sur un autre serveur. Les fichiers copiés restent **chiffrés** : le compte qui exécute la copie ne voit aucune donnée lisible.
 
-Cette copie complète, sans la remplacer, la synchronisation que l'outil sait faire depuis un poste relié (*Administration → Informations*). Elle ne dépend ni d'un navigateur ouvert, ni d'un agent connecté. Les deux mécanismes peuvent fonctionner ensemble.
+Cette copie complète, sans la remplacer, la synchronisation que l'outil sait faire depuis un poste relié (*Administration → Informations*). Elle ne dépend ni d'un navigateur ouvert, ni d'un agent connecté. Les deux mécanismes peuvent fonctionner ensemble, ainsi que les copies locales des postes désignés pour le travail hors réseau (document 10) : le dossier principal garde l'état de chaque copie.
 
 **Où l'installer.** De préférence sur un **serveur**, qui reste allumé. À défaut, sur un poste de travail identifié, toujours allumé, et dont le nom est noté dans le dossier d'exploitation. Si la machine est éteinte, rien n'est copié : l'administrateur de l'outil est alerté après 24 h sans copie.
 

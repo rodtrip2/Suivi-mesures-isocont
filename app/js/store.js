@@ -595,8 +595,14 @@
     }
     var maintenant = new Date().toISOString();
     var etat = { derniere: maintenant, poste: options.poste || '', versAutre: res.versAutre, depuisAutre: res.depuisAutre };
-    await this.ecrireEtatMiroir(Object.assign({ role: 'principal', autre: autre.nom }, etat));
-    await autre.ecrireEtatMiroir(Object.assign({ role: 'secours', autre: this.nom }, etat));
+    // Plusieurs dossiers de secours possibles (serveur, copie locale de chaque poste désigné, copie robocopy) :
+    // chacun porte un identifiant, et le dossier principal garde l'état de chacun.
+    var ea = await autre.lireEtatMiroir(), id = (ea && ea.id) || ('m' + C.hex(C.aleatoire(6)));
+    var type = options.type || (ea && ea.type) || 'serveur';
+    await autre.ecrireEtatMiroir(Object.assign({ role: 'secours', id: id, type: type, autre: this.nom }, etat));
+    var ep = (await this.lireEtatMiroir()) || {}, miroirs = (ep.miroirs && typeof ep.miroirs === 'object') ? ep.miroirs : {};
+    miroirs[id] = { nom: autre.nom, type: type, derniere: maintenant, poste: options.poste || '', outil: 'outil' };
+    await this.ecrireEtatMiroir(Object.assign({ role: 'principal', autre: autre.nom, miroirs: miroirs }, etat));
     return res;
   };
 
@@ -634,8 +640,24 @@
     return new Dossier(await window.showDirectoryPicker({ id: id || 'sic-autre', mode: 'readwrite' }), 'reseau');
   };
   /** Dossier de secours relié à ce poste (mémorisé dans le navigateur). */
-  Dossier.miroirPoste = async function () { var h = await relire('miroir'); return h ? new Dossier(h, 'reseau') : null; };
-  Dossier.relierMiroir = function (d) { return memoriser('miroir', d ? d.handle : null); };
+  // Deux liens par poste : le dossier de secours du service ('serveur', clé « miroir ») et la copie locale ('local').
+  function cleMiroir(type) { return type === 'local' ? 'miroirLocal' : 'miroir'; }
+  Dossier.miroirPoste = async function (type) { var h = await relire(cleMiroir(type)); return h ? new Dossier(h, 'reseau') : null; };
+  Dossier.relierMiroir = function (d, type) { return memoriser(cleMiroir(type), d ? d.handle : null); };
+  /** Ouvre la copie locale de ce poste (panne réseau) sans changer le dossier de travail retenu. */
+  Dossier.ouvrirLocal = async function () {
+    var d = await Dossier.miroirPoste('local');
+    if (!d) throw new Error('Aucune copie locale des données sur ce poste.');
+    if (!(await d.autorise(true))) throw new Error('L’accès à la copie locale a été refusé.');
+    return d;
+  };
+  /** Retire du dossier principal l'état d'un dossier de secours qui n'existe plus (poste retiré, serveur arrêté). */
+  Dossier.prototype.oublierMiroir = async function (id) {
+    var ep = await this.lireEtatMiroir();
+    if (!ep || !ep.miroirs || !ep.miroirs[id]) return;
+    delete ep.miroirs[id];
+    await this.ecrireEtatMiroir(ep);
+  };
   Dossier.prototype.autorise = async function (demander) {
     if (this.mode !== 'reseau' || !this.handle.queryPermission) return true;
     var o = { mode: 'readwrite' };

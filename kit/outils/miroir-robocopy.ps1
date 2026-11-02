@@ -45,13 +45,6 @@ function Lire-Json([string]$chemin) {
   if (-not (Test-Path -LiteralPath $chemin)) { return $null }
   try { return ([System.IO.File]::ReadAllText($chemin, $utf8) | ConvertFrom-Json) } catch { return 'illisible' }
 }
-function Ecrire-Etat([string]$dossier, [string]$role, [string]$autre, [int]$code) {
-  $etat = [ordered]@{
-    role = $role; autre = $autre; derniere = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ');
-    poste = $env:COMPUTERNAME; outil = 'robocopy'; code = $code
-  }
-  [System.IO.File]::WriteAllText((Join-Path $dossier 'miroir-etat.json'), ($etat | ConvertTo-Json), $utf8)
-}
 function Arreter([string]$motif) { Ecrire-Journal ('ARRÊT sans copie : ' + $motif); exit 1 }
 
 # Journal : dossier créé si besoin, rotation au-delà de 5 Mo
@@ -95,7 +88,19 @@ $code = $LASTEXITCODE
 # robocopy : 0 à 7 = réussite (avec ou sans fichiers copiés) ; 8 et plus = échec d'au moins un fichier
 if ($code -ge 8) { Ecrire-Journal ('ÉCHEC de robocopy (code ' + $code + ') : voir ' + $Detail); exit 2 }
 
-Ecrire-Etat $Secours 'secours' (Split-Path -Leaf $Principal) $code
-Ecrire-Etat $Principal 'principal' (Split-Path -Leaf $Secours) $code
+$id = 'robocopy-' + $env:COMPUTERNAME
+$maintenant = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+# Dossier de secours : son propre état
+$etatSecours = [ordered]@{ role = 'secours'; id = $id; type = 'serveur'; autre = (Split-Path -Leaf $Principal); derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy'; code = $code }
+[System.IO.File]::WriteAllText((Join-Path $Secours 'miroir-etat.json'), ($etatSecours | ConvertTo-Json), $utf8)
+# Dossier principal : l'état des autres dossiers de secours (copies locales des postes, autres serveurs) est conservé
+$miroirs = [ordered]@{}
+$ancien = Lire-Json (Join-Path $Principal 'miroir-etat.json')
+if ($ancien -and $ancien -ne 'illisible' -and $ancien.miroirs) {
+  foreach ($p in $ancien.miroirs.PSObject.Properties) { $miroirs[$p.Name] = $p.Value }
+}
+$miroirs[$id] = [ordered]@{ nom = (Split-Path -Leaf $Secours); type = 'serveur'; derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy' }
+$etatPrincipal = [ordered]@{ role = 'principal'; autre = (Split-Path -Leaf $Secours); derniere = $maintenant; poste = $env:COMPUTERNAME; outil = 'robocopy'; code = $code; miroirs = $miroirs }
+[System.IO.File]::WriteAllText((Join-Path $Principal 'miroir-etat.json'), ($etatPrincipal | ConvertTo-Json -Depth 5), $utf8)
 Ecrire-Journal ('Copie terminée (code robocopy ' + $code + ')')
 exit 0

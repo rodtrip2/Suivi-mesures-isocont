@@ -543,7 +543,7 @@
     options = options || {};
     if (!this.cle || !this.coffre) throw new Error('Session fermée.');
     await this.controlerMiroir(miroir);
-    var r = await this.dossier.synchroniserAvec(miroir, { poste: options.poste || (this.utilisateur && this.utilisateur.nom) || '' });
+    var r = await this.dossier.synchroniserAvec(miroir, { type: options.type, poste: options.poste || (this.utilisateur && this.utilisateur.nom) || '' });
     if (r.depuisAutre) {
       try { await this.tracer('MIROIR_REPRISE', { libelle: r.depuisAutre + ' fichier(s) repris du dossier de secours « ' + miroir.nom + ' »' }); } catch (e) { /* trace facultative */ }
       if (r.coffre === 'depuis') { this.coffre = await this.dossier.lireCoffre(); await lireComptes(this); }

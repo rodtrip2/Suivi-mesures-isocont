@@ -48,13 +48,13 @@ h2 { break-before: auto; }
 def convertir(md: str) -> str:
     md = re.sub(r'^(\s*)- \[ \] ', r'\1- ☐ ', md, flags=re.M)
     md = re.sub(r'^(\s*)- \[x\] ', r'\1- ☑ ', md, flags=re.M)
-    md = re.sub(r'\]\((0\d-[^)]+)\.md\)', r'](\1.pdf)', md)
+    md = re.sub(r'\]\((\d\d-[^)]+)\.md\)', r'](\1.pdf)', md)
     return markdown.markdown(md, extensions=['tables', 'fenced_code', 'sane_lists'])
 
 
 def main():
     SORTIE.mkdir(exist_ok=True)
-    fichiers = sorted(KIT.glob('0*.md'))
+    fichiers = sorted(KIT.glob('[0-9][0-9]-*.md'))
     with sync_playwright() as p:
         navigateur = p.chromium.launch()
         page = navigateur.new_page()
