@@ -247,13 +247,18 @@ test('Masque du décompte JLD : défaut, établissement, service, anciens régla
   assert.equal(u1.titreIsolement, 'Isolement — U1');
   assert.equal(u1.entete, 'CH (fictif)');                              // hérité de l'établissement
   assert.deepEqual(u1.identite, ['patient', 'ipp']);
-  assert.deepEqual(u1.colonnes, ['Cumul', 'Debut']);                   // ordre conservé, colonne inconnue écartée
+  assert.deepEqual(u1.colonnes, ['Cumul', 'Debut', 'Lieu']);           // ordre conservé, colonne inconnue écartée, « Lieu » ajoutée (masque antérieur)
   assert.equal(u1.sections.jld, true);
   assert.equal(u1.sections.cycle, false);
   assert.equal(u1.sections.total, true);
   const u2 = M.masqueDecompte(config, 'U2');
   assert.equal(u2.titreIsolement, M.MASQUE_DEFAUT.titreIsolement);     // titre vide : titre par défaut
-  assert.deepEqual(u2.colonnes, ['Debut', 'Fin', 'Duree', 'Cumul', 'Statut']);
+  assert.deepEqual(u2.colonnes, ['Debut', 'Fin', 'Duree', 'Cumul', 'Statut', 'Lieu']);
+  // Masque enregistré depuis la colonne « Lieu » : le choix de l'établissement est respecté
+  const u4 = M.masqueDecompte({ decompte: { U4: { colonnes: ['Debut', 'Commentaire'], colonnesLieu: true } } }, 'U4');
+  assert.deepEqual(u4.colonnes, ['Debut', 'Commentaire']);
+  assert.equal(u4.colonnesLieu, undefined);
+  assert.deepEqual(M.masqueDecompte({ decompte: { U4: { colonnes: ['Debut', 'Commentaire'] } } }, 'U4').colonnes, ['Debut', 'Lieu', 'Commentaire']);
   assert.equal(M.masqueDecompte(config, 'U3').propre, false);
 });
 

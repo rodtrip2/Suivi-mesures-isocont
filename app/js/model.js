@@ -949,6 +949,22 @@
       .replace(/\bCSI\b/g, l.court);
   }
 
+  /**
+   * Lieu exact et type d'espace, pour le décompte JLD : « CSI 1 — chambre de soins intensifs »,
+   * « Chambre 12 — hors chambre de soins intensifs ». Un nom générique (« CSI », « Hors CSI ») est signalé comme non précisé.
+   */
+  function lieuDetaille(config, lieu, csi) {
+    var l = libLieu(config), nom = String(lieu || '').trim();
+    function n(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+    var cap = l.long.charAt(0).toUpperCase() + l.long.slice(1);
+    if (csi) {
+      var generiques = ['', 'csi', n(l.court), n(l.long), n(l.longs), 'chambre de soins intensifs', 'espace d isolement', 'chambre d isolement'];
+      return generiques.indexOf(n(nom)) >= 0 ? cap + ' (nom du lieu non précisé)' : nom + ' — ' + l.long;
+    }
+    var vides = ['', 'chambre', 'hors csi', 'hors ' + n(l.court), 'hors espace d isolement', 'chambre hors csi'];
+    return vides.indexOf(n(nom)) >= 0 ? 'Hors ' + l.long + ' (lieu non précisé)' : nom + ' — hors ' + l.long;
+  }
+
   // ------------------------------------------------------- Alertes de l'établissement
   var DECLENCHEURS_ALERTE = {
     'soins-libres': 'Patient en soins libres au début de la mesure',
@@ -1738,7 +1754,7 @@
    * segments de 24 h (isolement) ou 12 h (contention), avec cumul progressif.
    */
   // ------------------------------------------------ Masques du décompte JLD
-  var COLONNES_DECOMPTE = ['N', 'Debut', 'Fin', 'Duree', 'Cumul', 'Statut', 'Commentaire'];
+  var COLONNES_DECOMPTE = ['N', 'Debut', 'Fin', 'Duree', 'Cumul', 'Statut', 'Lieu', 'Commentaire'];
   var IDENTITE_DECOMPTE = ['patient', 'naissance', 'ipp', 'service', 'modeHospi', 'protection', 'mesure', 'lieu', 'psychiatre'];
   var SECTIONS_DECOMPTE = ['periode', 'situation', 'total', 'cycle', 'jld', 'tiers', 'pauses', 'mentionLegale', 'dateEdition', 'auteur'];
   var FORMATS_DUREE = ['h', 'j', 'hj'];
@@ -1783,6 +1799,11 @@
         else if (k === 'titreIsolement' || k === 'titreContention') { if (x[k]) r[k] = x[k]; }
         else r[k] = cloner(x[k]);
       });
+      // Colonne « Lieu » (1.45.0) : ajoutée aux masques enregistrés avant elle.
+      if (x.colonnes && !x.colonnesLieu && r.colonnes.indexOf('Lieu') < 0) {
+        var ic = r.colonnes.indexOf('Commentaire');
+        r.colonnes.splice(ic >= 0 ? ic : r.colonnes.length, 0, 'Lieu');
+      }
       if (x.masquer && !x.colonnes) r.colonnes = COLONNES_DECOMPTE.filter(function (c) { return x.masquer.indexOf(c) < 0; });
     });
     r.colonnes = r.colonnes.filter(function (c) { return COLONNES_DECOMPTE.indexOf(c) >= 0; });
@@ -1791,6 +1812,7 @@
     ['formatDuree', 'formatCumul'].forEach(function (k) { if (FORMATS_DUREE.indexOf(r[k]) < 0) r[k] = 'j'; });
     if (['aucune', 'actuelle', 'anterieures', 'les-deux'].indexOf(r.miseEnEvidence) < 0) r.miseEnEvidence = 'aucune';
     r.exportCSV = r.exportCSV === true;
+    delete r.colonnesLieu;
     [['trancheIsolement', 24], ['trancheContention', 12]].forEach(function (x) { var v = +r[x[0]]; r[x[0]] = isFinite(v) && v >= 0 ? Math.min(168, v) : x[1]; });
     if (r.fond && !((config && config.imagesDecompte) || {})[r.fond]) r.fond = '';
     r.propre = !!(service && service !== '*' && dec[service]);
@@ -1823,13 +1845,20 @@
       });
       return notes.length ? ' — dont ' + notes.join(', ') + ', non déduite (comptée dans le cumul)' : '';
     }
+    /** Lieu de la mesure à l'instant t (segment en cours ; lieu d'origine avant l'arrivée dans le service). */
+    function lieuA(x, t) {
+      if (x.debutService && t < x.debutService) return { lieu: x.lieuInitial || '', csi: null, avant: true };
+      var sg = (x.segments || []).filter(function (y) { return y.debut <= t; }).sort(function (a, b) { return a.debut - b.debut; }).pop();
+      return sg ? { lieu: sg.lieu, csi: sg.csi } : { lieu: x.lieu, csi: x.csi };
+    }
     function ligneMesure(x, d, f, commentaire, statut) {
       intervalles.push([d, f]);
-      lignes.push({ type: 'mesure', mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
+      var lx = lieuA(x, d);
+      lignes.push({ type: 'mesure', mesure: noMesure, lieu: lx.lieu, csi: lx.csi, avantArrivee: !!lx.avant, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: statut, commentaire: commentaire + (deduire ? '' : notePausesComptees(x, d, f)) });
     }
     function lignePause(q, d, f) {
       if (q.suspension) {
-        lignes.push({ type: 'pause', suspension: true, mesure: noMesure, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'SUSPENDUE',
+        lignes.push({ type: 'pause', suspension: true, mesure: noMesure, lieu: q.lieu, csi: false, debut: d, fin: f, duree: (f - d) / H, cumul: rules.heuresFusionnees(intervalles), statut: 'SUSPENDUE',
           commentaire: 'Mesure suspendue pendant les soins somatiques ou aux urgences (' + q.lieu + ') : durée non ajoutée au cumul, règle de l’établissement.' });
         return;
       }
@@ -1851,6 +1880,7 @@
         var suivante = Math.min(f, grille ? grille(k) : f);
         plages.forEach(function (z) { if (z.debut > t && z.debut < suivante) suivante = z.debut; });
         if (coupe && coupe > t && coupe < suivante) suivante = coupe;
+        (x.segments || []).forEach(function (sg) { if (sg.debut > t && sg.debut < suivante) suivante = sg.debut; });   // changement de lieu : nouvelle ligne
         ligne(t, suivante, apresPause, premiere);
         if (suivante === t) break;
         t = suivante; apresPause = false; premiere = false;
@@ -1898,7 +1928,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

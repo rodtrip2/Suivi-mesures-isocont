@@ -9,7 +9,7 @@
   var SIC = self.SIC, U = SIC.ui, M = SIC.model, h = U.h;
   var H = 3600 * 1000;
 
-  var LIB_COLONNES = { N: 'N°', Debut: 'Début', Fin: 'Fin ou référence', Duree: 'Durée', Cumul: 'Cumul', Statut: 'Statut', Commentaire: 'Commentaire' };
+  var LIB_COLONNES = { N: 'N°', Debut: 'Début', Fin: 'Fin ou référence', Duree: 'Durée', Cumul: 'Cumul', Statut: 'Statut', Lieu: 'Lieu', Commentaire: 'Commentaire' };
   var LIB_IDENTITE = { patient: 'Patient (nom, prénom)', naissance: 'Date de naissance', ipp: 'IPP', service: 'Service', modeHospi: "Mode d'hospitalisation", protection: 'Protection juridique', mesure: 'Mesure (type, date de décision)', lieu: 'Lieu', psychiatre: 'Psychiatre décisionnaire' };
   var LIB_SECTIONS = { periode: 'Période analysée', situation: 'Situation (en cours ou terminée)', total: 'Totaux (cumul antérieur, durée totale retenue)', cycle: 'Cycle et échéances JLD', jld: 'Envois au JLD déjà effectués', tiers: 'Information du tiers', pauses: 'Levées temporaires (pauses)', mentionLegale: 'Mention du mode de calcul (art. L. 3222-5-1)', dateEdition: 'Date d’édition', auteur: 'Auteur du document' };
   var LIB_NATURE = { INFO: 'information', SAISINE: 'saisine', DECISION: 'décision' };
@@ -43,7 +43,7 @@
       patient: ((p.nom || '') + ' ' + (p.prenom || '')).trim() || '—',
       naissance: dateNaissance(p.naissance), ipp: p.ipp || '—', service: U.libService(m.service),
       modeHospi: mode ? mode + (defMode ? ' — ' + defMode.libelle : '') : '—', protection: p.protection || 'Aucune',
-      mesure: m.type + ' - décidée le ' + U.date(m.debut), lieu: m.lieu || (m.csi ? U.lieu('CSI') : U.lieu('Hors CSI')), psychiatre: m.psychiatreDebut || '—'
+      mesure: m.type + ' - décidée le ' + U.date(m.debut), lieu: M.lieuDetaille(etat.config, m.lieu, m.csi), psychiatre: m.psychiatreDebut || '—'
     };
     var identite = masque.identite.map(function (k) { return [LIB_IDENTITE[k].replace(/ \(.*\)$/, ''), valeurs[k]]; });
     if (masque.sections.periode) identite.push(['Période analysée', 'du ' + U.date(d.fenetreDebut) + ' au ' + U.date(d.reference) + ' (15 jours glissants avant le début de la mesure, puis la mesure)']);
@@ -56,6 +56,7 @@
         case 'Duree': return l.type === 'pause' ? formatDuree(l.duree, masque.formatDuree) + (l.suspension ? ' (suspendue)' : ' (déduite)') : formatDuree(l.duree, masque.formatDuree);
         case 'Cumul': return formatDuree(l.cumul, masque.formatCumul);
         case 'Statut': return l.statut;
+        case 'Lieu': return l.type === 'pause' && !l.suspension ? '—' : l.avantArrivee ? (l.lieu || 'Lieu d’origine non précisé') + ' (avant l’arrivée)' : M.lieuDetaille(etat.config, l.lieu, l.csi);
         default: return l.commentaire;
       }
     }
@@ -147,7 +148,7 @@
           var ev = masque.miseEnEvidence;
           if (c.actuelles[i] && (ev === 'actuelle' || ev === 'les-deux')) cls.push('doc-ligne-actuelle');
           if (!c.actuelles[i] && (ev === 'anterieures' || ev === 'les-deux')) cls.push('doc-ligne-anterieure');
-          return h('tr', { class: cls.join(' ').trim() || null }, l.map(function (v) { return h('td', { text: v }); }));
+          return h('tr', { class: cls.join(' ').trim() || null }, l.map(function (v, k) { return h('td', { class: 'col-' + masque.colonnes[k], text: v }); }));
         }))) : null,
       c.entetes.length && masque.colonnes.indexOf('N') >= 0 ? h('p', { class: 'doc-legende', text: 'N° : numéro de la mesure dans le décompte' + (c.d.tranches ? ', suivi du numéro de tranche quand une même mesure est présentée sur plusieurs lignes (2.1, 2.2… : tranches de ' + c.d.tranche + ' h au plus)' : '') + '. Le statut est celui de la mesure.' }) : null,
       s.total ? h('p', { class: 'doc-total', text: c.total }) : null,
@@ -220,7 +221,7 @@
     if (masque.sousTitre) doc.paragraphe(masque.sousTitre, { taille: 10, rgb: [0.3, 0.3, 0.3], apres: 8 });
     if (c.identite.length) doc.tableau({ lignes: c.identite, poids: [32, 68], taille: 8.5, colonneGrasse: 0 });
     if (c.entetes.length) {
-      var POIDS = { 'N°': 6, 'Début': 13, 'Fin ou référence': 13, 'Durée': 11, 'Cumul': 12, 'Statut': 10, 'Commentaire': 30 };
+      var POIDS = { 'N°': 5, 'Début': 13.5, 'Fin ou référence': 13.5, 'Durée': 9, 'Cumul': 9, 'Statut': 10, 'Lieu': 15, 'Commentaire': 25 };
       var ev = masque.miseEnEvidence;
       doc.tableau({ entetes: c.entetes, lignes: c.lignes, poids: c.entetes.map(function (t) { return POIDS[t] || 12; }), taille: 7.5,
         styles: function (i) {
@@ -427,7 +428,7 @@
           titreIsolement: tIso.value.trim(), titreContention: tCont.value.trim(), sousTitre: sous.value.trim(),
           entete: entete.value.replace(/\s+$/, ''), destinataire: dest.value.replace(/\s+$/, ''), confidentiel: conf.checked,
           identite: M.IDENTITE_DECOMPTE.filter(function (k) { return casesIdentite[k].checked; }),
-          colonnes: ordre.filter(function (c) { return actives[c]; }),
+          colonnes: ordre.filter(function (c) { return actives[c]; }), colonnesLieu: true,
           sections: M.SECTIONS_DECOMPTE.reduce(function (o, k) { o[k] = casesSections[k].checked; return o; }, {}),
           piedPage: pied.value.replace(/\s+$/, ''), signature: sign.value.replace(/\s+$/, ''),
           formatDuree: fmtDuree.value, formatCumul: fmtCumul.value,

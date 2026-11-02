@@ -91,6 +91,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 - Le **statut est celui de la mesure** (en cours sur toutes ses tranches). N° = numéro de la mesure dans le décompte, suivi du numéro de tranche (2.1, 2.2…), avec légende.
 - Pauses déduites : chaque pause **interrompt le tableau** par une ligne « PAUSE » grisée (durée « (déduite) », cumul inchangé), puis « Reprise de la mesure après levée temporaire ». Tableau des pauses précédé d'une phrase qui explique la règle de l'établissement.
 - Boutons **« Enregistrer en PDF »** (fichier produit directement par `app/js/pdf.js`, générateur PDF sans bibliothèque : Helvetica WinAnsi, tableaux, sauts de page, en-tête de tableau répété, papier à en-tête JPEG, numéros de page) et **« Imprimer »** ; **export CSV désactivable, désactivé par défaut** (`masque.exportCSV`, consigne du porteur). Fichiers nominatifs : à enregistrer sur le réseau de l'établissement.
+- **Lieu exact** (demande du porteur) : identité et colonne `Lieu` (ajoutée aux masques antérieurs, drapeau `colonnesLieu` à l'enregistrement d'un masque) au format `M.lieuDetaille` (« CSI 1 — chambre de soins intensifs », « Chambre 12 — hors chambre de soins intensifs », nom générique signalé « non précisé ») ; chaque ligne porte le lieu de son segment, une ligne est coupée à chaque changement de lieu.
 - Ligne d'identité « Mesure » : « Isolement - décidée le … » (tiret demandé par le porteur, pour éviter une lecture fautive de l'accord).
 
 ## 8. Statistiques et onglet Patients

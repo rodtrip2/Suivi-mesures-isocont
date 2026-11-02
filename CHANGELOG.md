@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.45.0 — 2 novembre 2026
+
+- **Décompte JLD : lieu exact et type d'espace.** La ligne *Lieu* de l'identité indique le lieu précis et sa nature (« CSI 1 — chambre de soins intensifs », « Chambre 12 — hors chambre de soins intensifs »), selon l'appellation choisie par l'établissement. Nouvelle colonne **Lieu** dans le tableau : le lieu de chaque ligne, mesures antérieures comprises ; un changement de lieu en cours de mesure (transfert, soins somatiques) ouvre une nouvelle ligne. Colonne ajoutée automatiquement aux masques existants (décochable dans *Administration → Décompte JLD*), en PDF, à l'impression et en CSV.
+- Un lieu enregistré sans nom précis (« CSI » seul, import sans nom de lieu) est signalé « nom du lieu non précisé ».
+
 ## 1.44.0 — 2 novembre 2026
 
 - **Icône de l'application** : icône propre à l'outil (onglet du navigateur, application installée, raccourci Windows), fichier `app/img/icone.ico` pour les raccourcis et les stratégies de groupe, images PNG ; manifeste pour **installer l'outil comme une application** depuis Edge ou Chrome (fenêtre dédiée, menu Démarrer, bureau). Politique de sécurité du contenu complétée par `manifest-src 'self'`.

@@ -76,6 +76,29 @@ test('Mesure débutée ailleurs : délais JLD depuis la décision initiale, regi
   assert.match(lignes[0].commentaire, /Urgences \(fictif\)/);
   assert.match(lignes[1].commentaire, /Arrivée dans le service/);
   assert.equal(Math.round(lignes[1].cumul), 36);
+  assert.ok(lignes[0].avantArrivee); assert.equal(lignes[0].lieu, 'Urgences (fictif)');
+});
+
+test('Décompte JLD : lieu exact et type d’espace sur chaque ligne', () => {
+  const evts = patient('P1').concat([
+    mesureIso('M1', local(2026, 3, 1, 8)),
+    evt('TRANSFERT', { mesureId: 'M1', date: local(2026, 3, 2, 8), service: 'U2', lieu: 'CSI A', csi: true }),
+    evt('MESURE_FIN', { mesureId: 'M1', fin: local(2026, 3, 2, 20) })
+  ]);
+  const st = M.reduire(evts);
+  const d = M.decompte(st, st.mesures.M1, local(2026, 3, 3), { tranche: 24 });
+  assert.deepEqual(d.lignes.map((l) => l.lieu), ['CSI 1', 'CSI A']);
+  // Tranches de 48 h : la ligne est coupée au changement de lieu
+  const d2 = M.decompte(st, st.mesures.M1, local(2026, 3, 3), { tranche: 48 });
+  assert.deepEqual(d2.lignes.map((l) => [l.lieu, (l.fin - l.debut) / H]), [['CSI 1', 24], ['CSI A', 12]]);
+  assert.equal(M.lieuDetaille({}, 'CSI 1', true), 'CSI 1 — chambre de soins intensifs');
+  assert.equal(M.lieuDetaille({}, 'CSI', true), 'Chambre de soins intensifs (nom du lieu non précisé)');
+  assert.equal(M.lieuDetaille({}, '', true), 'Chambre de soins intensifs (nom du lieu non précisé)');
+  assert.equal(M.lieuDetaille({}, 'Chambre 12', false), 'Chambre 12 — hors chambre de soins intensifs');
+  assert.equal(M.lieuDetaille({}, 'Hors CSI', false), 'Hors chambre de soins intensifs (lieu non précisé)');
+  const ci = { lieuIsolement: { court: 'CI', long: 'chambre d’isolement', longs: 'chambres d’isolement' } };
+  assert.equal(M.lieuDetaille(ci, 'CI 2', true), 'CI 2 — chambre d’isolement');
+  assert.equal(M.lieuDetaille(ci, 'CI', true), 'Chambre d’isolement (nom du lieu non précisé)');
 });
 
 // ------------------------------------------------------------------ Lot 2

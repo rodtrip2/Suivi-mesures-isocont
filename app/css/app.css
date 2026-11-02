@@ -248,6 +248,7 @@ figcaption { font-size: .85rem; color: var(--ink-2); display: flex; align-items:
 .document-jld th, .document-jld td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; position: static; background: none; color: #111; white-space: normal; }
 .document-jld .doc-identite th { width: 150px; background: #f1f1f1; }
 .document-jld .doc-tableau th { background: #f1f1f1; }
+.document-jld .doc-tableau td.col-N, .document-jld .doc-tableau td.col-Duree, .document-jld .doc-tableau td.col-Cumul { white-space: nowrap; }
 .document-jld footer { margin-top: 14px; font-size: 10.5px; color: #555; border-top: 1px solid #ccc; padding-top: 6px; }
 
 /* ---------- Impression */
