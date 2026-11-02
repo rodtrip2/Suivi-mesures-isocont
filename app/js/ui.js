@@ -651,7 +651,7 @@
         h('td', { class: 'nowrap', text: duree(x.j.cumulAvant) }),
         h('td', {}, cellEcheance(x.j.info)), h('td', {}, cellEcheance(x.j.saisine)), h('td', {}, cellEcheance(x.j.decision)),
         h('td', {}, tiersBadge(x.m), t ? null : h('div', {}, h('small', { text: 'tiers à informer avec le juge' }))),
-        h('td', { class: 'actions-ligne' }, App.session.peut('JLD') ? h('button', { class: 'btn petit primaire', onclick: function () { modaleJLD(x.m); } }, 'Saisir un envoi') : null)));
+        h('td', { class: 'actions-ligne' }, App.session.peut('JLD') ? h('button', { class: 'btn petit primaire', onclick: function () { modaleJLD(x.m); } }, 'Saisir un envoi ou une décision') : null)));
     });
     return h('div', {},
       h('div', { class: 'barre' }, h('h1', { text: 'Suivi JLD' }), h('div', { class: 'espace' }),
@@ -1510,7 +1510,7 @@
     function maj() { blocDecision.hidden = nature.value !== 'DECISION'; infoLevee.hidden = blocDecision.hidden || decision.value !== 'LEVEE'; }
     nature.addEventListener('change', maj); decision.addEventListener('change', maj); maj();
     var tiers = M.tiersCycle(m);
-    modale('Envoi JLD — cycle ' + j.cycle, h('div', { class: 'pile' }, recapMesure(m, maintenant),
+    modale('Envoi au JLD ou décision reçue — cycle ' + j.cycle, h('div', { class: 'pile' }, recapMesure(m, maintenant),
       h('div', { class: 'recap' },
         h('div', {}, 'Information avant : ', cellEcheance(j.info)),
         h('div', {}, 'Saisine avant : ', cellEcheance(j.saisine)),

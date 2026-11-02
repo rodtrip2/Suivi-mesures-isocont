@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.35.2 — 2 novembre 2026
+
+- Onglet *JLD* : le bouton « Saisir un envoi » devient « Saisir un envoi ou une décision » (il sert aussi à enregistrer les décisions reçues) ; la fenêtre s'intitule « Envoi au JLD ou décision reçue ».
+
 ## 1.35.1 — 2 novembre 2026
 
 - **Affichage sur ordinateur** : les pages de tableaux (tableau de bord, Mesures, Patients, JLD, Surveillance, Registre, Statistiques, Journal) occupent toute la largeur de l'écran au lieu de 1 400 pixels ; les pages de réglage gardent une largeur de lecture. Sur les écrans de 1 280 à 1 600 pixels, les boutons d'action passent sur plusieurs lignes et les cellules sont resserrées : plus de défilement horizontal, les boutons *Décompte* et *Détail* restent visibles.
