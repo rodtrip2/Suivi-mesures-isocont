@@ -74,6 +74,8 @@ input[type=text], input[type=password], input[type=datetime-local], input[type=d
 }
 .grille-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .grille-2 { grid-template-columns: 1fr; } }
+.grille-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 760px) { .grille-3 { grid-template-columns: 1fr; } }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 .erreur { background: var(--bad-soft); color: var(--bad); padding: 8px 12px; border-radius: var(--radius); font-size: .9rem; }
 .info { background: var(--accent-soft); padding: 8px 12px; border-radius: var(--radius); font-size: .9rem; }

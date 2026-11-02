@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.35.0 — 2 novembre 2026
+
+- **Appellation des lieux dédiés à l'isolement réglable** (*Administration → Établissement et services*) : « chambre de soins intensifs (CSI) » par défaut, chambre d'isolement (CI), espace d'isolement, chambre de soins intensifs psychiatriques (CSIP), ou appellation propre (sigle, singulier, pluriel), avec aperçu. Elle s'applique aux textes de l'outil : onglet *Surveillance*, tableau de bord, saisie, registre, statistiques, décompte, alertes proposées, journal. Les noms des lieux saisis (« CSI 1 »…), les textes d'alerte rédigés par l'établissement et les calculs ne changent pas. Réglage tracé au journal.
+- Quelques libellés tournés pour rester corrects quelle que soit l'appellation (« Heures en CSI », « Aucun lieu de type… n'est paramétré »).
+
 ## 1.34.1 — 2 novembre 2026
 
 - **Sigles** : « DSI », qui se lit à l'hôpital « Direction des soins infirmiers », est remplacé par « service informatique » (à la première mention : « service informatique (DSI ou direction du numérique, selon l'établissement) ») ; « DPO » par « délégué à la protection des données (DPO, référent RGPD) » ; « RSSI » par « responsable de la sécurité informatique ». Interface et kit.

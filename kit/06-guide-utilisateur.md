@@ -2,6 +2,8 @@
 
 *Suivi des mesures d'isolement et de contention — à lire en 10 minutes.*
 
+*Ce guide parle de « chambre de soins intensifs (CSI) ». Si votre établissement emploie une autre appellation (chambre d'isolement, espace d'isolement…), l'outil affiche la sienne.*
+
 ## Se connecter
 
 1. Ouvrir le lien de l'application (Edge ou Chrome).
@@ -78,7 +80,7 @@ L'accès au mode formation est ouvert à tous les comptes ; l'administrateur peu
 
 ## Administrateur
 
-L'onglet *Administration* est organisé en **sous-onglets** : *Comptes et sécurité* (comptes, clés de sécurité, code de secours, mode formation), *Établissement et services* (services, chambres de soins intensifs, postes de surveillance), *Règles et pauses*, *Alertes*, *Cas particuliers*, *Registre et statistiques* (compteurs, numérotation des mesures importées, colonnes de l'onglet Patients), *Décompte JLD* (masques), *Reprise des données* et *Informations*. Le dernier sous-onglet consulté est retenu.
+L'onglet *Administration* est organisé en **sous-onglets** : *Comptes et sécurité* (comptes, clés de sécurité, code de secours, mode formation), *Établissement et services* (services, chambres de soins intensifs, **appellation des lieux dédiés à l'isolement** — « chambre de soins intensifs (CSI) » par défaut, ou chambre d'isolement (CI), espace d'isolement, ou une appellation propre, avec aperçu ; seuls les textes de l'outil changent, pas les noms des lieux saisis ni les calculs —, postes de surveillance), *Règles et pauses*, *Alertes*, *Cas particuliers*, *Registre et statistiques* (compteurs, numérotation des mesures importées, colonnes de l'onglet Patients), *Décompte JLD* (masques), *Reprise des données* et *Informations*. Le dernier sous-onglet consulté est retenu.
 
 **Correction d'une erreur de saisie en l'absence du cadre** : l'IDE ou l'AS ouvre le détail de la mesure, bouton *Proposer une correction…* (début, fin, lieu, avec un motif). La correction n'est pas appliquée tout de suite : la mesure garde ses valeurs, un signalement « Correction proposée » s'affiche sur sa ligne et dans les points de vigilance. Le cadre l'examine (ancienne → nouvelle valeur, auteur, motif), puis la valide ou la refuse avec un motif. Tout est tracé au journal.
 

@@ -36,7 +36,7 @@
       ['Durée minimale', a.duree.min, b.duree.min, heures],
       ['Durée maximale', a.duree.max, b.duree.max, heures],
       ['Durée cumulée des mesures', a.duree.total, b.duree.total, heures],
-      ['Heures d’utilisation de la CSI (isolement et contention en CSI)', a.heuresCSI, b.heuresCSI, heures],
+      [U.lieu('Heures en CSI (isolement et contention)'), a.heuresCSI, b.heuresCSI, heures],
       ['Part des patients en hospitalisation complète ayant fait l’objet d’une mesure', a.partPatientsHC, b.partPatientsHC, pct],
       ['Part des patients en soins sans consentement ayant fait l’objet d’une mesure', a.partPatientsSSC, b.partPatientsSSC, pct]
     ];
@@ -93,7 +93,7 @@
   function exporterCSV(a, b, svs) {
     var lignes = [['Indicateur', String(a.annee), String(b.annee), 'Évolution']];
     lignesRapport(a, b).forEach(function (l) { lignes.push([l[0], l[3](l[1]), l[3](l[2]), evolution(l[1], l[2])]); });
-    Object.keys(b.categories).forEach(function (k) { lignes.push(['Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k], a.categories[k], b.categories[k], evolution(a.categories[k], b.categories[k])]); });
+    Object.keys(b.categories).forEach(function (k) { lignes.push(['Catégorie ' + k + ' — ' + U.lieu(M.LIB_CATEGORIES[k]), a.categories[k], b.categories[k], evolution(a.categories[k], b.categories[k])]); });
     lignesConformite(a, b).forEach(function (l) { lignes.push([l[0], l[1], l[2], evolution(l[1], l[2])]); });
     U.methode.lignesSequences(a, b).forEach(function (l) { lignes.push(['Séquences — ' + l[0], l[3](l[1]), l[3](l[2]), evolution(l[1], l[2])]); });
     b.mois.forEach(function (m, i) { lignes.push(['Mesures — ' + MOIS[i], a.mois[i].mesures, m.mesures, '']); });
@@ -152,7 +152,7 @@
         h('button', { class: 'btn', onclick: function () { exporterCSV(a, b, svs); } }, 'Exporter (CSV)'),
         h('button', { class: 'btn', onclick: function () { window.print(); } }, 'Imprimer')),
       h('div', { class: 'seulement-impression' }, h('h2', { text: (U.etablissement() ? U.etablissement() + ' — ' : '') + 'L’isolement et la contention en chiffres — ' + titreSv + ' — ' + annee })),
-      h('p', { class: 'muted', text: titreSv + '. Une mesure = une entrée du registre anonymisé terminée, comptée l’année de son début ; une contention en CSI couvre l’isolement qui l’accompagne.' + (b.enCours ? ' ' + b.enCours + ' entrée(s) encore en cours ne sont pas comptées.' : '') + (function () {
+      h('p', { class: 'muted', text: titreSv + U.lieu('. Une mesure = une entrée du registre anonymisé terminée, comptée l’année de son début ; une contention en CSI couvre l’isolement qui l’accompagne.') + (b.enCours ? ' ' + b.enCours + ' entrée(s) encore en cours ne sont pas comptées.' : '') + (function () {
         var op = M.optionsPauses(etat.config);
         return op.deduireRegistre ? ' Durées hors levées temporaires (pauses déduites, règle de l’établissement).' : op.active ? ' Durées réelles, levées temporaires comprises.' : '';
       })() }),
@@ -161,7 +161,7 @@
         b.commentaires.length ? h('p', { class: 'muted', text: 'Commentaire : ' + b.commentaires.join(' ; ') }) : null),
       h('div', { class: 'deux-colonnes' },
         h('section', { class: 'panneau' }, h('h2', { text: 'Répartition par catégorie du registre' }),
-          tableau(['Catégorie', String(a.annee), String(b.annee)], Object.keys(b.categories).map(function (k) { return [k + ' — ' + M.LIB_CATEGORIES[k], String(a.categories[k]), String(b.categories[k])]; }))),
+          tableau(['Catégorie', String(a.annee), String(b.annee)], Object.keys(b.categories).map(function (k) { return [k + ' — ' + U.lieu(M.LIB_CATEGORIES[k]), String(a.categories[k]), String(b.categories[k])]; }))),
         h('section', { class: 'panneau' }, h('h2', { text: 'Suivi réglementaire' }),
           tableau(['', String(a.annee), String(b.annee)], lignesConformite(a, b).map(function (l) { return [l[0], String(l[1]), String(l[2])]; })))),
       U.methode.sectionSequences(a, b),

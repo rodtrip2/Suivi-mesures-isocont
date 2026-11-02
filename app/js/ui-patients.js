@@ -78,7 +78,7 @@
               peutModifier ? h('button', { class: 'btn petit', onclick: function () { modaleFiche(p); } }, 'Fiche') : null, ' ',
               U.App.session.peut('FUSION') ? h('button', { class: 'btn petit', title: 'Fusionner avec une autre fiche du même patient', onclick: function () { U.cas.modaleFusion(p); } }, 'Fusionner') : null));
         })))) : h('div', { class: 'panneau vide', text: 'Aucun patient.' }),
-      h('p', { class: 'muted' }, h('small', { text: 'Colonnes de l’année : entrées du registre (une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C), comptées l’année de leur début, avec leur durée cumulée ; la dernière colonne compte les mesures comme le juge, l’isolement et la contention séparément. Colonnes paramétrables par l’administrateur.' })),
+      h('p', { class: 'muted' }, h('small', { text: U.lieu('Colonnes de l’année : entrées du registre (une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C), comptées l’année de leur début, avec leur durée cumulée ; la dernière colonne compte les mesures comme le juge, l’isolement et la contention séparément. Colonnes paramétrables par l’administrateur.') })),
       h('p', { class: 'muted' }, h('small', { text: 'Cumuls glissants calculés à l’instant, périodes qui se chevauchent comptées une seule fois, remis à zéro après une mainlevée du JLD. Indicateur de charge, non clinique.' })));
   };
 
@@ -94,7 +94,7 @@
         return h('tr', { class: enCours ? 'en-cours' : '' },
           h('td', {}, U.badgeType(m.type), m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, U.badgePause(m, maintenant) ? h('div', {}, U.badgePause(m, maintenant)) : null),
           h('td', { text: U.libService(m.service) }),
-          h('td', { text: m.lieu || (m.csi ? 'CSI' : 'Hors CSI') }),
+          h('td', { text: m.lieu || (m.csi ? U.lieu('CSI') : U.lieu('Hors CSI')) }),
           h('td', { class: 'nowrap' }, U.date(m.debut), h('br'), h('small', { text: m.psychiatreDebut || '' })),
           h('td', { class: 'nowrap' }, enCours ? h('b', { text: 'en cours' }) : U.date(m.fin), enCours ? null : h('br'), enCours ? null : h('small', { text: (m.psychiatreFin || '') + (m.motifFin ? ' — ' + m.motifFin : '') })),
           h('td', { class: 'nowrap', text: U.duree(M.dureeHeures(m, maintenant, cfg)) }),
@@ -114,7 +114,7 @@
       h('tbody', {}, entrees.map(function (e) {
         return h('tr', { class: e.fin === null ? 'en-cours' : '' },
           h('td', {}, e.numero ? h('b', { text: e.numero }) : h('small', { text: 'en cours' })),
-          h('td', { title: M.LIB_CATEGORIES[e.categorie], text: e.categorie + ' — ' + M.LIB_CATEGORIES[e.categorie] }),
+          h('td', { title: U.lieu(M.LIB_CATEGORIES[e.categorie]), text: e.categorie + ' — ' + U.lieu(M.LIB_CATEGORIES[e.categorie]) }),
           h('td', { class: 'nowrap', text: U.date(e.debut) }),
           h('td', { class: 'nowrap', text: e.fin ? U.date(e.fin) : 'en cours' }),
           h('td', { class: 'nowrap', text: U.duree(e.dureeHeures) }));
@@ -127,7 +127,7 @@
       h('h3', { text: ms.length + ' mesure(s) — comptées comme le juge, isolement et contention séparément' }),
       tableMesures,
       h('h3', { text: 'Entrées du registre' }),
-      h('p', { class: 'muted' }, h('small', { text: 'Une contention en CSI et l’isolement qui l’accompagne forment une seule entrée C ; les portions d’isolement avant et après la contention forment des entrées A.' + (op.deduireRegistre ? (op.contentionSeule === 'isolement' ? ' Pauses déduites : une pause de la contention pendant laquelle l’isolement continue forme une entrée A.' : ' Pauses déduites : une pause de la contention seule reste dans l’entrée C.') : '') })),
+      h('p', { class: 'muted' }, h('small', { text: U.lieu('Une contention en CSI et l’isolement qui l’accompagne forment une seule entrée C ; les portions d’isolement avant et après la contention forment des entrées A.') + (op.deduireRegistre ? (op.contentionSeule === 'isolement' ? ' Pauses déduites : une pause de la contention pendant laquelle l’isolement continue forme une entrée A.' : ' Pauses déduites : une pause de la contention seule reste dans l’entrée C.') : '') })),
       tableRegistre), [{ texte: 'Fermer' },
       U.App.session.peut('CORRECTION') || U.App.session.peut('CONFIG') ? { texte: 'Exporter ses données (droit d’accès)', action: function () { U.qualite.exporterPatient(p); return false; } } : null].filter(Boolean), { large: true });
   }

@@ -94,7 +94,7 @@
       prep.evtsExistants = U.App.session.evts;   // simulations complètes : mesures déjà présentes dans l'outil comprises
       var r = prep.rapport;
       zone.appendChild(h('div', { class: 'recap' },
-        registre ? h('div', { text: r.entrees + ' ligne(s) du registre lue(s) ; les mesures sont reconstituées à partir des entrées (une contention en CSI implique l’isolement qui l’accompagne, les portions d’isolement contiguës forment une seule mesure).' }) : null,
+        registre ? h('div', { text: r.entrees + U.lieu(' ligne(s) du registre lue(s) ; les mesures sont reconstituées à partir des entrées (une contention en CSI implique l’isolement qui l’accompagne, les portions d’isolement contiguës forment une seule mesure).') }) : null,
         h('div', {}, h('b', { text: r.mesures + ' mesure(s)' }), ' à importer' + (r.dejaPresentes ? ', ' + r.dejaPresentes + ' déjà présente(s) (ignorées)' : '') + '.'),
         h('div', { text: r.patients + ' nouveau(x) patient(s), ' + r.modes + " mode(s) d'hospitalisation, " + r.tiers + ' information(s) de tiers, ' + r.cycles + ' décision(s) de maintien du JLD, ' + r.professionnels + ' professionnel(s) en CSI.' })));
 
@@ -193,11 +193,11 @@
           var lignes = [
             ['Entrées du registre terminées', function (x) { return x.entrees; }, String],
             ['Entrées en cours', function (x) { return x.enCours; }, String]
-          ].concat(['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k] + ' : entrées', function (x) { return x.categories[k]; }, String]; }),
+          ].concat(['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' — ' + U.lieu(M.LIB_CATEGORIES[k]) + ' : entrées', function (x) { return x.categories[k]; }, String]; }),
             ['A', 'B', 'C', 'D', 'E'].map(function (k) { return ['Catégorie ' + k + ' : durée cumulée', function (x) { return Math.round(x.dureeCategories[k] * 60); }, function (v) { return U.duree(v / 60); }]; }), [
             ['Durée cumulée', function (x) { return Math.round(x.dureeTotale * 60); }, function (v) { return U.duree(v / 60); }],
             ['Durée moyenne d’une entrée', function (x) { return x.dureeMoyenne == null ? null : Math.round(x.dureeMoyenne * 60); }, function (v) { return v == null ? '—' : U.duree(v / 60); }],
-            ['Heures d’utilisation de la CSI', function (x) { return Math.round(x.heuresCSI * 60); }, function (v) { return U.duree(v / 60); }],
+            [U.lieu('Heures en CSI'), function (x) { return Math.round(x.heuresCSI * 60); }, function (v) { return U.duree(v / 60); }],
             ['Patients distincts', function (x) { return x.patients; }, String],
             ['Numéros attribués', function (x) { return x.numeros.join(', '); }, function (v) { return v || '—'; }]
           ]);
@@ -226,7 +226,7 @@
           }
           // Correction des données qui déterminent la catégorie (lieu CSI ou non, exception)
           var c = corrections[d.ref] || {};
-          var lieu = h('select', { 'aria-label': 'Lieu ' + d.ref }, h('option', { value: 'csi', text: 'En CSI', selected: d.csi }), h('option', { value: 'hors', text: 'Hors CSI', selected: !d.csi }));
+          var lieu = h('select', { 'aria-label': 'Lieu ' + d.ref }, h('option', { value: 'csi', text: U.lieu('En CSI'), selected: d.csi }), h('option', { value: 'hors', text: U.lieu('Hors CSI'), selected: !d.csi }));
           var exc = h('input', { type: 'checkbox', checked: !!d.exception, 'aria-label': 'Exception ' + d.ref });
           var excLbl = d.type === 'Contention' ? h('label', { class: 'case', hidden: d.csi }, exc, h('span', { text: 'Exception prévue (contention hors espace d’isolement)' })) : null;
           lieu.addEventListener('change', function () { if (excLbl) excLbl.hidden = lieu.value === 'csi'; });
@@ -253,7 +253,7 @@
             h('tbody', {}, r.mesures.map(function (d) {
               var ref = JSON.stringify(texteEntrees(d.modes.conserver));
               return h('tr', {},
-                h('td', {}, h('b', { text: d.patient || '—' }), h('br'), h('small', { text: d.type + ' du ' + U.date(d.debut) + (d.fin ? ' au ' + U.date(d.fin) : ' (en cours)') + ' — ' + (d.lieu || (d.csi ? 'CSI' : 'hors CSI')) }), h('br'),
+                h('td', {}, h('b', { text: d.patient || '—' }), h('br'), h('small', { text: d.type + ' du ' + U.date(d.debut) + (d.fin ? ' au ' + U.date(d.fin) : ' (en cours)') + ' — ' + (d.lieu || (d.csi ? U.lieu('CSI') : U.lieu('hors CSI'))) }), h('br'),
                   h('small', { class: 'muted', text: d.importee ? 'importée' + (d.origine ? ' (' + d.origine + ')' : '') + (d.numeroOrigine ? ', n° ' + d.numeroOrigine + ' dans le classeur' : '') : 'déjà présente dans l’outil' }),
                   d.correction ? h('div', {}, h('small', { class: 'badge warn', text: d.correction })) : null),
                 modes.map(function (mo) {
@@ -273,7 +273,7 @@
         var c = dernierControle;
         if (!c.verifiees && !c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Aucune mesure numérotée dans le classeur : pas de contrôle possible.' })); return; }
         if (!c.ecarts.length) { controle.appendChild(h('div', { class: 'info', text: 'Contrôle de la numérotation : les ' + c.verifiees + ' numéro(s) du classeur sont retrouvés à l’identique.' })); return; }
-        controle.appendChild(h('div', { class: 'alerte', text: 'Contrôle de la numérotation : ' + c.verifiees + ' numéro(s) retrouvé(s), ' + c.ecarts.length + ' écart(s). Vérifiez le compteur, ou acceptez la numérotation de l’outil (elle suit les règles du registre : catégories A à E, une contention en CSI et son isolement formant une entrée C).' }));
+        controle.appendChild(h('div', { class: 'alerte', text: 'Contrôle de la numérotation : ' + c.verifiees + ' numéro(s) retrouvé(s), ' + c.ecarts.length + U.lieu(' écart(s). Vérifiez le compteur, ou acceptez la numérotation de l’outil (elle suit les règles du registre : catégories A à E, une contention en CSI et son isolement formant une entrée C).') }));
         controle.appendChild(h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ['Mesure du classeur', 'N° du classeur', 'N° dans l’outil', 'Écart'].map(function (t) { return h('th', { text: t }); }))),
           h('tbody', {}, c.ecarts.map(function (e) { return h('tr', {}, h('td', { text: e.ref }), h('td', { text: e.classeur }), h('td', { text: e.outil }), h('td', { text: e.motif })); })))));

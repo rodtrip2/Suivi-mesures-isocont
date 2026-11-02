@@ -109,6 +109,8 @@
       entretien: false, nomEntretien: 'Entretien après la mesure', surveillanceHorsCSI: false, conservationAns: 0 },
     rapportsAnnuels: {},
     sauvegarde: { rappelJours: 7 },
+    // Nom des lieux dédiés à l'isolement dans les textes de l'outil (sigle, libellé, pluriel) — Établissement et services
+    lieuIsolement: { court: 'CSI', long: 'chambre de soins intensifs', longs: 'chambres de soins intensifs' },
     // Information du tiers : fonctions proposées en plus du psychiatre (toujours en tête, la loi confiant cette
     // information au médecin). Chaque établissement complète la liste selon son organisation.
     informateursTiers: [{ code: 'IDE', libelle: 'IDE' }],   // rappel au tableau de bord (administrateur) d'une copie de sauvegarde complète
@@ -757,6 +759,38 @@
     }).filter(Boolean);
   }
 
+  // ------------------------------------------------------- Nom des lieux dédiés à l'isolement
+  /** Appellations proposées (l'établissement peut aussi saisir la sienne). */
+  var LIEUX_ISOLEMENT = [
+    { court: 'CSI', long: 'chambre de soins intensifs', longs: 'chambres de soins intensifs' },
+    { court: 'CI', long: 'chambre d’isolement', longs: 'chambres d’isolement' },
+    { court: 'EI', long: 'espace d’isolement', longs: 'espaces d’isolement' },
+    { court: 'CSIP', long: 'chambre de soins intensifs psychiatriques', longs: 'chambres de soins intensifs psychiatriques' }
+  ];
+
+  /** Appellation retenue, validée : { court, long, longs }. */
+  function libLieu(config) {
+    var v = (config && config.lieuIsolement) || {}, d = CONFIG_DEFAUT.lieuIsolement;
+    var court = String(v.court || '').trim().slice(0, 12), long = String(v.long || '').trim().slice(0, 60);
+    if (!court || !long) return { court: d.court, long: d.long, longs: d.longs };
+    return { court: court, long: long, longs: String(v.longs || '').trim().slice(0, 60) || long };
+  }
+
+  /**
+   * Remplace dans un texte de l'outil le sigle « CSI » et « chambre(s) de soins intensifs » par l'appellation
+   * de l'établissement. Ne s'applique qu'aux textes de l'outil, jamais aux noms de lieux saisis.
+   */
+  function txtLieu(config, texte) {
+    if (texte === null || texte === undefined) return texte;
+    var l = libLieu(config), d = CONFIG_DEFAUT.lieuIsolement;
+    if (l.court === d.court && l.long === d.long && l.longs === d.longs) return texte;
+    function casse(premiere, mot) { return premiere === premiere.toUpperCase() ? mot.charAt(0).toUpperCase() + mot.slice(1) : mot; }
+    return String(texte)
+      .replace(/([Cc])hambres de soins intensifs/g, function (m, c) { return casse(c, l.longs); })
+      .replace(/([Cc])hambre de soins intensifs/g, function (m, c) { return casse(c, l.long); })
+      .replace(/\bCSI\b/g, l.court);
+  }
+
   // ------------------------------------------------------- Alertes de l'établissement
   var DECLENCHEURS_ALERTE = {
     'soins-libres': 'Patient en soins libres au début de la mesure',
@@ -786,15 +820,21 @@
   };
   var DELAIS_ALERTE = [0, 15, 30, 60, 120, 240, 720, 1440];
 
+  /** Vrai pour un libellé d'alerte vide ou fourni par l'outil (adapté à l'appellation des lieux). */
+  function libelleDefaut(lib) {
+    lib = String(lib || '');
+    return !lib || CONFIG_DEFAUT.alertes.some(function (a) { return a.libelle === lib; }) || Object.keys(DECLENCHEURS_ALERTE).some(function (k) { return DECLENCHEURS_ALERTE[k] === lib; });
+  }
+
   /** Règles d'alerte validées (texte par défaut si le message est vide). */
   function alertesConfig(config) {
     var liste = Array.isArray(config && config.alertes) ? config.alertes : CONFIG_DEFAUT.alertes;
     return liste.filter(function (r) { return r && DECLENCHEURS_ALERTE[r.declencheur]; }).map(function (r, i) {
       return {
-        id: String(r.id || 'alerte-' + i), libelle: String(r.libelle || DECLENCHEURS_ALERTE[r.declencheur]), active: !!r.active, declencheur: r.declencheur,
+        id: String(r.id || 'alerte-' + i), libelle: libelleDefaut(r.libelle) ? txtLieu(config, String(r.libelle || DECLENCHEURS_ALERTE[r.declencheur])) : String(r.libelle), active: !!r.active, declencheur: r.declencheur,
         services: Array.isArray(r.services) ? r.services.filter(Boolean) : [], nature: r.nature === 'information' ? 'information' : 'rappel',
         destinataires: String(r.destinataires || ''), delaiMinutes: Math.max(0, Math.round(+r.delaiMinutes || 0)),
-        message: String(r.message || '').trim() || TEXTES_ALERTE[r.declencheur] || '', messagePropre: !!String(r.message || '').trim(), depuis: +r.depuis || 0
+        message: String(r.message || '').trim() || txtLieu(config, TEXTES_ALERTE[r.declencheur] || ''), messagePropre: !!String(r.message || '').trim(), depuis: +r.depuis || 0
       };
     });
   }
@@ -1002,17 +1042,17 @@
    * et, pour une mesure importée, comparaison avec la catégorie inscrite dans le classeur.
    */
   function explicationEntree(st, e) {
-    var m = st.mesures[e.mesureId] || {}, lieu = m.lieu || (m.csi ? 'CSI' : 'hors CSI');
+    var m = st.mesures[e.mesureId] || {}, lieu = m.lieu || txtLieu(st.config, m.csi ? 'CSI' : 'hors CSI');
     if (e.fige) return 'Catégorie et numéro repris du document importé (' + e.numero + ').';
-    var t = 'Catégorie ' + e.categorie + ' : ' + REGLES_CATEGORIES[e.categorie] + ' — lieu « ' + lieu + ' »';
+    var t = 'Catégorie ' + e.categorie + ' : ' + txtLieu(st.config, REGLES_CATEGORIES[e.categorie]) + ' — lieu « ' + lieu + ' »';
     if (m.type === 'Contention' && !m.csi) t += ', case « exception » ' + (m.exception ? 'cochée' : 'non cochée');
-    if (e.categorie === 'A' && (e.debut !== m.debut || (e.fin !== null && e.fin !== m.fin))) t += ', portion de l’isolement en dehors de la contention en CSI';
+    if (e.categorie === 'A' && (e.debut !== m.debut || (e.fin !== null && e.fin !== m.fin))) t += txtLieu(st.config, ', portion de l’isolement en dehors de la contention en CSI');
     t += '.';
     var no = String(m.numeroOrigine || '').trim().toUpperCase(), mo = /^([A-E])/.exec(no);
     if (mo && mo[1] !== e.categorie) {
       var piste = (mo[1] === 'D' && e.categorie === 'E') || (mo[1] === 'E' && e.categorie === 'D') ? 'vérifier la case « exception » de la mesure'
         : /[AB]/.test(mo[1] + e.categorie) && /[CDE]/.test(mo[1] + e.categorie) ? 'vérifier le type de mesure ou la contention concomitante'
-        : 'vérifier le lieu (CSI ou non)';
+        : txtLieu(st.config, 'vérifier le lieu (CSI ou non)');
       t += ' Le document importé indiquait ' + mo[1] + ' (' + no + ') : ' + piste + '.';
     }
     return t;
@@ -1248,7 +1288,7 @@
       l.push(quand(e.debut), quand(e.fin), fmt.duree(e.dureeHeures));
       if (avecPauses) l.push(e.pauses.length ? e.pauses.length + ' — ' + fmt.duree(e.pauses.reduce(function (s, p) { return s + (p[1] - p[0]); }, 0) / H) : '—');
       if (o.lieu === 'afficher') l.push(e.lieu || '—');
-      else if (o.lieu === 'categorie') l.push(e.categorie === 'A' || e.categorie === 'C' ? 'Espace d’isolement (CSI)' : 'Hors espace d’isolement');
+      else if (o.lieu === 'categorie') l.push(e.categorie === 'A' || e.categorie === 'C' ? txtLieu(st.config, 'Espace d’isolement (CSI)') : 'Hors espace d’isolement');
       if (o.psychiatre !== 'masquer') l.push(psychiatre(e.psychiatre));
       if (o.professionnels === 'fonction') {
         var parF = {}, ordreF = [];
@@ -1263,7 +1303,7 @@
     occ.push({ complete: 'dates et heures complètes', jour: 'dates sans les heures', mois: 'dates réduites au mois' }[o.dates]);
     occ.push({ masquer: 'nom des psychiatres occulté', numero: 'nom des psychiatres remplacé par un numéro (Psychiatre 1…)', generique: 'nom des psychiatres remplacé par la mention « Psychiatre »' }[o.psychiatre]);
     occ.push({ masquer: 'nom des professionnels occulté', numero: 'nom des professionnels remplacé par leur fonction et un numéro (IDE 1…)', fonction: 'nom des professionnels remplacé par leur fonction et leur nombre' }[o.professionnels]);
-    occ.push({ afficher: 'lieu affiché', categorie: 'lieu réduit à « CSI / hors CSI »', masquer: 'lieu occulté' }[o.lieu]);
+    occ.push({ afficher: 'lieu affiché', categorie: txtLieu(st.config, 'lieu réduit à « CSI / hors CSI »'), masquer: 'lieu occulté' }[o.lieu]);
     occ.push({ afficher: 'mode d’hospitalisation affiché', contrainte: 'mode d’hospitalisation réduit à « sous contrainte : oui / non »', masquer: 'mode d’hospitalisation occulté' }[o.mode]);
     return { colonnes: colonnes, lignes: lignes, occultations: occ, options: o, entrees: entrees.length };
   }
@@ -1654,7 +1694,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, libLieu: libLieu, txtLieu: txtLieu, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

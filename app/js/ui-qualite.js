@@ -91,8 +91,8 @@
       h('h3', { text: 'Entretien après la mesure' }),
       h('label', { class: 'case' }, cbEnt, h('span', { text: 'Tracer l’entretien après la mesure (réalisé ou non, date) — facultatif, recommandé par la HAS' })),
       h('label', {}, 'Nom utilisé dans l’établissement', nomEnt),
-      h('h3', { text: 'Surveillance des mesures hors CSI' }),
-      h('label', { class: 'case' }, cbSurv, h('span', { text: 'Tracer aussi les professionnels chargés de la surveillance des mesures hors CSI (onglet Surveillance CSI, registre pour les catégories B, D et E)' })),
+      h('h3', { text: U.lieu('Surveillance des mesures hors CSI') }),
+      h('label', { class: 'case' }, cbSurv, h('span', { text: U.lieu('Tracer aussi les professionnels chargés de la surveillance des mesures hors CSI (onglet Surveillance CSI, registre pour les catégories B, D et E)') })),
       h('h3', { text: 'Durée de conservation et archive annuelle' }),
       h('p', { class: 'muted', text: 'La durée de conservation est fixée par l’établissement avec son délégué à la protection des données (DPO, référent RGPD), en cohérence avec les règles du registre et du dossier médical. Le journal n’étant jamais modifié, l’outil ne supprime rien : il signale les patients dont la dernière mesure dépasse cette durée, à traiter selon la procédure validée par le délégué.' }),
       h('label', { class: 'en-ligne' }, 'Durée de conservation (années, 0 = non fixée)', duree),
@@ -120,7 +120,7 @@
     });
     var s = M.statistiquesAnnee(etat, svs, annee, maintenant);
     lignes.push([]); lignes.push(['Statistiques ' + annee + ' (ensemble des services)']);
-    [['Mesures (entrées terminées)', s.mesures], ['Patients distincts', s.patients], ['Durée moyenne (h)', s.duree.moyenne], ['Heures de CSI', s.heuresCSI], ['Mainlevées JLD', s.jld.levee], ['Cycles avec une communication hors délai', s.jld.cyclesHorsDelai]]
+    [['Mesures (entrées terminées)', s.mesures], ['Patients distincts', s.patients], ['Durée moyenne (h)', s.duree.moyenne], [U.lieu('Heures en CSI'), s.heuresCSI], ['Mainlevées JLD', s.jld.levee], ['Cycles avec une communication hors délai', s.jld.cyclesHorsDelai]]
       .forEach(function (l) { lignes.push([l[0], l[1] == null ? '' : String(Math.round(l[1] * 10) / 10).replace('.', ',')]); });
     Object.keys(s.categories).forEach(function (k) { lignes.push(['Catégorie ' + k, s.categories[k]]); });
     telecharger('archive_' + annee + '.csv', lignes);
@@ -191,12 +191,12 @@
             ligne('Part des patients en hospitalisation complète concernés', a.partPatientsHC == null ? null : a.partPatientsHC * 100, b.partPatientsHC == null ? null : b.partPatientsHC * 100, ' %'),
             ligne('Durée médiane d’une entrée', a.duree.mediane, b.duree.mediane, ' h'),
             ligne('Durée cumulée', a.duree.total, b.duree.total, ' h'),
-            ligne('Heures d’utilisation des CSI', a.heuresCSI, b.heuresCSI, ' h'),
+            ligne(U.lieu('Heures en CSI'), a.heuresCSI, b.heuresCSI, ' h'),
             ligne('Patients mineurs', a.patientsMineurs, b.patientsMineurs),
             ligne('Entrées concernant un patient en soins libres', a.soinsLibres, b.soinsLibres),
             ligne('Mainlevées par le JLD', a.jld.levee, b.jld.levee),
             ligne('Cycles avec une communication au JLD hors délai', a.jld.cyclesHorsDelai, b.jld.cyclesHorsDelai),
-            Object.keys(b.categories).map(function (k) { return ligne('Catégorie ' + k + ' — ' + M.LIB_CATEGORIES[k], a.categories[k], b.categories[k]); }))),
+            Object.keys(b.categories).map(function (k) { return ligne('Catégorie ' + k + ' — ' + U.lieu(M.LIB_CATEGORIES[k]), a.categories[k], b.categories[k]); }))),
         Object.keys(b.motifsRecours).some(function (k) { return k !== 'Non renseigné'; }) ? h('div', {}, h('h3', { text: 'Motifs du recours (' + annee + ')' }), h('ul', {}, Object.keys(b.motifsRecours).map(function (k) { return h('li', { text: k + ' : ' + b.motifsRecours[k] }); }))) : null,
         M.optionsQualite(U.config()).entretien ? h('p', { text: M.optionsQualite(U.config()).nomEntretien + ' (' + annee + ') : réalisé ' + b.entretiens.realises + ', non réalisé ' + b.entretiens.nonRealises + ', non renseigné ' + b.entretiens.nonRenseignes + '.' }) : null,
         U.methode.sectionMethode(svs, annee, b, true),

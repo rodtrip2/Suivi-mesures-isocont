@@ -24,7 +24,7 @@
       { numero: 'Dans une équipe réduite, un numéro constant d’une ligne à l’autre peut permettre de reconnaître un psychiatre (gardes, plannings).' }],
     ['professionnels', 'Soignants chargés de la surveillance', [['masquer', 'Masquer la colonne (recommandé)'], ['fonction', 'Fonction et nombre (2 IDE, 1 AS…)'], ['numero', 'Fonction et numéro (IDE 1, AS 2…)']],
       { numero: 'Dans une équipe réduite, un numéro constant d’une ligne à l’autre peut permettre de reconnaître un soignant (plannings).' }],
-    ['lieu', 'Lieu', [['masquer', 'Occulter (la catégorie indique déjà CSI ou non)'], ['categorie', 'CSI / hors CSI'], ['afficher', 'Lieu exact (n° de CSI ou de chambre)']], {}],
+    ['lieu', 'Lieu', [['masquer', 'Occulter (la catégorie indique déjà CSI ou non)'], ['categorie', 'CSI / hors CSI'], ['afficher', 'Lieu exact (nom ou numéro du lieu)']], {}],
     ['mode', 'Mode d’hospitalisation', [['afficher', 'Afficher (SDT, SDRE, SL…)'], ['contrainte', 'Soins sans consentement : oui / non'], ['masquer', 'Occulter']], {}],
     ['pauses', 'Levées temporaires', [['afficher', 'Afficher le nombre et la durée'], ['masquer', 'Occulter']], {}]
   ];
@@ -38,7 +38,7 @@
       reference ? h('p', { text: 'Demande : ' + reference }) : null,
       h('table', {}, h('thead', {}, h('tr', {}, r.colonnes.map(function (c) { return h('th', { text: c }); }))),
         h('tbody', {}, r.lignes.map(function (l) { return h('tr', {}, l.map(function (v) { return h('td', { text: v }); })); }))),
-      h('p', { class: 'doc-note', text: 'Catégories : ' + Object.keys(M.LIB_CATEGORIES).map(function (k) { return k + ' = ' + M.LIB_CATEGORIES[k]; }).join(' ; ') + '. Édité le ' + U.date(Date.now()) + '.' }));
+      h('p', { class: 'doc-note', text: 'Catégories : ' + Object.keys(M.LIB_CATEGORIES).map(function (k) { return k + ' = ' + U.lieu(M.LIB_CATEGORIES[k]); }).join(' ; ') + '. Édité le ' + U.date(Date.now()) + '.' }));
   }
 
   function csv(service, annee, r, reference) {
@@ -53,7 +53,7 @@
   U.actions.registreCADA = function (service, annee) {
     var etat = U.st(), maintenant = Date.now(), selects = {}, avertissements = {};
     var grille = h('div', { class: 'grille-occultation' }, CHOIX.map(function (c) {
-      var sel = h('select', {}, c[2].map(function (o) { return h('option', { value: o[0], text: o[1], selected: o[0] === M.OCCULTATION_DEFAUT[c[0]] }); }));
+      var sel = h('select', {}, c[2].map(function (o) { return h('option', { value: o[0], text: U.lieu(o[1]), selected: o[0] === M.OCCULTATION_DEFAUT[c[0]] }); }));
       selects[c[0]] = sel; avertissements[c[0]] = U.alerteChamp ? U.alerteChamp() : h('div');
       return h('label', {}, c[1], sel, avertissements[c[0]]);
     }));

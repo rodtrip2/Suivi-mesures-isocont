@@ -81,6 +81,8 @@
 
   function st() { return App.session && App.session.etat; }
   function config() { return st() ? st().config : M.CONFIG_DEFAUT; }
+  /** Texte de l'outil avec l'appellation des lieux d'isolement de l'établissement (« CSI » par défaut). */
+  function lieu(texte) { return M.txtLieu(config(), texte); }
   function tousServices() { return config().services || []; }
   /** Services visibles par l'utilisateur connecté (tous pour un administrateur). */
   function services() {
@@ -422,7 +424,7 @@
     ONGLETS.forEach(function (o) {
       if (o[0] === 'admin' && !estAdmin) return;
       nav.appendChild(h('button', { 'aria-current': App.onglet === o[0] ? 'page' : null, onclick: function () { App.onglet = o[0]; rendreContenu(); } },
-        o[1], o[0] === 'journal' && conflits ? h('span', { class: 'pastille', text: conflits }) : null));
+        lieu(o[1]), o[0] === 'journal' && conflits ? h('span', { class: 'pastille', text: conflits }) : null));
     });
     zoneEntete.appendChild(nav);
 
@@ -570,14 +572,14 @@
         ind(proches, 'Échéances JLD dans les 12 h', proches ? 'warn' : 'ok'),
         !M.optionsPauses(config()).active && !enPause.length ? null : ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant, config()).depassee; }) ? 'bad' : ''),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
-        ind(postesIncomplets.length, 'Postes CSI incomplets (48 h)', postesIncomplets.length ? 'warn' : 'ok'),
+        ind(postesIncomplets.length, lieu('Postes CSI incomplets (48 h)'), postesIncomplets.length ? 'warn' : 'ok'),
         ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok'),
         ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok'),
         aTracer.length || M.alertesConfig(config()).some(function (r) { return r.active && r.nature === 'information'; }) ? ind(aTracer.length, 'Informations à tracer (alertes de l’établissement)', aTracer.some(function (x) { return x.retard; }) ? 'bad' : aTracer.length ? 'warn' : 'ok') : null),
       vigilance.length ? h('section', { class: 'panneau' }, h('h2', { text: 'Points de vigilance' }), h('ul', { class: 'vigilance' }, vigilance)) : null,
       h('div', { class: 'deux-colonnes' },
         h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch),
-        h('section', { class: 'panneau' }, h('h2', { text: 'Surveillance en CSI à compléter' }), listePostes)));
+        h('section', { class: 'panneau' }, h('h2', { text: lieu('Surveillance en CSI à compléter') }), listePostes)));
   }
 
   // ---------------------------------------------------------------- Mesures
@@ -606,7 +608,7 @@
       tbody.appendChild(h('tr', { class: etat + (pause ? ' en-pause' : '') },
         h('td', { class: 'patient' }, h('b', { text: nomPatient(m.patientId) }), h('br'), h('small', { text: 'IPP ' + (patient(m.patientId).ipp || '—') + ' · ' + libService(m.service) })),
         h('td', {}, badgeType(m.type), M.propositionsEnAttente(st(), function (x) { return x.id === m.id; }).length ? h('div', {}, h('span', { class: 'badge warn', title: 'Correction proposée, en attente de validation par le cadre', text: 'Correction proposée' })) : null, m.somatique ? h('div', {}, SIC.ui.parcours.badge(m)) : null, infos.length ? h('div', {}, h('span', { class: 'badge bad', title: infos.map(function (x) { return x.regle.libelle + ' : informer ' + x.regle.destinataires; }).join(' ; '), text: 'Information à tracer' })) : null, m.leveeJLD ? h('div', {}, h('span', { class: 'badge bad', text: 'Levée JLD' })) : null, pause ? h('div', {}, badgePause(m, maintenant)) : null),
-        h('td', {}, m.lieu || (m.csi ? 'CSI' : 'Hors CSI'), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Mesure débutée avant l’arrivée dans le service : les délais JLD partent de la décision initiale', text: 'débutée le ' + court(m.debutInitial) + (m.lieuInitial ? ' — ' + m.lieuInitial : '') })) : null),
+        h('td', {}, m.lieu || lieu(m.csi ? 'CSI' : 'Hors CSI'), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Mesure débutée avant l’arrivée dans le service : les délais JLD partent de la décision initiale', text: 'débutée le ' + court(m.debutInitial) + (m.lieuInitial ? ' — ' + m.lieuInitial : '') })) : null),
         h('td', { class: 'nowrap', text: court(m.debut) }),
         h('td', { class: 'nowrap' }, duree(M.dureeHeures(m, maintenant, config())), m.debutInitial ? h('div', {}, h('small', { class: 'muted', title: 'Depuis la décision initiale, avant l’arrivée dans le service', text: duree(((typeof m.fin === 'number' ? m.fin : maintenant) - m.debutInitial) / H) + ' au total' })) : null, enCours ? null : h('br'), enCours ? null : h('small', { text: 'fin ' + court(m.fin) }),
           hPauses >= 1 / 60 ? h('div', {}, h('small', { class: 'muted', title: M.optionsPauses(config()).retrancher ? 'Levées temporaires, déduites de la durée' : 'Levées temporaires, comptées dans la durée', text: (M.optionsPauses(config()).retrancher ? 'pauses déduites ' : 'dont pauses comptées ') + duree(hPauses) })) : null),
@@ -674,12 +676,12 @@
             h('div', {}, h('b', { text: p.libelle }), h('br'), h('small', { text: fmtJour.format(p.debut) })),
             h('div', { class: 'creneaux' }, creneaux),
             App.session.peut('PROFESSIONNEL') ? h('button', { class: 'btn petit', onclick: function () { modaleProfessionnel(sv.code, p.date, p.periode); } }, 'Ajouter') : null);
-        })) : h('div', { class: 'vide', text: 'Aucune mesure en CSI sur les 7 derniers jours.' })));
+        })) : h('div', { class: 'vide', text: lieu('Aucune mesure en CSI sur les 7 derniers jours.') })));
     });
     return h('div', {},
-      h('div', { class: 'barre' }, h('h1', { text: 'Professionnels chargés de la surveillance en CSI' }), h('div', { class: 'espace' }),
+      h('div', { class: 'barre' }, h('h1', { text: lieu('Professionnels chargés de la surveillance en CSI') }), h('div', { class: 'espace' }),
         App.session.peut('PROFESSIONNEL') ? h('button', { class: 'btn', onclick: function () { modaleProfessionnel(App.service === '*' ? (services()[0] || {}).code : App.service); } }, 'Saisie libre') : null),
-      h('p', { class: 'muted', text: 'Deux emplacements par poste couvert par une mesure en CSI. Ces informations alimentent la colonne « professionnels chargés de la surveillance » du registre anonymisé.' }),
+      h('p', { class: 'muted', text: lieu('Deux emplacements par poste couvert par une mesure en CSI. Ces informations alimentent la colonne « professionnels chargés de la surveillance » du registre anonymisé.') }),
       bloc);
   }
 
@@ -691,7 +693,7 @@
     var entrees = svCode ? M.registre(st(), svCode, anneeRegistre, maintenant) : [];
     var synthese = { A: 0, B: 0, C: 0, D: 0, E: 0 };
     entrees.forEach(function (e) { synthese[e.categorie]++; });
-    var LIB_CAT = M.LIB_CATEGORIES;
+    var LIB_CAT = {}; Object.keys(M.LIB_CATEGORIES).forEach(function (k) { LIB_CAT[k] = lieu(M.LIB_CATEGORIES[k]); });
     var op = M.optionsPauses(config());
     var colPauses = op.colonneRegistre && (op.active || entrees.some(function (e) { return e.pauses.length; }));
     var libDuree = op.deduireRegistre ? 'Durée hors pauses' : 'Durée';
@@ -746,7 +748,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -814,13 +816,14 @@
       case 'lieuxCSI': return Object.keys(v || {}).map(function (k) { return k + ' : ' + (v[k] || []).join(', '); }).join(' ; ');
       case 'pauses': return resumePauses(v);
       case 'casParticuliers': return SIC.ui.cas.resumeConfig(v);
-      case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + ', surveillance hors CSI ' + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
+      case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + lieu(', surveillance hors CSI ') + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
+      case 'lieuIsolement': var ll = M.libLieu({ lieuIsolement: v }); return ll.long + ' (' + ll.court + ')';
       case 'sauvegarde': return v && v.rappelJours ? 'tous les ' + v.rappelJours + ' jours' : 'aucun rappel';
       case 'rapportsAnnuels': return Object.keys(v || {}).join(', ') || 'aucun';
       case 'alertes': return M.alertesConfig({ alertes: v }).map(function (r) {
-        return '« ' + r.libelle + ' » ' + (r.active ? 'active' : 'inactive') + ' (' + M.DECLENCHEURS_ALERTE[r.declencheur].toLowerCase() + ', ' +
+        return '« ' + r.libelle + ' » ' + (r.active ? 'active' : 'inactive') + ' (' + lieu(M.DECLENCHEURS_ALERTE[r.declencheur]).toLowerCase() + ', ' +
           (r.nature === 'information' ? 'informer ' + r.destinataires + ' ' + SIC.ui.alertes.delaiTexte(r.delaiMinutes) : 'rappel à la saisie') + ', ' + SIC.ui.alertes.servicesTexte(r) + ')';
       }).join(' ; ') || 'aucune alerte';
       case 'compteursRegistre': case 'derniersClasseur': return Object.keys(v || {}).map(function (k) { return libService(k) + ' : ' + Object.keys(v[k]).map(function (an) { return an + ' → ' + v[k][an]; }).join(', '); }).join(' ; ') || 'aucun';
@@ -882,7 +885,7 @@
       case 'JLD': return sur + LIB_NATURE[d.nature].toLowerCase() + ' — cycle ' + d.cycle + ' — le ' + date(d.date) + (d.decision ? ' — décision : ' + (d.decision === 'LEVEE' ? 'mainlevée' : 'maintien') : '');
       case 'PROFESSIONNEL':
         var per = M.periodesDe(config(), d.service).filter(function (q) { return q.code === d.periode; })[0];
-        return 'Surveillance en CSI — ' + libService(d.service) + ', ' + (d.date ? d.date.split('-').reverse().join('/') : '') + ', ' + (per ? per.libelle.toLowerCase() : d.periode) + ' : ' + d.nom + (d.fonction ? ' (' + d.fonction + ')' : '');
+        return lieu('Surveillance en CSI — ') + libService(d.service) + ', ' + (d.date ? d.date.split('-').reverse().join('/') : '') + ', ' + (per ? per.libelle.toLowerCase() : d.periode) + ' : ' + d.nom + (d.fonction ? ' (' + d.fonction + ')' : '');
       case 'PATIENT':
         var fiches = index().patients[d.patientId] || [], premiere = !fiches.length || fiches[0].id === e.id;
         return 'Fiche patient ' + (premiere ? 'créée' : 'modifiée') + ' : ' + [((d.nom || '') + ' ' + (d.prenom || '')).trim(), d.ipp ? 'IPP ' + d.ipp : '', d.naissance ? 'né(e) le ' + d.naissance.split('-').reverse().join('/') : '', d.protection ? 'protection : ' + d.protection.toLowerCase() : '', d.service ? 'service : ' + libService(d.service) : '', d.detenu === true ? 'patient détenu' : d.detenu === false ? 'n’est plus détenu' : ''].filter(Boolean).join(', ') + (premiere ? '' : ' (' + nomPatient(d.patientId).trim() + ')');
@@ -890,7 +893,7 @@
         var def = (config().modesHospitalisation || []).filter(function (x) { return x.code === d.mode; })[0];
         return nomPatient(d.patientId).trim() + ' — mode d’hospitalisation : ' + d.mode + (def ? ' (' + def.libelle.toLowerCase() + ')' : '') + ' à partir du ' + date(d.date);
       case 'CONFIG':
-        var lib = LIB_CONFIG[d.cle] || d.cle, apres = resumeConfig(d.cle, d.valeur);
+        var lib = lieu(LIB_CONFIG[d.cle]) || d.cle, apres = resumeConfig(d.cle, d.valeur);
         if (!apres) return lib + ' : modifié';
         var av = configAvant(e); if (av == null) av = M.CONFIG_DEFAUT[d.cle];
         if (d.cle === 'pauses') return lib + ' : ' + diffPauses(av, d.valeur);
@@ -899,14 +902,14 @@
       case 'ANNULATION':
         var cible = st().parId[d.cible];
         if (!cible) return 'Annulation d’une saisie introuvable (' + (d.cible || '?') + ')' + (d.motif ? ' — motif : ' + d.motif : '');
-        var libCible = cible.type === 'COMPTE' ? 'Comptes et clés' : (LIB_EVT[cible.type] || cible.type);
+        var libCible = cible.type === 'COMPTE' ? 'Comptes et clés' : (lieu(LIB_EVT[cible.type]) || cible.type);
         return 'Annulation de la saisie « ' + libCible + ' » faite le ' + date(Date.parse(cible.at)) + ' par ' + App.session.nomAuteur(cible.by) + ' : ' + resumeEvt(cible) +
           (cible.type === 'MESURE_DEBUT' ? ' (toute la mesure est annulée)' : cible.type === 'LOT' ? ' (toutes les saisies du lot sont annulées)' : '') +
           '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'COMPTE': if (d.comptes) return LIB_COMPTE[d.action] + ' : ' + d.comptes.length + ' — ' + d.comptes.map(function (x) { return x.login; }).join(', ');
         return (LIB_COMPTE[d.action] || d.action) + (d.login ? ' — ' + d.login : '') + (d.roles ? ' (' + d.roles.map(function (r) { return M.ROLES[r]; }).join(', ') + ')' : '') + (d.libelle ? ' — ' + d.libelle : '') + (d.finValidite ? ' — accès jusqu’au ' + d.finValidite.split('-').reverse().join('/') : '');
       case 'PROPOSITION':
-        return sur + 'correction proposée (à valider par le cadre) — ' + Object.keys(d.champs || {}).map(function (k) { return (LIB_CHAMPS[k] || k) + ' : ' + valeurChamp(k, d.champs[k]); }).join(' ; ') + '. Motif : ' + (d.motif || 'non précisé') + '.';
+        return sur + 'correction proposée (à valider par le cadre) — ' + Object.keys(d.champs || {}).map(function (k) { return (lieu(LIB_CHAMPS[k]) || k) + ' : ' + valeurChamp(k, d.champs[k]); }).join(' ; ') + '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'REFUS_PROPOSITION':
         var prRef = st().parId[d.proposition];
         return sur + 'correction proposée' + (prRef ? ' par ' + App.session.nomAuteur(prRef.by) : '') + ' refusée. Motif : ' + (d.motif || 'non précisé') + '.';
@@ -916,7 +919,7 @@
         if (prVal) sur += '(correction proposée par ' + App.session.nomAuteur(prVal.by) + ', validée) ';
         return sur + 'correction — ' + Object.keys(ch).map(function (k) {
           var av2 = avantCorr[k] !== undefined && valeurChamp(k, avantCorr[k]) !== valeurChamp(k, ch[k]) ? valeurChamp(k, avantCorr[k]) + ' → ' : '';
-          return (LIB_CHAMPS[k] || k) + ' : ' + av2 + valeurChamp(k, ch[k]);
+          return (lieu(LIB_CHAMPS[k]) || k) + ' : ' + av2 + valeurChamp(k, ch[k]);
         }).join(' ; ') + '. Motif : ' + (d.motif || 'non précisé') + '.';
       case 'LOT': return (d.libelle || 'Lot de saisies') + ' — ' + (d.evenements || []).length + ' saisies enregistrées en une fois';
       case 'STATS': return 'Statistiques ' + libService(d.service) + ' ' + d.annee + ' : patients en hospitalisation complète ' + (d.hc == null ? '—' : d.hc) + ', sous contrainte ' + (d.ssc == null ? '—' : d.ssc);
@@ -959,7 +962,7 @@
           return h('tr', { class: annule ? 'ancienne' : '' },
             h('td', { class: 'nowrap', text: date(Date.parse(e.at)) }),
             h('td', { text: App.session.nomAuteur(e.by) }),
-            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE') ? 'Sauvegarde' : (LIB_EVT[e.type] || e.type)),
+            h('td', {}, e.type === 'COMPTE' && e.data && e.data.action === 'EDITION_CADA' ? 'Communication du registre' : e.type === 'COMPTE' && e.data && e.data.action === 'EXPORT_PATIENT' ? 'Droit d’accès' : e.type === 'COMPTE' && e.data && e.data.action === 'ARCHIVE' ? 'Archivage' : e.type === 'COMPTE' && e.data && (e.data.action === 'SCELLE' || e.data.action === 'SAUVEGARDE' || e.data.action === 'REPARATION' || e.data.action === 'QUARANTAINE') ? 'Sauvegarde' : (lieu(LIB_EVT[e.type]) || e.type)),
             h('td', {}, resumeEvt(e)),
             h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null));
         })))),
@@ -1099,7 +1102,7 @@
       var avant = selLieu.value;
       vider(selLieu);
       lieux.forEach(function (l) { selLieu.appendChild(h('option', { value: l, text: l })); });
-      selLieu.appendChild(h('option', { value: '__hors', text: 'Hors CSI (chambre)' }));
+      selLieu.appendChild(h('option', { value: '__hors', text: lieu('Hors CSI (chambre)') }));
       if (avant && Array.prototype.some.call(selLieu.options, function (o) { return o.value === avant; })) selLieu.value = avant;
       var hors = selLieu.value === '__hors';
       chambre.hidden = !hors;
@@ -1176,7 +1179,7 @@
       // Lieu
       var al = [];
       if (selLieu.value === '__hors' && type.value === 'Contention' && !exception.checked) al.push('Contention hors espace d’isolement (catégorie D du registre) : à n’utiliser qu’à titre exceptionnel.');
-      if (!((config().lieuxCSI || {})[selSv.value] || []).length) al.push('Aucune chambre de soins intensifs n’est paramétrée pour ce service.');
+      if (!((config().lieuxCSI || {})[selSv.value] || []).length) al.push(lieu('Aucun lieu de type « chambre de soins intensifs » n’est paramétré pour ce service.'));
       aLieu.afficher(al);
 
       // Alertes de l'établissement (Administration → Alertes)
@@ -1223,7 +1226,7 @@
         var psyNom = psy.valeur();
         var hors = selLieu.value === '__hors';
         if (hors && !chambre.value.trim()) throw new Error('Indiquez la chambre.');
-        if (!hors && !selLieu.value) throw new Error('Aucune CSI n’est paramétrée pour ce service.');
+        if (!hors && !selLieu.value) throw new Error(lieu('Aucun lieu de type « chambre de soins intensifs » n’est paramétré pour ce service.'));
         var patientId = selPatient.value;
         var existant = patientId === '__nouveau' && ipp.value.trim() && Object.keys(st().patients).map(function (k) { return st().patients[k]; }).filter(function (p) { return p.ipp === ipp.value.trim(); })[0];
         if (existant) {
@@ -1552,7 +1555,7 @@
         var props = M.propositionsEnAttente(st(), function (x) { return x.id === m.id; });
         if (!props.length) return null;
         return h('div', { class: 'recap' }, h('b', { text: 'Correction proposée, en attente du cadre' }), props.map(function (p) {
-          return h('div', {}, Object.keys(p.champs).map(function (k) { return (LIB_CHAMPS[k] || k) + ' → ' + valeurChamp(k, p.champs[k]); }).join(' ; ') + ' (' + App.session.nomAuteur(p.by) + ', ' + (p.motif || '') + ') ',
+          return h('div', {}, Object.keys(p.champs).map(function (k) { return (lieu(LIB_CHAMPS[k]) || k) + ' → ' + valeurChamp(k, p.champs[k]); }).join(' ; ') + ' (' + App.session.nomAuteur(p.by) + ', ' + (p.motif || '') + ') ',
             peutCorriger ? h('button', { class: 'btn petit', onclick: function () { var dlg = document.querySelector('dialog'); if (dlg) dlg.dispatchEvent(new Event('cancel')); setTimeout(function () { modaleProposition(p); }, 30); } }, 'Examiner') : null);
         }));
       })(),
@@ -1588,7 +1591,7 @@
     var base = m.version;
     var quand = h('input', { type: 'datetime-local', value: versSaisie(Date.now()) });
     var lieux = (config().lieuxCSI || {})[m.service] || [];
-    var selLieu = h('select', {}, lieux.filter(function (l) { return l !== m.lieu; }).map(function (l) { return h('option', { value: l, text: l }); }), h('option', { value: '__hors', text: 'Hors CSI (chambre)' }));
+    var selLieu = h('select', {}, lieux.filter(function (l) { return l !== m.lieu; }).map(function (l) { return h('option', { value: l, text: l }); }), h('option', { value: '__hors', text: lieu('Hors CSI (chambre)') }));
     var chambre = h('input', { type: 'text', placeholder: 'N° de chambre', hidden: selLieu.value !== '__hors' });
     selLieu.addEventListener('change', function () { chambre.hidden = selLieu.value !== '__hors'; });
     var psy = selectPsychiatre(m.psychiatreDebut);
@@ -1640,7 +1643,7 @@
     modale('Correction proposée', h('div', { class: 'pile' }, recapMesure(m),
       h('div', { class: 'recap' },
         h('div', { text: 'Proposée par ' + App.session.nomAuteur(p.by) + ' le ' + date(Date.parse(p.at)) + '. Motif : ' + (p.motif || 'non précisé') + '.' }),
-        Object.keys(p.champs).map(function (k) { return h('div', {}, h('b', { text: (LIB_CHAMPS[k] || k) + ' : ' }), valeurChamp(k, m[k]) + ' → ' + valeurChamp(k, p.champs[k])); })),
+        Object.keys(p.champs).map(function (k) { return h('div', {}, h('b', { text: (lieu(LIB_CHAMPS[k]) || k) + ' : ' }), valeurChamp(k, m[k]) + ' → ' + valeurChamp(k, p.champs[k])); })),
       h('label', {}, 'Motif du refus', motifRefus)), [
       { texte: 'Fermer' },
       { texte: 'Refuser', classe: 'danger', action: async function () {
@@ -1786,7 +1789,7 @@
       h('label', {}, 'Établissement', etab),
       h('div', { class: 'grille-2' },
         h('label', {}, 'Services (code ; libellé), un par ligne', tServices),
-        h('label', {}, 'Chambres de soins intensifs (code service : CSI 1, CSI 2)', tLieux)),
+        h('label', {}, lieu('Chambres de soins intensifs (code service : CSI 1, CSI 2)'), tLieux)),
       h('label', {}, 'Psychiatres proposés à la saisie (un par ligne)', tPsy),
       boutonEnregistrer(async function () {
         var svs = lignesDe(tServices).map(function (l) { var x = l.split(';'); if (x.length < 2 || !x[0].trim()) throw new Error('Service mal formé : ' + l); return { code: x[0].trim(), libelle: x.slice(1).join(';').trim() }; });
@@ -1796,6 +1799,30 @@
         tousServices().forEach(function (x) { if (codes.indexOf(x.code) < 0 && utilises.indexOf(x.code) >= 0) throw new Error('Le service ' + x.code + ' a des mesures : il ne peut pas être supprimé (renommez son libellé).'); });
         var lieux = {}; lignesDe(tLieux).forEach(function (l) { var x = l.split(':'); if (x.length < 2) throw new Error('Lieu mal formé : ' + l); lieux[x[0].trim()] = x.slice(1).join(':').split(',').map(function (v) { return v.trim(); }).filter(Boolean); });
         await enregistrerConfig([['etablissement', etab.value.trim()], ['services', svs], ['lieuxCSI', lieux], ['psychiatres', lignesDe(tPsy)]]);
+      }));
+
+    // -- Appellation des lieux dédiés à l'isolement
+    var lieuAct = M.libLieu(cfg), lieuxProp = M.LIEUX_ISOLEMENT;
+    var iCourt = h('input', { type: 'text', maxlength: 12, value: lieuAct.court }), iLong = h('input', { type: 'text', maxlength: 60, value: lieuAct.long }), iLongs = h('input', { type: 'text', maxlength: 60, value: lieuAct.longs });
+    var indexAct = lieuxProp.map(function (x) { return x.court + '|' + x.long; }).indexOf(lieuAct.court + '|' + lieuAct.long);
+    var selLieuNom = h('select', { onchange: function () { var x = lieuxProp[+selLieuNom.value]; if (x) { iCourt.value = x.court; iLong.value = x.long; iLongs.value = x.longs; } majApercuLieu(); } },
+      lieuxProp.map(function (x, i) { return h('option', { value: i, text: x.long + ' (' + x.court + ')', selected: i === indexAct }); }),
+      h('option', { value: 'autre', text: 'Autre appellation…', selected: indexAct < 0 }));
+    var apercuLieu = h('small', { class: 'muted' });
+    function majApercuLieu() {
+      var v = { lieuIsolement: { court: iCourt.value, long: iLong.value, longs: iLongs.value } };
+      apercuLieu.textContent = 'Aperçu : ' + M.txtLieu(v, '« Surveillance CSI » · « Contention hors CSI » · « Chambres de soins intensifs du service »');
+    }
+    [iCourt, iLong, iLongs].forEach(function (i) { i.addEventListener('input', function () { selLieuNom.value = 'autre'; majApercuLieu(); }); });
+    majApercuLieu();
+    var pLieuNom = h('section', { class: 'panneau' }, h('h2', { text: 'Appellation des lieux dédiés à l’isolement' }),
+      h('p', { class: 'muted', text: 'Nom utilisé dans les textes de l’outil (onglets, alertes, registre, statistiques, décompte) : « chambre de soins intensifs (CSI) » par défaut. Les noms des lieux saisis ci-dessus (ex. « CSI 1 ») ne sont pas modifiés. Les règles de calcul et le registre restent identiques.' }),
+      h('label', {}, 'Appellation', selLieuNom),
+      h('div', { class: 'grille-3' }, h('label', {}, 'Sigle (court, pour les onglets et colonnes)', iCourt), h('label', {}, 'Libellé au singulier', iLong), h('label', {}, 'Libellé au pluriel', iLongs)),
+      apercuLieu,
+      boutonEnregistrer(async function () {
+        if (!iCourt.value.trim() || !iLong.value.trim()) throw new Error('Le sigle et le libellé sont obligatoires.');
+        await enregistrerConfig([['lieuIsolement', { court: iCourt.value.trim(), long: iLong.value.trim(), longs: iLongs.value.trim() || iLong.value.trim() }]]);
       }));
 
     // -- Surveillance
@@ -1821,7 +1848,7 @@
     var lignesPS = [];
     Object.keys(cfg.periodesService || {}).forEach(function (sv) { (cfg.periodesService[sv] || []).forEach(function (p) { lignesPS.push(sv + ' ; ' + p.code + ' ; ' + p.libelle + ' ; ' + p.debut + ' ; ' + p.fin); }); });
     var tPerSv = zoneTexte(lignesPS.join('\n'), 3);
-    var pSurv = h('section', { class: 'panneau' }, h('h2', { text: 'Postes de surveillance en CSI' }),
+    var pSurv = h('section', { class: 'panneau' }, h('h2', { text: lieu('Postes de surveillance en CSI') }),
       h('div', { class: 'grille-2' },
         h('label', {}, 'Postes par défaut (code ; libellé ; début ; fin)', tPer),
         h('label', {}, 'Postes propres à un service (service ; code ; libellé ; début ; fin)', tPerSv)),
@@ -1879,7 +1906,7 @@
       h('b', { text: 'Registre : pause de la contention seule (le patient reste à l’isolement)' }),
       radCS('isolement', 'Compter ce temps en isolement seul : il forme une entrée A supplémentaire (durée de l’isolement exacte, une entrée de plus)'),
       radCS('contention', 'Le laisser dans l’entrée de contention (C), sans le déduire (pas d’entrée supplémentaire)'),
-      h('small', { class: 'muted', text: 'Une pause commune à la contention et à l’isolement (le patient sort de la CSI) est toujours déduite.' }));
+      h('small', { class: 'muted', text: lieu('Une pause commune à la contention et à l’isolement (le patient quitte le lieu d’isolement) est toujours déduite.') }));
     blocPortee.appendChild(blocCS);
     function majCS() { blocCS.hidden = ((blocPortee.querySelector('input[name=portee-pauses]:checked') || {}).value) !== 'partout'; }
     blocPortee.addEventListener('change', majCS); majCS();
@@ -1942,7 +1969,7 @@
         corpsCols.appendChild(h('tr', {},
           h('td', {}, lib),
           ['A', 'B', 'C', 'D', 'E'].map(function (k) {
-            var cb = h('input', { type: 'checkbox', checked: c.categories.indexOf(k) >= 0, 'aria-label': 'Catégorie ' + k, title: M.LIB_CATEGORIES[k], onchange: function () { c.categories = ['A', 'B', 'C', 'D', 'E'].filter(function (x) { return x === k ? cb.checked : c.categories.indexOf(x) >= 0; }); } });
+            var cb = h('input', { type: 'checkbox', checked: c.categories.indexOf(k) >= 0, 'aria-label': 'Catégorie ' + k, title: lieu(M.LIB_CATEGORIES[k]), onchange: function () { c.categories = ['A', 'B', 'C', 'D', 'E'].filter(function (x) { return x === k ? cb.checked : c.categories.indexOf(x) >= 0; }); } });
             return h('td', { class: 'centre' }, cb);
           }),
           h('td', { class: 'centre' }, h('input', { type: 'checkbox', checked: c.alerte, 'aria-label': 'Alerte si différent de 0', onchange: function (ev) { c.alerte = ev.target.checked; } })),
@@ -1951,11 +1978,11 @@
     }
     dessinerColsP();
     var pColsP = h('section', { class: 'panneau' }, h('h2', { text: 'Onglet Patients : statistiques annuelles' }),
-      h('p', { class: 'muted', text: 'Chaque colonne regroupe des catégories du registre et affiche, pour l’année choisie, le nombre d’entrées et leur durée cumulée. Rappel : une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C, alors que le juge compte une mesure d’isolement et une mesure de contention (colonne « Mesures (JLD) », toujours affichée).' }),
+      h('p', { class: 'muted', text: lieu('Chaque colonne regroupe des catégories du registre et affiche, pour l’année choisie, le nombre d’entrées et leur durée cumulée. Rappel : une contention en CSI et l’isolement qui l’accompagne forment une seule entrée en catégorie C, alors que le juge compte une mesure d’isolement et une mesure de contention (colonne « Mesures (JLD) », toujours affichée).') }),
       h('div', { class: 'table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, h('th', { text: 'Libellé de la colonne' }), ['A', 'B', 'C', 'D', 'E'].map(function (k) { return h('th', { class: 'centre', title: M.LIB_CATEGORIES[k], text: k }); }), h('th', { class: 'centre', text: 'Devrait rester à 0' }), h('th'))),
+        h('thead', {}, h('tr', {}, h('th', { text: 'Libellé de la colonne' }), ['A', 'B', 'C', 'D', 'E'].map(function (k) { return h('th', { class: 'centre', title: lieu(M.LIB_CATEGORIES[k]), text: k }); }), h('th', { class: 'centre', text: 'Devrait rester à 0' }), h('th'))),
         corpsCols)),
-      h('small', { class: 'muted', text: Object.keys(M.LIB_CATEGORIES).map(function (k) { return k + ' : ' + M.LIB_CATEGORIES[k]; }).join(' · ') }),
+      h('small', { class: 'muted', text: Object.keys(M.LIB_CATEGORIES).map(function (k) { return k + ' : ' + lieu(M.LIB_CATEGORIES[k]); }).join(' · ') }),
       h('div', { class: 'actions' },
         h('button', { class: 'btn', onclick: function () { colsP.push({ libelle: '', categories: [], alerte: false }); dessinerColsP(); } }, '+ Ajouter une colonne'),
         h('button', { class: 'btn', onclick: function () { colsP = M.CONFIG_DEFAUT.colonnesPatients.map(function (c) { return { libelle: c.libelle, categories: c.categories.slice(), alerte: c.alerte }; }); dessinerColsP(); } }, 'Colonnes par défaut')),
@@ -2012,7 +2039,7 @@
       }
       return h('div', { class: 'pile' },
         h('h3', { text: 'Mesures importées déjà numérotées (classeur ou registre d’origine)' }),
-        h('p', { class: 'muted' }, h('small', { text: '« D’origine » : chaque mesure importée garde la catégorie et le numéro de son document d’origine (classeur : une entrée par mesure ; registre : ses lignes à l’identique), et l’outil numérote les autres mesures en sautant ces numéros. « Outil » : les entrées sont recalculées selon les règles de l’outil (catégories A à E, une contention en CSI et son isolement formant une entrée C). Recalculer une année passée peut modifier les statistiques déjà produites.' })),
+        h('p', { class: 'muted' }, h('small', { text: lieu('« D’origine » : chaque mesure importée garde la catégorie et le numéro de son document d’origine (classeur : une entrée par mesure ; registre : ses lignes à l’identique), et l’outil numérote les autres mesures en sautant ces numéros. « Outil » : les entrées sont recalculées selon les règles de l’outil (catégories A à E, une contention en CSI et son isolement formant une entrée C). Recalculer une année passée peut modifier les statistiques déjà produites.') })),
         h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ['Service', 'Année', 'Mesures importées numérotées', 'Numérotation', ''].map(function (t) { return h('th', { text: t }); }))),
           h('tbody', {}, liste.map(function (g) {
@@ -2058,7 +2085,7 @@
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
       return sousOngletsAdmin([
-        ['services', 'Établissement et services', [note, pServices, pSurv, pTiers]],
+        ['services', 'Établissement et services', [note, pServices, pLieuNom, pSurv, pTiers]],
         ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
         ['alertes', 'Alertes', [note, SIC.ui.alertes.panneauAdmin()]],
         ['cas', 'Cas particuliers', [note, SIC.ui.cas.panneauAdmin()]],
@@ -2070,7 +2097,7 @@
     }
     return sousOngletsAdmin([
       ['comptes', 'Comptes et sécurité', [comptes, deblocage, SIC.ui.formation.sectionAdmin()]],
-      ['services', 'Établissement et services', [pServices, pSurv, pTiers]],
+      ['services', 'Établissement et services', [pServices, pLieuNom, pSurv, pTiers]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
       ['cas', 'Cas particuliers', [SIC.ui.cas.panneauAdmin()]],
@@ -2101,7 +2128,7 @@
     var cases = {};
     Object.keys(M.ROLES).forEach(function (r) {
       cases[r] = h('input', { type: 'checkbox', checked: actuels.indexOf(r) >= 0 });
-      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: 'décisions de début et de fin, tiers, surveillance CSI, envois JLD', AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
+      bloc.appendChild(h('label', { class: 'case' }, cases[r], h('span', { text: M.ROLES[r] + ' — ' + ({ IDE: lieu('décisions de début et de fin, tiers, surveillance CSI, envois JLD'), AS: 'mêmes droits que l’IDE', SECRETAIRE: 'envois et suivi JLD', CADRE: 'pilotage, corrections, registre, statistiques', ADMIN: 'comptes, clés, paramétrage, import ; voit tous les services' })[r] })));
     });
     bloc.cases = cases;
     bloc.valeur = function () { var v = Object.keys(cases).filter(function (r) { return cases[r].checked; }); if (!v.length) throw new Error('Choisissez au moins un rôle.'); return v; };
@@ -2217,7 +2244,7 @@
     patient: patient, nomPatient: nomPatient, modeActuel: modeActuel, dansService: dansService, mesuresVisibles: mesuresVisibles,
     badgeType: badgeType, badgePause: badgePause, alerteChamp: alerteChamp, tiersBadge: tiersBadge,
     boutonEnregistrer: boutonEnregistrer, enregistrerConfig: enregistrerConfig,
-    detailMesure: function (m) { modaleDetail(m); }, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
+    lieu: lieu, detailMesure: function (m) { modaleDetail(m); }, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
     demarrer: rendre, verrouiller: verrouiller
   };

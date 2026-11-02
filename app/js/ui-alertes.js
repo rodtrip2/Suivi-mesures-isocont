@@ -123,7 +123,7 @@
     function carte(r, i) {
       var nom = h('input', { type: 'text', value: r.libelle, oninput: function () { r.libelle = nom.value; } });
       var active = h('input', { type: 'checkbox', checked: r.active, onchange: function () { r.active = active.checked; } });
-      var decl = h('select', { onchange: function () { r.declencheur = decl.value; majTexte(); } }, Object.keys(M.DECLENCHEURS_ALERTE).map(function (k) { return h('option', { value: k, text: M.DECLENCHEURS_ALERTE[k], selected: k === r.declencheur }); }));
+      var decl = h('select', { onchange: function () { r.declencheur = decl.value; majTexte(); } }, Object.keys(M.DECLENCHEURS_ALERTE).map(function (k) { return h('option', { value: k, text: U.lieu(M.DECLENCHEURS_ALERTE[k]), selected: k === r.declencheur }); }));
       var cases = U.tousServices().map(function (sv) {
         var cb = h('input', { type: 'checkbox', checked: r.services.indexOf(sv.code) >= 0, onchange: function () {
           r.services = cases.filter(function (c) { return c.cb.checked; }).map(function (c) { return c.code; });
@@ -139,7 +139,7 @@
       var msg = h('textarea', { rows: 5, oninput: function () { r.message = msg.value; } }, r.message);
       var aideTexte = h('small', { class: 'muted' });
       function majTexte() {
-        var defaut = M.TEXTES_ALERTE[r.declencheur] || '';
+        var defaut = U.lieu(M.TEXTES_ALERTE[r.declencheur] || '');
         msg.placeholder = defaut || 'Message affiché (facultatif)';
         aideTexte.textContent = defaut ? 'Champ laissé vide : le texte proposé (en grisé) s’affiche et suit les mises à jour de l’outil.' : '';
       }
@@ -155,7 +155,7 @@
         blocInfo,
         h('label', {}, 'Message', msg, aideTexte),
         h('div', { class: 'actions' },
-          M.TEXTES_ALERTE[r.declencheur] ? h('button', { class: 'btn petit', type: 'button', onclick: function () { r.message = M.TEXTES_ALERTE[r.declencheur]; msg.value = r.message; } }, 'Modifier le texte proposé') : null,
+          M.TEXTES_ALERTE[r.declencheur] ? h('button', { class: 'btn petit', type: 'button', onclick: function () { r.message = U.lieu(M.TEXTES_ALERTE[r.declencheur]); msg.value = r.message; } }, 'Modifier le texte proposé') : null,
           h('button', { class: 'btn petit danger', type: 'button', onclick: function () { regles.splice(i, 1); dessiner(); } }, 'Supprimer cette alerte')));
     }
 
@@ -179,7 +179,7 @@
           var libelle = String(r.libelle || '').trim() || M.DECLENCHEURS_ALERTE[r.declencheur];
           if (r.nature === 'information' && !String(r.destinataires || '').trim()) throw new Error('Alerte ' + (i + 1) + ' (« ' + libelle + ' ») : indiquez la ou les personnes à informer.');
           var message = String(r.message || '').trim();
-          if (message === (M.TEXTES_ALERTE[r.declencheur] || '')) message = '';
+          if (message === (M.TEXTES_ALERTE[r.declencheur] || '') || message === U.lieu(M.TEXTES_ALERTE[r.declencheur] || '')) message = '';
           var a = avant[r.id];
           // Date d'activation : seules les mesures saisies ensuite déclenchent l'alerte.
           var depuis = r.active ? (a && a.active && a.declencheur === r.declencheur ? a.depuis : maintenant) : 0;

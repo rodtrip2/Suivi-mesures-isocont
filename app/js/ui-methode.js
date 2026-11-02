@@ -27,7 +27,7 @@
 
   function texteUnites(config) {
     var o = M.optionsStats(config);
-    return 'Trois unités de compte : les entrées du registre (catégories A à E ; une contention en CSI forme une entrée C, l’isolement avant et après forme des entrées A), ' +
+    return U.lieu('Trois unités de compte : les entrées du registre (catégories A à E ; une contention en CSI forme une entrée C, l’isolement avant et après forme des entrées A), ') +
       'les mesures au sens du juge (isolement et contention comptés séparément) et les séquences (entrées d’un même patient qui se suivent avec un écart de ' + libTol(o.toleranceMinutes) + ' au plus, ' +
       'qui correspondent à un épisode continu). Unité principale retenue par l’établissement : ' + M.UNITES_STATS[o.unitePrincipale].toLowerCase() + '.';
   }
@@ -64,7 +64,7 @@
       surcharge[dernier.cle] = dernier.avant;
       var x = M.statistiquesAvec(etat, surcharge, svs, annee, maintenant);
       var lignes = [['Entrées du registre', b.mesures, x.mesures, n], ['Séquences', b.sequences.n, x.sequences.n, n], ['Durée moyenne d’une entrée', b.duree.moyenne, x.duree.moyenne, hrs],
-        ['Durée cumulée', b.duree.total, x.duree.total, hrs], ['Heures de CSI', b.heuresCSI, x.heuresCSI, hrs], ['Durée moyenne d’une séquence', b.sequences.duree.moyenne, x.sequences.duree.moyenne, hrs]];
+        ['Durée cumulée', b.duree.total, x.duree.total, hrs], [U.lieu('Heures en CSI'), b.heuresCSI, x.heuresCSI, hrs], ['Durée moyenne d’une séquence', b.sequences.duree.moyenne, x.sequences.duree.moyenne, hrs]];
       blocs.push(h('div', {}, h('b', { text: 'Comparaison ' + annee + ' : règles actuelles et règle d’avant le ' + U.date(dernier.date).slice(0, 10) + ' (' + dernier.textes.join(' ; ') + ')' }),
         h('div', { class: 'table-wrap' }, h('table', { class: 'stats' },
           h('thead', {}, h('tr', {}, h('th', { text: 'Indicateur' }), h('th', { class: 'num', text: 'Règles actuelles' }), h('th', { class: 'num', text: 'Règle antérieure' }))),

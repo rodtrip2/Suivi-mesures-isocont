@@ -29,7 +29,7 @@
     var radiosSoma = CHOIX_SOMA.map(function (c) { return { v: c[0], r: h('input', { type: 'radio', name: nomSoma, value: c[0], checked: o.somatique === c[0] }), t: c[1] }; });
     var selRegistre = h('select', {}, h('option', { value: '', text: '— Choisir le service qui porte ce registre —' }),
       U.tousServices().map(function (x) { return h('option', { value: x.code, text: x.libelle + ' (' + x.code + ')', selected: x.code === o.serviceSomatique }); }));
-    var blocRegistre = h('label', {}, 'Registre dédié', selRegistre, h('small', { class: 'muted', text: 'Créez au besoin ce service dans Établissement et services (ex. code SOMA, libellé « Hébergement somatique », sans CSI).' }));
+    var blocRegistre = h('label', {}, 'Registre dédié', selRegistre, h('small', { class: 'muted', text: U.lieu('Créez au besoin ce service dans Établissement et services (ex. code SOMA, libellé « Hébergement somatique », sans CSI).') }));
     function majSoma() { blocRegistre.hidden = !radiosSoma[1].r.checked; }
     radiosSoma.forEach(function (x) { x.r.addEventListener('change', majSoma); }); majSoma();
     return h('section', { class: 'panneau' }, h('h2', { text: 'Cas particuliers' }),

@@ -53,7 +53,7 @@
       var avec = s.comptes.filter(function (c) { return c.actif && SIC.model.accesFormation(c); }).length;
       var actifs = s.comptes.filter(function (c) { return c.actif; }).length;
       return h('section', { class: 'panneau' }, h('h2', { text: 'Mode formation' }),
-        h('p', { class: 'muted', text: 'À la connexion, chaque agent choisit entre les données réelles et le mode formation. Le jeu de formation reprend les services, chambres de soins intensifs et postes de surveillance réels, avec des patients et des mesures fictifs ; il est chiffré à part dans le sous-dossier « formation ». L’accès se désactive compte par compte (bouton « Modifier »).' }),
+        h('p', { class: 'muted', text: U.lieu('À la connexion, chaque agent choisit entre les données réelles et le mode formation. Le jeu de formation reprend les services, chambres de soins intensifs et postes de surveillance réels, avec des patients et des mesures fictifs ; il est chiffré à part dans le sous-dossier « formation ». L’accès se désactive compte par compte (bouton « Modifier »).') }),
         h('div', { class: 'recap' },
           h('div', { text: jeu ? 'Jeu de formation créé le ' + U.date(Date.parse(jeu.creeLe)) + ' par ' + jeu.par + '.' : 'Le jeu de formation sera créé à la première connexion en mode formation.' }),
           h('div', { text: avec + ' compte(s) actif(s) sur ' + actifs + ' ont accès au mode formation.' })),

@@ -34,7 +34,7 @@
     function remplir(sv) {
       U.vider(sel);
       ((U.config().lieuxCSI || {})[sv] || []).forEach(function (l) { sel.appendChild(h('option', { value: l, text: l, selected: l === valeur })); });
-      sel.appendChild(h('option', { value: '__hors', text: 'Hors CSI (chambre)' }));
+      sel.appendChild(h('option', { value: '__hors', text: U.lieu('Hors CSI (chambre)') }));
       chambre.hidden = sel.value !== '__hors';
     }
     sel.addEventListener('change', function () { chambre.hidden = sel.value !== '__hors'; });
