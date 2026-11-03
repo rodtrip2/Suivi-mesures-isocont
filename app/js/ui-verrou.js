@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
  * Blocage du choix du dossier sur les postes (demande du porteur). Option de l'établissement `config.verrouDossier`
- * (Administration → Informations, désactivée par défaut) : à chaque connexion, le poste retient les données de travail
+ * (Administration → Comptes et sécurité, désactivée par défaut) : à chaque connexion, le poste retient les données de travail
  * comme verrouillées (IndexedDB `verrou` : nom du dossier et date de création du coffre). Ensuite, seul un dossier
  * contenant LES MÊMES DONNÉES peut être ouvert sans formalité (dossier habituel, dossier de secours, copie locale,
  * nouveau dossier après un déplacement) ; ouvrir d'autres données ou le mode démonstration demande l'identifiant et
@@ -82,7 +82,7 @@
     return d;
   }
 
-  /** Réglage d'administration (sous-onglet Informations). */
+  /** Réglage d'administration (sous-onglet Comptes et sécurité). */
   function panneau() {
     var cfg = U.config(), cb = h('input', { type: 'checkbox', checked: cfg.verrouDossier === true }), etat = h('small', { class: 'muted' });
     SIC.Dossier.lireVerrou().then(function (v) { etat.textContent = 'Ce poste : ' + (v ? 'choix bloqué sur « ' + v.nom + ' » depuis le ' + U.date(Date.parse(v.le)) : 'choix libre'); }).catch(function () {});

@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.58.1 — 3 novembre 2026
+
+- **Sous-onglet *Informations* supprimé** : les informations techniques (version, dossier, saisies, révision du coffre) et l'effacement de la démonstration passent dans *À propos* ; le **choix du dossier bloqué sur les postes** passe dans *Comptes et sécurité*.
+
 ## 1.58.0 — 3 novembre 2026
 
 - **Nouveau sous-onglet *Administration → Sauvegardes et exports*** : il réunit l'état des données et les sauvegardes (copie sous scellé, copie complète, contrôle d'intégrité, restauration), le dossier de secours, le travail hors réseau et le déplacement des données, le dossier des exports (emplacement, chemin réseau, durée de conservation, nouveau bouton *Voir les fichiers exportés*), l'archive annuelle et l'export ou l'import des réglages.

@@ -2628,12 +2628,11 @@
         ['registre', 'Registre et statistiques', [note, pDocs, pColsP, SIC.ui.methode.panneauAdmin(), SIC.ui.qualite.panneauAdmin()]],
         ['decompte', 'Décompte JLD', [note, pMasques]],
         ['sauvegardes', 'Sauvegardes et exports', [note, pExports]],
-        ['infos', 'Informations', [note, infos]],
-        ['apropos', 'À propos', SIC.ui.apropos.panneau()]
+        ['apropos', 'À propos', [SIC.ui.apropos.panneau(), infos]]
       ]);
     }
     return sousOngletsAdmin([
-      ['comptes', 'Comptes et sécurité', [comptes, SIC.ui.roles.panneau(), deblocage, SIC.ui.formation.sectionAdmin()]],
+      ['comptes', 'Comptes et sécurité', [comptes, SIC.ui.roles.panneau(), deblocage, SIC.ui.verrou.panneau(), SIC.ui.formation.sectionAdmin()]],
       ['services', 'Établissement et services', [pServices, pLieuNom, SIC.ui.listes.panneauModes(), pSurv, SIC.ui.listes.panneauListes(), pTiers, pOrgJLD, SIC.ui.listes.panneauVigilance(), SIC.ui.listes.panneauAccueil()]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
@@ -2642,8 +2641,7 @@
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
       ['sauvegardes', 'Sauvegardes et exports', [SIC.ui.sauvegarde.panneau(), SIC.ui.miroir.panneau(), pExports, SIC.ui.qualite.panneauArchive(), SIC.ui.reglages.panneau()]],
-      ['infos', 'Informations', [infos, SIC.ui.verrou.panneau(), demo]],
-      ['apropos', 'À propos', [SIC.ui.apropos.panneau(), SIC.ui.version.panneau()]]
+      ['apropos', 'À propos', [SIC.ui.apropos.panneau(), infos, SIC.ui.version.panneau(), demo]]
     ]);
 
     /** Sous-onglets de l'administration : seul le contenu du sous-onglet choisi est affiché. */

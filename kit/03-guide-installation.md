@@ -39,7 +39,7 @@
 
 **Repli sans serveur web** — copier `app/` dans un dossier en lecture seule du partage et ouvrir `index.html` avec Edge ou Chrome. Les clés de sécurité ne fonctionnent pas dans ce mode.
 
-**Choix du dossier bloqué** (facultatif) : après la mise en service, l'administrateur peut empêcher l'ouverture d'autres données sur les postes (*Administration → Informations → Choix du dossier sur les postes*) ; le blocage est posé sur chaque poste à sa connexion suivante et ne se lève que par un administrateur.
+**Choix du dossier bloqué** (facultatif) : après la mise en service, l'administrateur peut empêcher l'ouverture d'autres données sur les postes (*Administration → Comptes et sécurité → Choix du dossier sur les postes*) ; le blocage est posé sur chaque poste à sa connexion suivante et ne se lève que par un administrateur.
 
 **Travail hors réseau** (facultatif, postes désignés) : voir le document 10 — mise en cache de l'outil par le navigateur si l'outil est servi en HTTPS (intranet ou page GitHub), sinon copie de l'outil sur le poste par le script fourni ; copie locale des données chiffrées.
 
