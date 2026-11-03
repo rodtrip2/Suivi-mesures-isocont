@@ -97,7 +97,7 @@ Bouton **Décompte** sur la ligne de la mesure. L'aperçu reprend l'identité, l
 
 *Première page du PDF produit (mise en page selon le modèle de votre établissement).*
 
-Le bouton **Exports**, en haut de l'écran, liste les fichiers enregistrés pour vos services (décomptes, registres, statistiques…), les plus récents d'abord. Si votre établissement l'a configuré, il affiche aussi le chemin du dossier Windows du service, avec *Copier le chemin* et un raccourci à placer sur le bureau pour ouvrir ce dossier dans l'Explorateur. Dans la liste, *Ouvrir* affiche un PDF, *Télécharger* en fait une copie sur le poste. Ne copiez jamais ces fichiers hors du réseau de l'établissement (clé USB, messagerie personnelle).
+Le bouton **Exports**, en haut de l'écran, liste les fichiers enregistrés pour vos services (décomptes, registres, statistiques…), les plus récents d'abord. Si votre établissement l'a configuré, il affiche aussi le chemin du dossier Windows du service, avec *Copier le chemin* et la marche à suivre pour créer, une fois, un raccourci sur le bureau qui ouvre ce dossier dans l'Explorateur. Dans la liste, *Ouvrir* affiche un PDF, *Télécharger* en fait une copie sur le poste. Ne copiez jamais ces fichiers hors du réseau de l'établissement (clé USB, messagerie personnelle).
 
 ![Fenêtre « Exports »](images/guide-ide-as/19-exports.png)
 

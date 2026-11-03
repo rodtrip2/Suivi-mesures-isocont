@@ -419,10 +419,6 @@
     var url = /^\/\//.test(c) ? 'file:' + c : 'file:///' + c;
     return url.split('/').map(function (x, i) { return i < 1 || /:$/.test(x) ? x : encodeURIComponent(x).replace(/%24/g, '$'); }).join('/');
   }
-  function raccourciWindows(nom, cheminWindows) {
-    var contenu = '[InternetShortcut]\r\nURL=' + urlFichier(cheminWindows) + '\r\nIconIndex=0\r\n';
-    telechargerOctets(nom + '.url', new TextEncoder().encode(contenu), 'application/octet-stream');
-  }
 
   /** Dossiers d'exports visibles par l'agent : ses services ; « Etablissement » si son rôle couvre plusieurs services. */
   function dossiersExportsVisibles() {
@@ -464,9 +460,15 @@
             try { await navigator.clipboard.writeText(chemin); toast('Chemin copié : collez-le dans la barre d’adresse de l’Explorateur Windows.'); }
             catch (e) { prompt('Copiez ce chemin :', chemin); }
           } }, 'Copier le chemin'),
-          h('button', { class: 'btn petit', type: 'button', title: 'Fichier de raccourci à placer sur le bureau : il ouvre ce dossier dans l’Explorateur', onclick: function () { raccourciWindows(nomRaccourci, chemin); toast('Raccourci téléchargé : déplacez-le sur le bureau.'); } }, 'Télécharger un raccourci pour le bureau'),
           location.protocol === 'file:' ? h('a', { class: 'btn petit', href: urlFichier(chemin), target: '_blank' }, 'Ouvrir le dossier') : null),
-        h('small', { class: 'muted', text: 'Un navigateur ne peut pas ouvrir lui-même l’Explorateur Windows : copiez le chemin, ou gardez le raccourci sur le bureau (à télécharger une fois). Le service informatique peut aussi déployer ce raccourci sur les postes.' })));
+        // Raccourci créé par Windows : un fichier .url téléchargé est bloqué par Edge et Chrome (type de fichier jugé dangereux).
+        h('details', { class: 'pile' }, h('summary', { text: 'Créer un raccourci sur le bureau (une fois par poste)' }),
+          h('ol', {},
+            h('li', { text: 'Cliquez sur « Copier le chemin » ci-dessus.' }),
+            h('li', { text: 'Sur le bureau Windows, clic droit → Nouveau → Raccourci.' }),
+            h('li', { text: 'Collez le chemin (Ctrl + V) dans « Entrez l’emplacement de l’élément », puis cliquez sur Suivant.' }),
+            h('li', { text: 'Nommez le raccourci « ' + nomRaccourci + ' », puis cliquez sur Terminer.' }))),
+        h('small', { class: 'muted', text: 'Un navigateur ne peut pas ouvrir lui-même l’Explorateur Windows : copiez le chemin dans la barre d’adresse de l’Explorateur, ou créez une fois le raccourci sur le bureau. Le service informatique peut aussi déployer ce raccourci sur les postes par stratégie de groupe.' })));
     }
     function dessiner() {
       var q = cherche.value.trim().toLowerCase();

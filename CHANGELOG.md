@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.57.1 — 3 novembre 2026
+
+- **Raccourci du dossier des exports** : le bouton *Télécharger un raccourci pour le bureau* produisait un fichier « .download » inutilisable. Edge et Chrome bloquent le téléchargement des fichiers de raccourci (.url), jugés dangereux. Il est remplacé par la marche à suivre pour créer le raccourci directement dans Windows (*Copier le chemin*, puis clic droit sur le bureau → *Nouveau* → *Raccourci*). Le service informatique peut aussi le déployer par stratégie de groupe.
+
 ## 1.57.0 — 3 novembre 2026
 
 - **Journal des saisies selon le rôle** (*Administration → Comptes et sécurité → Rôles et accès*, réglage *Journal des saisies* de chaque rôle) : journal complet ; saisies de ses services (et ses propres saisies) ; ses propres saisies seulement ; ou pas d'accès (onglet masqué). Un agent qui cumule des rôles a le niveau le plus large ; l'administrateur garde toujours le journal complet.
