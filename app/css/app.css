@@ -219,7 +219,7 @@ dialog .pied { padding: 12px 20px; border-top: 1px solid var(--line); display: f
 
 /* ---------- Champs */
 .champ-court { max-width: 120px; }
-.champ-annee { width: 6.5em; }
+.champ-annee, .en-ligne input[type=number].champ-annee { width: 6.5em; }
 .champ-moyen { max-width: 280px; }
 fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 8px; }
 legend { font-weight: 600; padding: 0 4px; }
