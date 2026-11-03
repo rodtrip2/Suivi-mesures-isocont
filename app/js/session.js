@@ -133,6 +133,7 @@
   Session.prototype.verrouiller = function () {
     this.cle = null; this.utilisateur = null; this.evts = []; this.connus = new Set(); this.etat = null; this.comptes = [];
     this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = []; this.reperesLus = {}; this.integrite = null; this.preferences = null;
+    this.apercu = null;
   };
 
   /** Relit le coffre, applique `modif`, réécrit (contrôle de révision). */
@@ -258,9 +259,30 @@
 
   // ---------------------------------------------------------- Journal
   /** Rôles de l'utilisateur : les mêmes dans les données réelles et dans le jeu de formation. */
-  Session.prototype.roles = function () { return this.utilisateur ? this.utilisateur.roles : []; };
+  Session.prototype.roles = function () { var c = this.compteEffectif(); return c ? c.roles : []; };
   /** Codes des services visibles (tous pour un administrateur). */
-  Session.prototype.mesServices = function () { return this.etat ? M.servicesDe(this.utilisateur, this.etat.config) : []; };
+  Session.prototype.mesServices = function () { return this.etat ? M.servicesDe(this.compteEffectif(), this.etat.config) : []; };
+
+  // ---------------------------------------------------------- Aperçu de l'affichage d'un rôle (administrateur)
+  /**
+   * L'administrateur voit l'outil comme un agent portant le rôle `code` (onglets, boutons, journal), sur tous les
+   * services. Rien n'est enregistré pendant l'aperçu (voir `enregistrer`) ; il cesse au verrouillage. null = fin.
+   */
+  Session.prototype.definirApercu = function (code) {
+    if (!code) { this.apercu = null; return; }
+    if (!this.utilisateur || (this.utilisateur.roles || []).indexOf('ADMIN') < 0) throw new Error('Réservé à l’administrateur.');
+    var cfg = this.etat ? this.etat.config : M.CONFIG_DEFAUT;
+    var r = M.rolesConfig(cfg).filter(function (x) { return x.code === code && !x.admin; })[0];
+    if (!r) throw new Error('Rôle inconnu : ' + code);
+    this.apercu = { code: code, libelle: r.libelle };
+  };
+  /** Compte tel que l'interface doit le traiter : le compte connecté, ou le rôle en aperçu (tous les services). */
+  Session.prototype.compteEffectif = function () {
+    if (!this.utilisateur) return null;
+    if (!this.apercu) return this.utilisateur;
+    var cfg = this.etat ? this.etat.config : M.CONFIG_DEFAUT;
+    return Object.assign({}, this.utilisateur, { roles: [this.apercu.code], services: (cfg.services || []).map(function (s) { return s.code; }) });
+  };
   Session.prototype.accesFormation = function () { return M.accesFormation(this.utilisateur); };
   Session.prototype.peut = function (type) { return M.peut(this.roles(), type, this.etat ? this.etat.config : M.CONFIG_DEFAUT); };
 
@@ -281,6 +303,8 @@
       await this.dossier.ecrireEvenement(this.cle, trace);
       return trace;
     }
+    // Aperçu d'un rôle : rien n'est enregistré (seules les traces techniques des opérations réellement faites passent)
+    if (this.apercu && type !== 'COMPTE') throw new Error('Aperçu de l’affichage du rôle « ' + this.apercu.libelle + ' » : aucune saisie n’est enregistrée. Revenez à votre affichage (liste « Affichage » en haut de l’écran) pour saisir.');
     if (!(options && options.sansControle) && !this.peut(type)) throw new Error("Votre rôle ne permet pas cette action.");
     var at = (options && options.at) || new Date().toISOString();
     var by = (options && options.by) || this.utilisateur.id;

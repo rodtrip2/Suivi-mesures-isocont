@@ -595,6 +595,18 @@
     ['registre', 'Registre'], ['stats', 'Statistiques'], ['journal', 'Journal'], ['admin', 'Administration']
   ];
 
+  /** Liste « Affichage » de l'en-tête (administrateur) : voir l'outil comme un agent portant un autre rôle. */
+  function selApercu(s) {
+    if ((s.utilisateur.roles || []).indexOf('ADMIN') < 0) return null;
+    var sel = h('select', { 'aria-label': 'Affichage selon le rôle', title: 'Voir l’outil comme un agent portant ce rôle (aucune saisie n’est enregistrée pendant l’aperçu)', onchange: function () {
+      try { s.definirApercu(sel.value || null); } catch (e) { alert(e.message); }
+      if (s.apercu && App.onglet === 'admin') App.onglet = 'tableau';
+      rendreContenu();
+    } }, h('option', { value: '', text: 'Affichage : le mien' }),
+      M.rolesConfig(config()).filter(function (r) { return !r.admin; }).map(function (r) { return h('option', { value: r.code, text: 'Affichage : ' + r.libelle, selected: !!s.apercu && s.apercu.code === r.code }); }));
+    return sel;
+  }
+
   function ecranApplication() {
     zoneEntete = h('header', { class: 'entete' });
     zoneContenu = h('main', { id: 'contenu' });
@@ -680,6 +692,7 @@
     zoneEntete.appendChild(h('div', { class: 'entete-haut' }, marque(etablissement() || App.dossier.nom), h('div', { class: 'espace' }), mesSv.length ? selService : null,
       h('div', { class: 'statut-synchro', title: s.evts.length + ' saisies dans le journal' }, h('span', { class: 'point' }), age !== null ? 'Synchronisé' : '—'),
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.libRole(config(), r); }).join(' · ')),
+      selApercu(s),
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
       h('button', { class: 'btn petit', title: 'Fichiers exportés (décomptes, registres, statistiques…)', onclick: modaleExports }, 'Exports'),
       SIC.ui.horsReseau.boutonInstaller(),
@@ -690,6 +703,9 @@
       'Nouvelles saisies depuis un autre poste. ',
       h('button', { class: 'btn petit primaire', onclick: function () { rendreContenu(); } }, 'Actualiser'),
       App.onglet === 'admin' ? h('small', { text: ' (les modifications non enregistrées de cette page seront perdues)' }) : null));
+    if (s.apercu) zoneEntete.appendChild(h('div', { class: 'bandeau-apercu', role: 'status' },
+      h('span', { text: 'Aperçu de l’affichage du rôle « ' + s.apercu.libelle + ' », sur tous les services : aucune saisie n’est enregistrée. Choisissez un service dans la liste pour voir ce qu’un agent de ce service voit.' }),
+      h('button', { class: 'btn petit', type: 'button', onclick: function () { s.definirApercu(null); rendreContenu(); } }, 'Revenir à mon affichage')));
     var bl = SIC.ui.miroir.bandeauLocal(); if (bl) zoneEntete.appendChild(bl);
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
     ONGLETS.forEach(function (o) {
@@ -1277,7 +1293,7 @@
   }
 
   /** Saisies du journal visibles par l'agent connecté (niveau de ses rôles, Rôles et accès). */
-  function journalVisible() { return M.journalVisible(st(), App.session.utilisateur, config()); }
+  function journalVisible() { return M.journalVisible(st(), App.session.compteEffectif(), config()); }
   /** Conflits dont les deux saisies sont visibles par l'agent connecté. */
   function conflitsVisibles() {
     var etat = st();

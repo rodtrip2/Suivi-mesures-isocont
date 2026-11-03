@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.64.0 — 3 novembre 2026
+
+- **Voir l'affichage d'un rôle** (administrateur) : une liste *Affichage* dans l'en-tête montre l'outil tel qu'un agent portant ce rôle le voit (IDE, aide-soignant, secrétaire, cadre de santé, rôles créés par l'établissement). Les onglets, les boutons et le journal suivent les droits du rôle, sur tous les services ; la liste des services permet de se placer dans l'un d'eux.
+- Pendant l'aperçu, un bandeau orange le rappelle, et **aucune saisie n'est enregistrée** : toute tentative affiche un message. *Revenir à mon affichage*, ou le verrouillage, y met fin.
+
 ## 1.63.0 — 3 novembre 2026
 
 - **Copie locale robocopy sans droits d'administrateur.** L'assistant propose un troisième choix, *Ma session Windows seulement*, réservé à la copie locale d'un poste. Il convient à un poste toujours ouvert sous la même session (compte du poste ou agent référent). Les commandes se collent dans un PowerShell ordinaire ; le script et son journal sont enregistrés dans le profil de la session. La tâche planifiée est créée au nom de cette session : la copie ne se fait que lorsqu'elle est ouverte. Si le poste interdit les tâches planifiées aux utilisateurs, un message l'explique, une fois la première copie faite.

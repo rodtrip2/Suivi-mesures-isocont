@@ -536,3 +536,29 @@ test('Lecture d’une saisie en échec passager : relue à la synchronisation su
   const r = await poste.verifierIntegrite();
   assert.equal(r.fichiersIllisibles.length, 0);
 });
+
+test('Aperçu de l’affichage d’un rôle : droits et services du rôle, aucune saisie enregistrée, réservé à l’administrateur', async () => {
+  const { racine, admin } = await nouveauDossier();
+  await admin.enregistrer('CONFIG', { cle: 'services', valeur: [{ code: 'A', libelle: 'A (fictif)' }, { code: 'B', libelle: 'B (fictif)' }] });
+  assert.ok(admin.peut('CONFIG'));
+  admin.definirApercu('SECRETAIRE');
+  assert.ok(admin.peut('JLD') && !admin.peut('MESURE_DEBUT') && !admin.peut('CONFIG'));
+  admin.definirApercu('IDE');
+  assert.deepEqual(admin.roles(), ['IDE']);
+  assert.ok(admin.peut('MESURE_DEBUT'));
+  assert.ok(!admin.peut('CONFIG'));
+  assert.deepEqual(admin.mesServices(), ['A', 'B']);
+  assert.deepEqual(admin.utilisateur.roles, ['CADRE', 'ADMIN']);   // le compte réel n'est pas modifié
+  const n = admin.evts.length;
+  await assert.rejects(admin.enregistrer('PATIENT', { patientId: 'p1', nom: 'X (fictif)' }), /Aperçu.*aucune saisie/);
+  await assert.rejects(admin.enregistrer('CONFIG', { cle: 'inactiviteMinutes', valeur: 5 }), /aucune saisie/);
+  assert.equal(admin.evts.length, n);
+  assert.throws(() => admin.definirApercu('ADMIN'), /inconnu/);
+  admin.definirApercu(null);
+  assert.ok(admin.peut('CONFIG'));
+  await admin.creerCompte({ nom: 'IDE (fictif)', login: 'ide', motDePasse: 'autre mot de passe', roles: ['IDE'], services: ['A'] });
+  const ide = await connecter(racine, 'ide', 'autre mot de passe');
+  assert.throws(() => ide.definirApercu('CADRE'), /administrateur/);
+  admin.definirApercu('CADRE'); admin.verrouiller();
+  assert.equal(admin.apercu, null);
+});

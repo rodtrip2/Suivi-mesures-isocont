@@ -374,6 +374,7 @@ dialog .apercu-registre { max-width: 100%; overflow: auto; }
 .grille-occultation > label { align-content: start; grid-auto-rows: min-content; }
 .grille-occultation select { height: auto; align-self: start; }
 .actualisation-attente { background: var(--warn-soft); color: var(--ink); padding: 6px 12px; border-radius: var(--radius); margin: 6px 0; font-size: .9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bandeau-apercu { background: var(--warn-soft); color: var(--ink); border: 2px solid var(--warn); padding: 6px 12px; border-radius: var(--radius); margin: 6px 0; font-size: .9rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .actualisation-attente[hidden] { display: none; }
 .bandeau-version { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 1000; max-width: min(760px, calc(100vw - 32px)); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius); background: var(--accent-soft); color: var(--ink); border: 1px solid var(--accent); box-shadow: 0 4px 16px rgba(0, 0, 0, .18); font-size: .95rem; }
 .bandeau-version span { flex: 1 1 280px; }
