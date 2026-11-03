@@ -16,7 +16,7 @@
 #   - mise à jour de miroir-etat.json dans les deux dossiers (rôle, date, poste) : l'outil reconnaît ainsi le
 #     dossier de secours et alerte l'administrateur après 24 h sans copie.
 # Le retour après une panne (saisies faites sur le dossier de secours) se fait dans l'outil :
-# Administration → Informations → Synchroniser maintenant (jamais par ce script en sens inverse).
+# Administration → Sauvegardes et exports → Synchroniser maintenant (jamais par ce script en sens inverse).
 #
 # Codes de sortie : 0 = copie faite ; 1 = arrêt sur un contrôle ; 2 = erreur de robocopy (voir le journal).
 

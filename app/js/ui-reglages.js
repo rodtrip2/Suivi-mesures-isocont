@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
- * Export et import des réglages (demande du porteur), Administration → Informations.
+ * Export et import des réglages (demande du porteur), Administration → Sauvegardes et exports.
  * Usages : reporter dans le dossier des données réelles le paramétrage préparé et validé dans un dossier d'essai ;
  * partager un paramétrage avec un autre établissement ; garder une trace du paramétrage.
  * Le fichier (JSON en clair) ne contient que le paramétrage : aucune donnée de patient, aucun compte, aucun mot de

@@ -45,10 +45,10 @@ Si l'établissement a bloqué le choix du dossier sur les postes, le déblocage 
 
 ## Dossier réseau indisponible, dossier de secours en place
 
-Si l'établissement a mis en place un **dossier de secours** (*Administration → Informations*, sur un autre serveur, tenu à jour par des postes reliés ou par une copie robocopy du service informatique, document 09) :
+Si l'établissement a mis en place un **dossier de secours** (*Administration → Sauvegardes et exports*, sur un autre serveur, tenu à jour par des postes reliés ou par une copie robocopy du service informatique, document 09) :
 1. Sur chaque poste : *Verrouiller* puis *Changer de dossier*, et ouvrir le dossier de secours (le service informatique ou le cadre en donne l'emplacement). Un bandeau rouge rappelle qu'il s'agit du dossier de secours ; les comptes et mots de passe sont les mêmes.
 2. Travailler normalement. Les saisies faites depuis la dernière synchronisation (10 minutes au plus en temps normal) peuvent manquer : les ressaisir à leur heure réelle si besoin.
-3. Au retour du dossier principal : l'administrateur l'ouvre (*Changer de dossier*), puis *Administration → Informations → Synchroniser maintenant* : les saisies faites sur le dossier de secours sont reprises, rien n'est écrasé. Chaque poste rouvre ensuite le dossier principal. Avec une copie robocopy : suspendre la tâche planifiée pendant la panne et ne la réactiver qu'après cette synchronisation (document 09).
+3. Au retour du dossier principal : l'administrateur l'ouvre (*Changer de dossier*), puis *Administration → Sauvegardes et exports → Synchroniser maintenant* : les saisies faites sur le dossier de secours sont reprises, rien n'est écrasé. Chaque poste rouvre ensuite le dossier principal. Avec une copie robocopy : suspendre la tâche planifiée pendant la panne et ne la réactiver qu'après cette synchronisation (document 09).
 
 ## Dossier réseau ou application indisponible — procédure dégradée
 
@@ -86,11 +86,11 @@ Le fichier `coffre.json` contient les copies protégées de la clé des données
 2. Choisir *Restaurer cette version* (la plus récente est proposée), puis se connecter normalement.
 3. Si le dossier `coffre-historique` est lui aussi perdu : *Restaurer depuis la copie sous scellé* (fichier conservé au coffre), puis se connecter avec le **code de secours** (ou une clé de sécurité) et réinitialiser les mots de passe des agents (*Administration → Comptes et sécurité*), car la copie sous scellé ne contient pas les mots de passe.
 4. À défaut, demander au service informatique de restaurer `coffre.json` depuis la sauvegarde du partage.
-5. Ensuite : *Administration → Informations → Vérifier maintenant*, puis télécharger une nouvelle copie sous scellé.
+5. Ensuite : *Administration → Sauvegardes et exports → Vérifier maintenant*, puis télécharger une nouvelle copie sous scellé.
 
 ## Perte du dossier entier
 
-Si un dossier de secours existe, l'ouvrir et l'utiliser (paragraphe ci-dessus), puis le **déplacer** vers un nouveau dossier principal (*Administration → Informations → Déplacer les données*) et en recréer un autre comme secours. Sinon :
+Si un dossier de secours existe, l'ouvrir et l'utiliser (paragraphe ci-dessus), puis le **déplacer** vers un nouveau dossier principal (*Administration → Sauvegardes et exports → Déplacer les données*) et en recréer un autre comme secours. Sinon :
 
 1. Créer un dossier vide sur le partage (droits limités aux agents habilités) et l'ouvrir dans l'outil.
 2. Sur l'écran d'initialisation, *Restaurer une copie de sauvegarde dans ce dossier* : choisir la dernière copie de sauvegarde complète téléchargée par l'administrateur.
@@ -98,7 +98,7 @@ Si un dossier de secours existe, l'ouvrir et l'utiliser (paragraphe ci-dessus), 
 
 ## Alerte d'intégrité
 
-Le tableau de bord signale « Intégrité des données » quand des saisies ont disparu (repère d'un agent non retrouvé, fichier chargé qui n'est plus sur le partage), quand des fichiers sont illisibles ou quand le chaînage des saisies présente un trou. Le cadre prévient l'administrateur. Tout se traite dans *Administration → Informations*, rubrique *Contrôle d'intégrité*, qui donne le détail des fichiers concernés (chemin, agent, date de la saisie).
+Le tableau de bord signale « Intégrité des données » quand des saisies ont disparu (repère d'un agent non retrouvé, fichier chargé qui n'est plus sur le partage), quand des fichiers sont illisibles ou quand le chaînage des saisies présente un trou. Le cadre prévient l'administrateur. Tout se traite dans *Administration → Sauvegardes et exports*, rubrique *Contrôle d'intégrité*, qui donne le détail des fichiers concernés (chemin, agent, date de la saisie).
 
 **Règle d'or : ne pas ressaisir avant d'avoir tenté la récupération**, pour ne pas créer de doublons.
 
@@ -136,7 +136,7 @@ récente précédant l'incident) et les remettre à l'identique, au même chemin
 ouvrir, les renommer ni les convertir ? Les fichiers sont chiffrés ; les autres fichiers du
 dossier ne doivent pas être modifiés. Merci d'indiquer ceux qui sont introuvables.
 
-[coller ici la liste copiée depuis Administration → Informations]
+[coller ici la liste copiée depuis Administration → Sauvegardes et exports]
 
 Merci de nous prévenir une fois la restauration faite : nous relancerons le contrôle.
 
@@ -147,7 +147,7 @@ Merci de nous prévenir une fois la restauration faite : nous relancerons le con
 
 1. Service informatique : restaurer le dossier (ou les fichiers manquants) depuis la sauvegarde.
 2. Les fichiers de saisie sont indépendants : une restauration partielle est sans danger. Le dossier `instantanes` peut être supprimé : il est reconstruit automatiquement. Les dossiers `coffre-historique` et `reperes` doivent être restaurés avec le reste.
-3. *Administration → Informations → Vérifier maintenant* : l'application signale les fichiers encore illisibles ou manquants (voir « Alerte d'intégrité » ci-dessus).
+3. *Administration → Sauvegardes et exports → Vérifier maintenant* : l'application signale les fichiers encore illisibles ou manquants (voir « Alerte d'intégrité » ci-dessus).
 4. Ressaisir ce qui a été fait depuis la sauvegarde, avec les heures réelles, puis prendre acte des pertes définitives.
 
 ## Saisies en conflit

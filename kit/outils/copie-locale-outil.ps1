@@ -2,7 +2,7 @@
 #
 # Suivi-mesures-isocont : copie de l'outil (dossier « app ») sur le disque d'un poste désigné, pour l'utiliser
 # même pendant une panne du réseau, quand l'outil n'est pas servi en HTTPS (sinon, préférer la mise en cache par
-# le navigateur, Administration → Informations). Mode d'emploi : kit/10-travail-hors-reseau.md.
+# le navigateur, Administration → Sauvegardes et exports). Mode d'emploi : kit/10-travail-hors-reseau.md.
 #
 # À lancer à l'ouverture de session (stratégie de groupe ou tâche planifiée « À l'ouverture de session »), sous le
 # compte de l'agent ou un compte de service ayant lecture sur la source et écriture dans le dossier local.

@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.58.0 — 3 novembre 2026
+
+- **Nouveau sous-onglet *Administration → Sauvegardes et exports*** : il réunit l'état des données et les sauvegardes (copie sous scellé, copie complète, contrôle d'intégrité, restauration), le dossier de secours, le travail hors réseau et le déplacement des données, le dossier des exports (emplacement, chemin réseau, durée de conservation, nouveau bouton *Voir les fichiers exportés*), l'archive annuelle et l'export ou l'import des réglages.
+- *Informations* ne garde que les informations techniques, le choix du dossier bloqué sur les postes et la démonstration. La rubrique *Qualité, conservation et archivage* devient *Qualité et conservation* : l'archive annuelle a rejoint le nouveau sous-onglet.
+- Messages de l'outil, guides et fiches du kit renvoient au nouveau sous-onglet.
+
 ## 1.57.1 — 3 novembre 2026
 
 - **Raccourci du dossier des exports** : le bouton *Télécharger un raccourci pour le bureau* produisait un fichier « .download » inutilisable. Edge et Chrome bloquent le téléchargement des fichiers de raccourci (.url), jugés dangereux. Il est remplacé par la marche à suivre pour créer le raccourci directement dans Windows (*Copier le chemin*, puis clic droit sur le bureau → *Nouveau* → *Raccourci*). Le service informatique peut aussi le déployer par stratégie de groupe.

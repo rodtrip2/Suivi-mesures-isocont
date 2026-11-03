@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
- * Travail hors réseau sur un poste désigné (demande du porteur), Administration → Informations.
+ * Travail hors réseau sur un poste désigné (demande du porteur), Administration → Sauvegardes et exports.
  * 1. L'outil : mise en cache par le navigateur (app/sw.js), possible seulement si l'outil est servi en HTTPS
  *    (intranet ou page GitHub). Sans HTTPS (outil ouvert depuis le partage), le service informatique copie
  *    l'outil sur le poste (kit/outils/copie-locale-outil.ps1, document 10).

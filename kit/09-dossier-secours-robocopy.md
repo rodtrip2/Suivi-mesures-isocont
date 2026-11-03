@@ -6,7 +6,7 @@
 
 Une tâche planifiée lance toutes les 15 à 30 minutes le script fourni `kit/outils/miroir-robocopy.ps1`. Le script copie le dossier des données de l'outil vers un dossier de secours, de préférence sur un autre serveur. Les fichiers copiés restent **chiffrés** : le compte qui exécute la copie ne voit aucune donnée lisible.
 
-Cette copie complète, sans la remplacer, la synchronisation que l'outil sait faire depuis un poste relié (*Administration → Informations*). Elle ne dépend ni d'un navigateur ouvert, ni d'un agent connecté. Les deux mécanismes peuvent fonctionner ensemble, ainsi que les copies locales des postes désignés pour le travail hors réseau (document 10) : le dossier principal garde l'état de chaque copie.
+Cette copie complète, sans la remplacer, la synchronisation que l'outil sait faire depuis un poste relié (*Administration → Sauvegardes et exports*). Elle ne dépend ni d'un navigateur ouvert, ni d'un agent connecté. Les deux mécanismes peuvent fonctionner ensemble, ainsi que les copies locales des postes désignés pour le travail hors réseau (document 10) : le dossier principal garde l'état de chaque copie.
 
 **Où l'installer.** De préférence sur un **serveur**, qui reste allumé. À défaut, sur un poste de travail identifié, toujours allumé, et dont le nom est noté dans le dossier d'exploitation. Si la machine est éteinte, rien n'est copié : l'administrateur de l'outil est alerté après 24 h sans copie.
 
@@ -35,7 +35,7 @@ Cette copie complète, sans la remplacer, la synchronisation que l'outil sait fa
 schtasks /Create /TN "SuiviIsoCont - dossier de secours" /SC MINUTE /MO 15 /RU DOMAINE\svc-isocont-secours /RP * /RL LIMITED /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\SuiviIsoCont\miroir-robocopy.ps1"
 ```
 
-6. **Dans l'outil**, l'administrateur ouvre *Administration → Informations → Dossier de secours* et clique sur *Surveiller la copie robocopy (alerte après 24 h)*. L'écran indique ensuite la date de la dernière copie et la machine qui l'a faite.
+6. **Dans l'outil**, l'administrateur ouvre *Administration → Sauvegardes et exports → Dossier de secours* et clique sur *Surveiller la copie robocopy (alerte après 24 h)*. L'écran indique ensuite la date de la dernière copie et la machine qui l'a faite.
 7. **Dossier d'exploitation** : noter le nom de la machine, le compte de service, les deux chemins et l'emplacement du journal.
 
 ## 3 bis. Copie locale d'un poste désigné
@@ -52,10 +52,10 @@ Le même script tient à jour la copie locale des données d'un poste désigné 
 
 1. Les agents ouvrent le dossier de secours (*Verrouiller*, puis *Changer de dossier*). Un bandeau rouge le signale ; les comptes et les mots de passe sont les mêmes. Les saisies faites depuis la dernière copie (au plus l'intervalle de la tâche) peuvent manquer : les ressaisir à leur heure réelle.
 2. **Suspendre la tâche planifiée** tant que le serveur principal est indisponible (elle s'arrête d'elle-même sur ses contrôles, mais la suspendre évite des alertes inutiles).
-3. **Au retour du serveur principal, ne pas relancer la tâche tout de suite.** L'administrateur de l'outil ouvre le dossier principal, relie son poste au dossier de secours (*Administration → Informations → Relier ce poste au dossier de secours*), puis clique sur *Synchroniser maintenant*. L'outil reprend les saisies faites sur le dossier de secours, sans rien écraser, et retient la bonne version du coffre. Robocopy ne sait pas faire ce choix : **ne jamais copier en sens inverse avec robocopy**.
+3. **Au retour du serveur principal, ne pas relancer la tâche tout de suite.** L'administrateur de l'outil ouvre le dossier principal, relie son poste au dossier de secours (*Administration → Sauvegardes et exports → Relier ce poste au dossier de secours*), puis clique sur *Synchroniser maintenant*. L'outil reprend les saisies faites sur le dossier de secours, sans rien écraser, et retient la bonne version du coffre. Robocopy ne sait pas faire ce choix : **ne jamais copier en sens inverse avec robocopy**.
 4. Les agents rouvrent le dossier principal ; réactiver ensuite la tâche planifiée.
 
 ## 6. Déplacement des données, arrêt
 
-- Après un **déplacement des données** (*Administration → Informations → Déplacer les données*), le script s'arrête de lui-même (le dossier d'origine contient `deplace.json`). Mettre à jour le chemin `$Principal`.
+- Après un **déplacement des données** (*Administration → Sauvegardes et exports → Déplacer les données*), le script s'arrête de lui-même (le dossier d'origine contient `deplace.json`). Mettre à jour le chemin `$Principal`.
 - **Arrêt de la copie** : supprimer la tâche planifiée (`schtasks /Delete /TN "SuiviIsoCont - dossier de secours"`), puis, dans l'outil, *Ne plus utiliser de dossier de secours*.

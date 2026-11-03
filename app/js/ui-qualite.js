@@ -81,9 +81,8 @@
     var nomEnt = h('input', { type: 'text', value: o.nomEntretien, placeholder: 'Ex. : Débriefing post-isolement' });
     var cbSurv = h('input', { type: 'checkbox', checked: o.surveillanceHorsCSI });
     var duree = h('input', { type: 'number', min: 0, max: 100, value: o.conservationAns, class: 'champ-court' });
-    var anArchive = h('input', { type: 'number', min: 2000, max: 2100, value: new Date().getFullYear() - 1, class: 'champ-court' });
     var depasses = M.auDelaConservation(U.st(), o.conservationAns, Date.now());
-    return h('section', { class: 'panneau' }, h('h2', { text: 'Qualité, conservation et archivage' }),
+    return h('section', { class: 'panneau' }, h('h2', { text: 'Qualité et conservation' }),
       h('h3', { text: 'Motif du recours' }),
       h('label', { class: 'case' }, cbMotif, h('span', { text: 'Proposer le motif du recours dans la nouvelle mesure (facultatif pour l’agent ; repris dans les statistiques et le rapport annuel)' })),
       h('label', {}, 'Motifs proposés (un par ligne)', motifs),
@@ -92,18 +91,25 @@
       h('label', {}, 'Nom utilisé dans l’établissement', nomEnt),
       h('h3', { text: U.lieu('Surveillance des mesures hors CSI') }),
       h('label', { class: 'case' }, cbSurv, h('span', { text: U.lieu('Tracer aussi les professionnels chargés de la surveillance des mesures hors CSI (onglet Surveillance CSI, registre pour les catégories B, D et E)') })),
-      h('h3', { text: 'Durée de conservation et archive annuelle' }),
+      h('h3', { text: 'Durée de conservation' }),
       h('p', { class: 'muted', text: 'La durée de conservation est fixée par l’établissement avec son délégué à la protection des données (DPO, référent RGPD), en cohérence avec les règles du registre et du dossier médical. Le journal n’étant jamais modifié, l’outil ne supprime rien : il signale les patients dont la dernière mesure dépasse cette durée, à traiter selon la procédure validée par le délégué.' }),
       h('label', { class: 'en-ligne' }, 'Durée de conservation (années, 0 = non fixée)', duree),
       o.conservationAns ? h('div', { class: depasses.length ? 'alerte' : 'info', text: depasses.length ? depasses.length + ' patient(s) dont la dernière mesure s’est terminée il y a plus de ' + o.conservationAns + ' ans : ' + depasses.slice(0, 10).map(function (x) { return (x.patient.ipp ? 'IPP ' + x.patient.ipp : x.patient.nom) + ' (' + jour(x.derniereFin) + ')'; }).join(', ') + (depasses.length > 10 ? '…' : '') + '.' : 'Aucun patient au-delà de la durée de conservation.' }) : null,
-      h('div', { class: 'actions gauche' }, h('label', { class: 'en-ligne' }, 'Archive de l’année', anArchive),
-        h('button', { class: 'btn', type: 'button', onclick: function () { archiver(+anArchive.value); } }, 'Télécharger l’archive (CSV)')),
-      h('small', { class: 'muted', text: 'L’archive réunit le registre de chaque service et les statistiques de l’année ; nominative (IPP), elle s’enregistre sur le réseau de l’établissement. Conservez aussi une copie du dossier de l’outil à la clôture de l’année.' }),
+      h('small', { class: 'muted', text: 'Archive annuelle (registres et statistiques) : Administration → Sauvegardes et exports.' }),
       U.boutonEnregistrer(async function () {
         var liste = motifs.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
         if (cbMotif.checked && !liste.length) throw new Error('Indiquez au moins un motif du recours.');
         await U.enregistrerConfig([['qualite', { motifRecours: cbMotif.checked, motifsRecours: liste, entretien: cbEnt.checked, nomEntretien: nomEnt.value.trim(), surveillanceHorsCSI: cbSurv.checked, conservationAns: Math.max(0, Math.round(+duree.value || 0)) }]]);
       }));
+  }
+
+  /** Archive annuelle (Administration → Sauvegardes et exports). */
+  function panneauArchive() {
+    var anArchive = h('input', { type: 'number', min: 2000, max: 2100, value: new Date().getFullYear() - 1, class: 'champ-court' });
+    return h('section', { class: 'panneau' }, h('h2', { text: 'Archive annuelle' }),
+      h('p', { class: 'muted', text: 'L’archive réunit le registre de chaque service et les statistiques de l’année, en un fichier CSV. Nominative (IPP), elle s’enregistre dans le dossier des exports, sur le réseau de l’établissement. Conservez aussi une copie de sauvegarde complète à la clôture de l’année.' }),
+      h('div', { class: 'actions gauche' }, h('label', { class: 'en-ligne' }, 'Archive de l’année', anArchive),
+        h('button', { class: 'btn', type: 'button', onclick: function () { archiver(+anArchive.value); } }, 'Enregistrer l’archive (CSV)')));
   }
 
   function archiver(annee) {
@@ -238,5 +244,5 @@
     U.toast('Export enregistré au journal.');
   }
 
-  U.qualite = { champMotif: champMotif, modaleEntretien: modaleEntretien, detailMesure: detailMesure, entretiensARenseigner: entretiensARenseigner, panneauAdmin: panneauAdmin, sectionsStats: sectionsStats, modaleRapport: modaleRapport, exporterPatient: exporterPatient };
+  U.qualite = { panneauArchive: panneauArchive, champMotif: champMotif, modaleEntretien: modaleEntretien, detailMesure: detailMesure, entretiensARenseigner: entretiensARenseigner, panneauAdmin: panneauAdmin, sectionsStats: sectionsStats, modaleRapport: modaleRapport, exporterPatient: exporterPatient };
 })();

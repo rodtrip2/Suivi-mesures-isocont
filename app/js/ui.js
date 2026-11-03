@@ -394,7 +394,7 @@
     document.body.appendChild(a); a.click(); a.remove();
   }
   /**
-   * Enregistre un export dans le dossier des exports (Administration → Établissement et services) ;
+   * Enregistre un export dans le dossier des exports (Administration → Sauvegardes et exports) ;
    * en cas d'échec (droits du partage…), le fichier est téléchargé sur le poste, avec un avertissement.
    */
   async function exporter(categorie, nom, contenu, type, options) {
@@ -449,7 +449,7 @@
       var sous = filtreSv.value ? [filtreSv.value] : [];
       var chemin = M.cheminWindowsExports(config(), sous);
       if (!chemin) {
-        zoneChemin.appendChild(h('small', { class: 'muted', text: s.peut('CONFIG') ? 'Pour proposer un accès direct au dossier depuis Windows, renseignez le chemin réseau du dossier des données (Administration → Établissement et services → Dossier des exports).' : 'Accès direct au dossier depuis Windows : demandez à l’administrateur de renseigner le chemin réseau.' }));
+        zoneChemin.appendChild(h('small', { class: 'muted', text: s.peut('CONFIG') ? 'Pour proposer un accès direct au dossier depuis Windows, renseignez le chemin réseau du dossier des données (Administration → Sauvegardes et exports → Dossier des exports).' : 'Accès direct au dossier depuis Windows : demandez à l’administrateur de renseigner le chemin réseau.' }));
         return;
       }
       var nomRaccourci = 'Exports isolement-contention' + (filtreSv.value ? ' - ' + filtreSv.value : '');
@@ -1309,7 +1309,7 @@
           h('div', {}, h('b', { text: 'Concurrente : ' }), resumeEvt(b), ' — ', App.session.nomAuteur(b.by), ' ', choix(b, a)));
       })) : null;
     var complet = niveau === 'complet';
-    var manquants = complet && etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Détail, réparation depuis une copie ou prise d’acte : Administration → Informations.' }) : null;
+    var manquants = complet && etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Détail, réparation depuis une copie ou prise d’acte : Administration → Sauvegardes et exports.' }) : null;
     var rejetes = complet && App.session.rejetes.length ? h('div', { class: 'erreur', text: App.session.rejetes.length + ' fichier(s) illisible(s) ou altéré(s) ignoré(s) : ' + App.session.rejetes.map(function (r) { return r.nom; }).join(', ') }) : null;
 
     var lignes = visibles.slice().reverse().slice(0, 400);
@@ -2293,9 +2293,10 @@
     selConservation.addEventListener('change', majApercuPurge); majApercuPurge();
     var pExports = h('section', { class: 'panneau' }, h('h2', { text: 'Dossier des exports' }),
       h('p', { class: 'muted', text: 'Les décomptes JLD (PDF, CSV), registres, statistiques, registres pour communication, données d’un patient (droit d’accès) et archives sont enregistrés automatiquement dans ce sous-dossier du dossier des données, classés par catégorie, et consultables par le bouton « Exports » en haut de l’écran. Ces fichiers ne sont pas chiffrés : le dossier doit garder les mêmes droits d’accès que le dossier des données. Les copies de sauvegarde et les mots de passe provisoires restent téléchargés à part (ils ne doivent pas rester sur le partage).' }),
+      h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: modaleExports }, 'Voir les fichiers exportés')),
       h('label', {}, 'Sous-dossier (ex. « exports », « exports/unite-1 »)', tExports),
       h('label', {}, 'Chemin réseau du dossier des données (facultatif, pour l’accès direct depuis Windows)', tReseau),
-      h('small', { class: 'muted', text: 'Ex. \\\\serveur\\partage\\SuiviIsoCont ou Z:\\SuiviIsoCont. La fenêtre « Exports » propose alors de copier le chemin du dossier de chaque service et un raccourci Windows à placer sur le bureau. Le navigateur ne connaît pas ce chemin : il est à recopier depuis l’Explorateur.' }),
+      h('small', { class: 'muted', text: 'Ex. \\\\serveur\\partage\\SuiviIsoCont ou Z:\\SuiviIsoCont. La fenêtre « Exports » propose alors de copier le chemin du dossier de chaque service et explique comment créer un raccourci sur le bureau. Le navigateur ne connaît pas ce chemin : il est à recopier depuis l’Explorateur.' }),
       h('label', {}, 'Durée de conservation des exports', selConservation), h('div', {}, h('b', {}, apercuPurge)),
       h('small', { class: 'muted', text: 'Purge automatique : à la première connexion de la journée sur chaque poste, les fichiers du dossier des exports plus anciens que cette durée (date d’enregistrement) sont supprimés, et la purge est inscrite au journal. La durée est à fixer avec le délégué à la protection des données ; elle ne concerne que les exports, jamais les données de l’outil ni le registre.' }),
       h('div', { class: 'actions gauche' }, h('button', { class: 'btn', type: 'button', onclick: async function () {
@@ -2620,26 +2621,28 @@
       var note = h('section', { class: 'panneau' }, h('h2', { text: 'Administration en mode formation' }),
         h('p', { text: 'Le paramétrage ci-dessous ne concerne que le jeu de formation. Les comptes, les clés de sécurité et l’import se gèrent depuis les données réelles.' }));
       return sousOngletsAdmin([
-        ['services', 'Établissement et services', [note, pServices, pLieuNom, pSurv, pTiers, pOrgJLD, pExports]],
+        ['services', 'Établissement et services', [note, pServices, pLieuNom, pSurv, pTiers, pOrgJLD]],
         ['regles', 'Règles et pauses', [note, pRegles, pPauses]],
         ['alertes', 'Alertes', [note, SIC.ui.alertes.panneauAdmin()]],
         ['cas', 'Cas particuliers', [note, SIC.ui.cas.panneauAdmin()]],
         ['registre', 'Registre et statistiques', [note, pDocs, pColsP, SIC.ui.methode.panneauAdmin(), SIC.ui.qualite.panneauAdmin()]],
         ['decompte', 'Décompte JLD', [note, pMasques]],
+        ['sauvegardes', 'Sauvegardes et exports', [note, pExports]],
         ['infos', 'Informations', [note, infos]],
         ['apropos', 'À propos', SIC.ui.apropos.panneau()]
       ]);
     }
     return sousOngletsAdmin([
       ['comptes', 'Comptes et sécurité', [comptes, SIC.ui.roles.panneau(), deblocage, SIC.ui.formation.sectionAdmin()]],
-      ['services', 'Établissement et services', [pServices, pLieuNom, SIC.ui.listes.panneauModes(), pSurv, SIC.ui.listes.panneauListes(), pTiers, pOrgJLD, SIC.ui.listes.panneauVigilance(), SIC.ui.listes.panneauAccueil(), pExports]],
+      ['services', 'Établissement et services', [pServices, pLieuNom, SIC.ui.listes.panneauModes(), pSurv, SIC.ui.listes.panneauListes(), pTiers, pOrgJLD, SIC.ui.listes.panneauVigilance(), SIC.ui.listes.panneauAccueil()]],
       ['regles', 'Règles et pauses', [pRegles, pPauses]],
       ['alertes', 'Alertes', [SIC.ui.alertes.panneauAdmin()]],
       ['cas', 'Cas particuliers', [SIC.ui.cas.panneauAdmin()]],
       ['registre', 'Registre et statistiques', [pDocs, pColsP, SIC.ui.methode.panneauAdmin(), SIC.ui.qualite.panneauAdmin()]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
-      ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), SIC.ui.miroir.panneau(), SIC.ui.verrou.panneau(), SIC.ui.reglages.panneau(), demo]],
+      ['sauvegardes', 'Sauvegardes et exports', [SIC.ui.sauvegarde.panneau(), SIC.ui.miroir.panneau(), pExports, SIC.ui.qualite.panneauArchive(), SIC.ui.reglages.panneau()]],
+      ['infos', 'Informations', [infos, SIC.ui.verrou.panneau(), demo]],
       ['apropos', 'À propos', [SIC.ui.apropos.panneau(), SIC.ui.version.panneau()]]
     ]);
 

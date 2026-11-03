@@ -276,7 +276,7 @@
     vigilance: { isolementRouge: 48, contentionRouge: 24, isolementJaune: 24, contentionJaune: 12 },
     // Affichage : mesures terminées visibles dans la liste (jours), contact et consigne de l'écran de connexion, logo (image data:)
     affichage: { mesuresTermineesJours: 15, contact: '', consigne: '', logo: '' },
-    // Dossier de secours (miroir) : attendu ou non, nom du dossier (le lien est propre à chaque poste) — Administration → Informations
+    // Dossier de secours (miroir) : attendu ou non, nom du dossier (le lien est propre à chaque poste) — Administration → Sauvegardes et exports
     miroir: { attendu: false, nom: '' },
     // Bloquer le changement de dossier sur les postes (déblocage par un administrateur) — Administration → Informations
     verrouDossier: false,
@@ -2224,7 +2224,7 @@
     if (importe.alertes && importe.alertes.some(function (r) { return r.active; })) avert.push('Les alertes actives ne s’appliqueront qu’aux mesures saisies après l’import, jamais à l’historique.');
     if (importe.parametres) avert.push('Les règles légales (seuils et cycles JLD) seront modifiées : à n’importer qu’en cas d’évolution des textes, après vérification.');
     if (importe.verrouDossier === true) avert.push('Le choix du dossier sera bloqué sur les postes à leur prochaine connexion.');
-    if (importe.exports && JSON.stringify((importe.exports || {}).cheminReseau) !== JSON.stringify((config.exports || {}).cheminReseau)) avert.push('Le chemin réseau du dossier des exports change : vérifiez-le (Établissement et services → Dossier des exports).');
+    if (importe.exports && JSON.stringify((importe.exports || {}).cheminReseau) !== JSON.stringify((config.exports || {}).cheminReseau)) avert.push('Le chemin réseau du dossier des exports change : vérifiez-le (Sauvegardes et exports → Dossier des exports).');
     return { changements: changements, avertissements: avert };
   }
 

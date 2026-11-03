@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
- * Dossier de secours (miroir) et déplacement des données (Administration → Informations), demande du porteur.
+ * Dossier de secours (miroir) et déplacement des données (Administration → Sauvegardes et exports), demande du porteur.
  * - Dossier de secours : second dossier, de préférence sur un autre serveur, tenu à jour par les postes qui y sont
  *   reliés (à la connexion puis toutes les 10 minutes). Les saisies sont réunies dans les deux sens : si le dossier
  *   principal est indisponible, on peut travailler sur le dossier de secours, puis tout est repris au retour.
@@ -85,7 +85,7 @@
     if (etat.principal && etat.principal.role === 'secours') {
       res.push(h('li', { class: 'urgent' }, h('b', { text: etat.principal.type === 'local' ? 'Travail hors réseau' : 'Dossier de secours' }), ' — ' + (etat.principal.type === 'local'
         ? 'vous travaillez sur la copie locale de ce poste. Dès que le réseau revient, verrouillez puis « Reprendre » le dossier habituel : les saisies faites ici y seront reprises automatiquement.'
-        : 'vous travaillez sur le dossier de secours. Dès que le dossier principal est de nouveau accessible, ouvrez-le et synchronisez (Administration → Informations) : les saisies faites ici y seront reprises.')));
+        : 'vous travaillez sur le dossier de secours. Dès que le dossier principal est de nouveau accessible, ouvrez-le et synchronisez (Administration → Sauvegardes et exports) : les saisies faites ici y seront reprises.')));
       return res;
     }
     if (!s.peut('CONFIG')) return res;
@@ -95,7 +95,7 @@
     var robo = srv && srv.outil === 'robocopy';
     if (!der || Date.now() - der > ALERTE_HEURES * 3600000) res.push(h('li', {}, h('b', { text: 'Dossier de secours' }), ' — ' + (der ? 'dernière synchronisation le ' + U.date(der) : 'jamais synchronisé') + '. ' + (robo
       ? 'La copie est faite par une tâche planifiée robocopy' + (srv.poste ? ' (poste ou serveur ' + srv.poste + ')' : '') + ' : prévenez le service informatique (machine éteinte, tâche arrêtée, accès refusé ?).'
-      : 'Reliez un poste utilisé chaque jour au dossier de secours (Administration → Informations).')));
+      : 'Reliez un poste utilisé chaque jour au dossier de secours (Administration → Sauvegardes et exports).')));
     return res;
   }
 

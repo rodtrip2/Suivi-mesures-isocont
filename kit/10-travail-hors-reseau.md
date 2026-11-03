@@ -8,23 +8,23 @@ Pendant une panne du réseau, un poste perd à la fois l'outil (s'il est servi p
 
 | Élément | Outil servi en HTTPS (intranet HTTPS ou page GitHub) | Outil ouvert sans HTTPS (depuis le partage ou un intranet en HTTP) |
 | --- | --- | --- |
-| **L'outil** | Mis en cache par le navigateur : *Administration → Informations → Garder l'outil disponible hors réseau sur ce poste*. Chaque fichier est contrôlé par son empreinte SHA-256 avant d'être gardé ; mises à jour automatiques. | Copié sur le disque du poste par le service informatique : script `outils/copie-locale-outil.ps1` (ci-dessous). Le poste utilise **toujours** cette copie locale (raccourci du bureau), en temps normal comme en panne. |
-| **Les données** | Copie locale des données : *Administration → Informations → Créer une copie locale des données sur ce poste*. | Idem, en ouvrant l'outil depuis sa copie locale. |
+| **L'outil** | Mis en cache par le navigateur : *Administration → Sauvegardes et exports → Garder l'outil disponible hors réseau sur ce poste*. Chaque fichier est contrôlé par son empreinte SHA-256 avant d'être gardé ; mises à jour automatiques. | Copié sur le disque du poste par le service informatique : script `outils/copie-locale-outil.ps1` (ci-dessous). Le poste utilise **toujours** cette copie locale (raccourci du bureau), en temps normal comme en panne. |
+| **Les données** | Copie locale des données : *Administration → Sauvegardes et exports → Créer une copie locale des données sur ce poste*. | Idem, en ouvrant l'outil depuis sa copie locale. |
 
-La **copie locale des données** est un dossier de secours placé sur le disque du poste : chiffrée comme le dossier principal, tenue à jour par le poste à la connexion puis toutes les 10 minutes. Le dossier principal garde la liste des copies (nom du poste, date de la dernière copie), visible dans *Administration → Informations*.
+La **copie locale des données** est un dossier de secours placé sur le disque du poste : chiffrée comme le dossier principal, tenue à jour par le poste à la connexion puis toutes les 10 minutes. Le dossier principal garde la liste des copies (nom du poste, date de la dernière copie), visible dans *Administration → Sauvegardes et exports*.
 
 ## 2. Conditions à réunir avant la mise en place
 
 - **Accord du délégué à la protection des données et du responsable de la sécurité informatique (RSSI)** : des données de santé, chiffrées, sont copiées sur le disque des postes désignés. À ajouter à l'analyse d'impact (document 05).
 - **Liste nominative des postes désignés** (ex. un poste infirmier par unité), tenue à jour ; disque **chiffré par BitLocker** ; session Windows verrouillée en l'absence de l'agent.
 - **Dossier local réservé** aux agents habilités (droits NTFS), par exemple `C:\SuiviIsoCont-local`, exclu des sauvegardes du poste et de toute synchronisation vers un service extérieur (OneDrive personnel…).
-- À la réforme ou au changement d'affectation d'un poste : *Retirer la copie locale* dans l'outil, suppression du dossier local, puis *Retirer de la liste* dans *Administration → Informations*.
+- À la réforme ou au changement d'affectation d'un poste : *Retirer la copie locale* dans l'outil, suppression du dossier local, puis *Retirer de la liste* dans *Administration → Sauvegardes et exports*.
 
 ## 3. Mise en place
 
 ### 3.1 Outil servi en HTTPS
 
-1. Sur le poste désigné, l'administrateur se connecte et ouvre *Administration → Informations → Travail hors réseau sur ce poste*.
+1. Sur le poste désigné, l'administrateur se connecte et ouvre *Administration → Sauvegardes et exports → Travail hors réseau sur ce poste*.
 2. *Garder l'outil disponible hors réseau sur ce poste* : l'outil est mis en cache (une minute environ).
 3. *Créer une copie locale des données sur ce poste…* : saisir le nom du poste (ex. `PC-UHP-IDE-1`), puis choisir le dossier local **vide** ; autoriser l'accès quand le navigateur le demande.
 4. Intranet seulement : la page doit autoriser son script de mise en cache. Ajouter `worker-src 'self'` à l'en-tête de sécurité de l'intranet, et servir le fichier `sw.js` avec un en-tête propre qui l'autorise à relire les fichiers du site, par exemple sous IIS :
@@ -58,7 +58,7 @@ schtasks /Create /TN "SuiviIsoCont - copie locale" /SC MINUTE /MO 15 /RU DOMAINE
 ```
 
 - La tâche s'exécute même si personne n'est connecté (compte de service avec lecture et écriture sur le dossier principal et sur le dossier local).
-- Elle reprend l'identifiant de la copie créée par l'outil : l'outil et la tâche tiennent à jour la même ligne du tableau des dossiers de secours (*Administration → Informations*).
+- Elle reprend l'identifiant de la copie créée par l'outil : l'outil et la tâche tiennent à jour la même ligne du tableau des dossiers de secours (*Administration → Sauvegardes et exports*).
 - Mêmes garanties que pour le dossier de secours du serveur : contrôles avant copie, aucune suppression, aucun fichier plus récent écrasé, exports exclus. Le retour des saisies faites hors réseau se fait toujours par l'outil (paragraphe 5).
 - Garder aussi la copie locale créée dans l'outil (3.1, étape 3) : c'est elle qui propose *Travailler hors réseau* à l'écran d'accueil et qui reprend les saisies au retour.
 
@@ -77,9 +77,9 @@ Sur un poste désigné, un bandeau orange apparaît en haut de l'outil, pour tou
 1. Sur le poste désigné : *Verrouiller*, *Changer de dossier*, puis **Reprendre** le dossier habituel.
 2. Dès la connexion, le poste synchronise sa copie locale : les saisies faites hors réseau sont reprises dans le dossier principal, sans rien écraser. Si plusieurs postes ont travaillé hors réseau, toutes leurs saisies sont réunies ; deux saisies concurrentes sur une même mesure sont signalées dans le *Journal* (saisies en conflit), comme d'habitude.
 3. Ressaisir dans l'outil ce qui a été tracé sur papier par les autres postes.
-4. L'administrateur vérifie dans *Administration → Informations* la date de la dernière copie de chaque poste.
+4. L'administrateur vérifie dans *Administration → Sauvegardes et exports* la date de la dernière copie de chaque poste.
 
 ## 6. Vérifications
 
-- **Chaque mois** : journal de la tâche planifiée de chaque poste désigné (`%ProgramData%\SuiviIsoCont\miroir-robocopy.log`) ; liste des copies locales et date de leur dernière mise à jour (*Administration → Informations*) ; postes désignés toujours en service.
+- **Chaque mois** : journal de la tâche planifiée de chaque poste désigné (`%ProgramData%\SuiviIsoCont\miroir-robocopy.log`) ; liste des copies locales et date de leur dernière mise à jour (*Administration → Sauvegardes et exports*) ; postes désignés toujours en service.
 - **Chaque année**, avec le test des procédures de secours : sur un poste désigné, débrancher le réseau, ouvrir l'outil, *Travailler hors réseau*, se connecter, vérifier les dernières saisies, puis rebrancher et *Reprendre*. Ne rien saisir pendant le test, ou utiliser le mode formation.

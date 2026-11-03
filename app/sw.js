@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
  * Mise en cache de l'outil sur un poste (option « Garder l'outil disponible hors réseau sur ce poste »,
- * Administration → Informations), demande du porteur. Enregistré seulement sur les postes choisis, quand l'outil
+ * Administration → Sauvegardes et exports), demande du porteur. Enregistré seulement sur les postes choisis, quand l'outil
  * est servi en HTTPS (intranet ou page GitHub). Ne met en cache que les fichiers de l'application (pages, scripts,
  * styles, images), jamais les données, qui restent dans le dossier choisi.
  * - Installation : chaque fichier listé dans EMPREINTES-SHA256.txt est téléchargé puis contrôlé par son empreinte

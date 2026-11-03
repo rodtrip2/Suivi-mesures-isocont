@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: EUPL-1.2
 /*
- * Robustesse des données : état des données (Administration → Informations), copie du coffre sous scellé,
+ * Robustesse des données : état des données (Administration → Sauvegardes et exports), copie du coffre sous scellé,
  * copie de sauvegarde complète et rappel, contrôle d'intégrité, restauration (coffre perdu ou abîmé,
  * dossier vide). Les fichiers produits restent chiffrés : inutilisables sans un moyen de déblocage.
  * Stockage : store.js (versionsCoffre, restaurerCoffre, copieComplete, restaurerCopie, repères) ;
@@ -84,7 +84,7 @@
     })).join('\n');
   }
 
-  /** Bloc « Anomalies » d'Administration → Informations : détail, copie pour le service informatique, réparation, quarantaine, prise d'acte, historique. */
+  /** Bloc « Anomalies » d'Administration → Sauvegardes et exports : détail, copie pour le service informatique, réparation, quarantaine, prise d'acte, historique. */
   function blocIntegrite(r, rafraichir) {
     var s = U.App.session, admin = s.peut('INTEGRITE'), zoneErr = h('div'), out = h('div', { class: 'pile' }, zoneErr);
     var lignes = lignesAnomalies(r);
@@ -175,17 +175,17 @@
     var s = U.App.session, res = [], admin = s.peut('CONFIG');
     if (!(admin || s.peut('CORRECTION'))) return res;
     var pbs = texteIntegrite(s.integrite) || [];
-    if (pbs.length) res.push(h('li', { class: 'urgent' }, h('b', { text: 'Intégrité des données' }), ' — ' + pbs.join(' ; ') + '. ' + (admin ? 'Détail, liste à transmettre au service informatique, réparation ou prise d’acte : Administration → Informations.' : 'Prévenez l’administrateur.')));
+    if (pbs.length) res.push(h('li', { class: 'urgent' }, h('b', { text: 'Intégrité des données' }), ' — ' + pbs.join(' ; ') + '. ' + (admin ? 'Détail, liste à transmettre au service informatique, réparation ou prise d’acte : Administration → Sauvegardes et exports.' : 'Prévenez l’administrateur.')));
     if (admin && !s.formation && U.App.dossier.mode !== 'demo') {
       var der = s.derniereCopie(), n = rappelJours();
-      if (n && (!der || Date.now() - der > n * J)) res.push(h('li', {}, h('b', { text: 'Copie de sauvegarde' }), ' — ' + (der ? 'dernière copie complète le ' + U.date(der).slice(0, 10) : 'aucune copie complète téléchargée') + ' (rappel tous les ' + n + ' jours). Administration → Informations.'));
+      if (n && (!der || Date.now() - der > n * J)) res.push(h('li', {}, h('b', { text: 'Copie de sauvegarde' }), ' — ' + (der ? 'dernière copie complète le ' + U.date(der).slice(0, 10) : 'aucune copie complète téléchargée') + ' (rappel tous les ' + n + ' jours). Administration → Sauvegardes et exports.'));
       var sc = s.etatScelle();
-      if (!sc || !sc.aJour) res.push(h('li', {}, h('b', { text: 'Copie du coffre sous scellé' }), ' — ' + (!sc ? 'jamais faite' : 'à refaire : le code de secours a été renouvelé depuis') + '. Administration → Informations.'));
+      if (!sc || !sc.aJour) res.push(h('li', {}, h('b', { text: 'Copie du coffre sous scellé' }), ' — ' + (!sc ? 'jamais faite' : 'à refaire : le code de secours a été renouvelé depuis') + '. Administration → Sauvegardes et exports.'));
     }
     return res;
   }
 
-  // ------------------------------------------------------------ Administration → Informations
+  // ------------------------------------------------------------ Administration → Sauvegardes et exports
   function panneau() {
     var s = U.App.session;
     var zone = h('div', { class: 'pile' }, h('div', { class: 'muted', text: 'Lecture de l’état des données…' }));
@@ -269,7 +269,7 @@
         zoneErr, h('label', {}, 'Copie de sauvegarde (fichier .json)', fichier),
         h('button', { class: 'btn', type: 'button', onclick: async function (ev) {
           var b = ev.currentTarget; b.disabled = true; U.erreurDans(zoneErr, null);
-          try { var c = await lireFichierJSON(fichier); var n = await U.App.dossier.restaurerCopie(c); U.App.message = 'Copie restaurée (' + n + ' fichiers de saisie). Connectez-vous, puis vérifiez l’état des données (Administration → Informations).'; apres(); }
+          try { var c = await lireFichierJSON(fichier); var n = await U.App.dossier.restaurerCopie(c); U.App.message = 'Copie restaurée (' + n + ' fichiers de saisie). Connectez-vous, puis vérifiez l’état des données (Administration → Sauvegardes et exports).'; apres(); }
           catch (e) { U.erreurDans(zoneErr, e); } finally { b.disabled = false; }
         } }, 'Restaurer la copie')));
     return details;
