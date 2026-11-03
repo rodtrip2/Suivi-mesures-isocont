@@ -139,20 +139,32 @@
   }
 
   /** Crée (ou change) la copie locale des données de ce poste. */
+  /**
+   * Création de la copie locale : nom du poste et choix du dossier dans une même fenêtre. Le sélecteur de dossier
+   * est ouvert directement par le clic sur « Choisir le dossier… » : le navigateur exige un geste récent de l'agent
+   * (une saisie dans prompt() ou une alert() avant le sélecteur fait échouer showDirectoryPicker).
+   */
   async function relierLocal() {
     var s = U.App.session;
-    var nom = prompt('Nom Windows de ce poste, pour la liste des postes désignés (ex. PC-UHP-IDE-1) :', nomPoste());
-    if (nom === null) return;
-    nom = nom.trim().slice(0, 40);
-    if (!nom) throw new Error('Indiquez le nom du poste.');
-    alert('Choisissez maintenant un dossier VIDE sur le disque de ce poste (ex. C:\\SuiviIsoCont-local), accessible aux seuls agents habilités. Le disque doit être chiffré (BitLocker).');
-    var d = await choisir('sic-local');
-    var nature = await s.controlerMiroir(d);
-    if (etat.poste && await etat.poste.memeQue(d)) throw new Error('Ce dossier est déjà le dossier de secours du service : choisissez un dossier sur le disque de ce poste.');
-    if (!confirm('Créer la copie locale des données dans « ' + d.nom + ' » ?\n\nLes données de santé, chiffrées, seront copiées sur ce poste et tenues à jour toutes les 10 minutes. À réserver aux postes désignés par l’établissement (disque chiffré, accord du délégué à la protection des données).' + (nature === 'meme' ? '\n\nCe dossier contient déjà une copie de ces données : elle sera complétée.' : ''))) return;
-    try { localStorage.setItem('sic-nom-poste', nom); } catch (e) { /* sans effet */ }
-    await SIC.Dossier.relierMiroir(d, 'local'); etat.local = d;
-    await s.tracer('HORS_RESEAU', { libelle: 'Copie locale des données créée sur le poste « ' + nom + ' » (dossier « ' + d.nom + ' »)' });
+    var champ = h('input', { type: 'text', maxlength: 40, value: nomPoste(), placeholder: 'Ex. PC-UHP-IDE-1' });
+    var fait = await U.modale('Copie locale des données sur ce poste', h('div', { class: 'pile' },
+      h('label', {}, 'Nom Windows de ce poste (pour la liste des postes désignés)', champ),
+      h('p', { class: 'muted', text: 'Choisissez ensuite un dossier VIDE sur le disque de ce poste (ex. C:\\SuiviIsoCont-local), accessible aux seuls agents habilités. Le disque doit être chiffré (BitLocker).' })), [
+      { texte: 'Annuler' },
+      { texte: 'Choisir le dossier…', classe: 'primaire', action: async function () {
+        var nom = champ.value.trim().slice(0, 40);
+        if (!nom) throw new Error('Indiquez le nom du poste.');
+        var d;
+        try { d = await choisir('sic-local'); } catch (e) { if (e && e.name === 'AbortError') return false; throw e; }
+        var nature = await s.controlerMiroir(d);
+        if (etat.poste && await etat.poste.memeQue(d)) throw new Error('Ce dossier est déjà le dossier de secours du service : choisissez un dossier sur le disque de ce poste.');
+        if (!confirm('Créer la copie locale des données dans « ' + d.nom + ' » ?\n\nLes données de santé, chiffrées, seront copiées sur ce poste et tenues à jour toutes les 10 minutes. À réserver aux postes désignés par l’établissement (disque chiffré, accord du délégué à la protection des données).' + (nature === 'meme' ? '\n\nCe dossier contient déjà une copie de ces données : elle sera complétée.' : ''))) return false;
+        try { localStorage.setItem('sic-nom-poste', nom); } catch (e) { /* sans effet */ }
+        await SIC.Dossier.relierMiroir(d, 'local'); etat.local = d;
+        await s.tracer('HORS_RESEAU', { libelle: 'Copie locale des données créée sur le poste « ' + nom + ' » (dossier « ' + d.nom + ' »)' });
+        return true;
+      } }], { focus: champ });
+    if (!fait) return;
     var r = await synchroniser(true, 'local');
     if (r) U.toast('Copie locale à jour : ' + r.versAutre + ' fichier(s) copié(s).');
   }

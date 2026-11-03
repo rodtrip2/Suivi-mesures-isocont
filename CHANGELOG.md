@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.61.1 — 3 novembre 2026
+
+- **Correction : création de la copie locale d'un poste.** Le choix du dossier échouait avec le message « Must be handling a user gesture to show a file picker ». Le navigateur n'ouvre le sélecteur de dossier qu'aussitôt après un clic, et la saisie du nom du poste puis le message d'information le retardaient. Le nom du poste se saisit désormais dans une fenêtre dont le bouton *Choisir le dossier…* ouvre directement le sélecteur.
+
 ## 1.61.0 — 3 novembre 2026
 
 - **Décompte JLD** : quand le service est placé à la ligne, sa ligne a sa **propre mise en forme** (taille, gras, italique, position, espace au-dessus), indépendante de celle de l'établissement. Le réglage apparaît dans *Mise en forme des titres* dès que *Service à la ligne* est choisi. Sans réglage propre, le service reprend la mise en forme de l'établissement, comme jusqu'ici.

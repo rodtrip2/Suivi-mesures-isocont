@@ -142,6 +142,7 @@ Ce fichier rassemble les consignes du porteur du projet et les conventions de tr
 
 ## 11. Architecture et conventions de code
 
+- **Sélecteur de dossier** (`showDirectoryPicker`) : toujours appelé directement par le clic de l'agent, sans `prompt()`, `alert()`, `confirm()` ni fenêtre avant lui (le navigateur exige un geste récent, environ 5 s ; erreur « Must be handling a user gesture » signalée par le porteur pour la copie locale) ; demander les informations dans une fenêtre dont le bouton ouvre le sélecteur, confirmer après.
 - HTML, CSS et JavaScript sans dépendance ni étape de construction (`app/`). Construction du DOM avec l'aide `h()`, **jamais `innerHTML`** ; styles par classes CSS ou CSSOM (`el.style.setProperty`), jamais d'attribut `style` ni de `<style>` (CSP).
 - Modules : `rules.js` (moteur légal), `model.js` (réduction du journal, registre, statistiques, décompte), `crypto.js`, `store.js`, `session.js`, `import-v13.js`, `ui*.js`. La logique métier reste dans `rules.js` / `model.js` (testable sous Node) ; l'interface ne fait qu'afficher.
 - Les paramètres ont une valeur par défaut dans `CONFIG_DEFAUT` et sont validés à la lecture (`optionsPauses`, `masqueDecompte`, `colonnesPatients`…).

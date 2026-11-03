@@ -26,7 +26,7 @@ La **copie locale des données** est un dossier de secours placé sur le disque 
 
 1. Sur le poste désigné, l'administrateur se connecte et ouvre *Administration → Sauvegardes et exports → Travail hors réseau sur ce poste*.
 2. *Garder l'outil disponible hors réseau sur ce poste* : l'outil est mis en cache (une minute environ).
-3. *Créer une copie locale des données sur ce poste…* : saisir le nom du poste (ex. `PC-UHP-IDE-1`), puis choisir le dossier local **vide** ; autoriser l'accès quand le navigateur le demande.
+3. *Créer une copie locale des données sur ce poste…* : saisir le nom du poste (ex. `PC-UHP-IDE-1`), puis *Choisir le dossier…* et désigner le dossier local **vide** ; autoriser l'accès quand le navigateur le demande.
 4. Intranet seulement : la page doit autoriser son script de mise en cache. Ajouter `worker-src 'self'` à l'en-tête de sécurité de l'intranet, et servir le fichier `sw.js` avec un en-tête propre qui l'autorise à relire les fichiers du site, par exemple sous IIS :
 
 ```
