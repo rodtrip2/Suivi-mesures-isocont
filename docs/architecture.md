@@ -84,3 +84,7 @@ Rotation de la clé de données, export du registre au format tableur natif, int
 ## Enregistrement en PDF
 
 `app/js/pdf.js` écrit les fichiers PDF du décompte JLD sans bibliothèque externe : polices standard Helvetica (codage WinAnsi, accents français), paragraphes et tableaux avec retour à la ligne et saut de page (en-tête de tableau répété), aplats et filets, image JPEG du papier à en-tête (première page ou toutes), numéros de page. Le contenu est celui du document imprimé (`contenu()` dans `ui-decompte.js`).
+
+## Export et import des réglages
+
+`M.exporterReglages` produit un fichier JSON (format `suivi-isocont-reglages`, version 1) regroupé par rubriques (`M.GROUPES_REGLAGES`) ; les réglages propres aux données (`M.REGLAGES_EXCLUS`) n'en sortent jamais. À l'import, `M.analyserReglages` contrôle le format et le type de chaque valeur, puis ajuste ce qui dépend des données présentes (date d'activation des alertes, méthode antérieure des statistiques, services et rôles utilisés). `M.reglagesAImporter` donne les changements des rubriques cochées et les avertissements. L'interface (`ui-reglages.js`) enregistre ces changements en un lot de saisies `CONFIG`, annulable en une fois. Un test vérifie que chaque paramètre de `CONFIG_DEFAUT` est rangé dans une rubrique ou exclu.

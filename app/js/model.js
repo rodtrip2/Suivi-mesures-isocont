@@ -2008,10 +2008,156 @@
     };
   }
 
+  // ------------------------------------------------------------------ Export et import des réglages
+  // Fichier JSON en clair, sans aucune donnée de patient, ni compte, ni mot de passe : paramétrage seulement.
+  // Groupes = rubriques de l'administration ; les réglages propres aux données (numérotation, rapports annuels,
+  // dossier de secours) ne sont jamais exportés. Tout nouveau paramètre de CONFIG_DEFAUT doit figurer dans un groupe
+  // ou dans REGLAGES_EXCLUS (test unitaire).
+  var FORMAT_REGLAGES = 'suivi-isocont-reglages';
+  var GROUPES_REGLAGES = [
+    { code: 'etablissement', libelle: 'Établissement, services et lieux d’isolement', cles: ['etablissement', 'services', 'lieuxCSI', 'lieuIsolement'] },
+    { code: 'psychiatres', libelle: 'Liste des psychiatres (noms)', cles: ['psychiatres'] },
+    { code: 'saisie', libelle: 'Postes de surveillance, modes d’hospitalisation et listes de saisie', cles: ['periodes', 'periodesService', 'surveillance', 'modesHospitalisation', 'listes', 'informateursTiers', 'organisationJLD'] },
+    { code: 'affichage', libelle: 'Points de vigilance et écran de connexion (contact, consigne, logo)', cles: ['vigilance', 'affichage'] },
+    { code: 'roles', libelle: 'Rôles et accès, verrouillage après inactivité', cles: ['roles', 'inactiviteMinutes'] },
+    { code: 'legal', libelle: 'Règles légales (seuils et cycles JLD)', cles: ['parametres'], prudence: true },
+    { code: 'pauses', libelle: 'Pauses et délai de bascule du mode d’hospitalisation', cles: ['pauses', 'delaiModeHospiHeures'] },
+    { code: 'alertes', libelle: 'Alertes de l’établissement', cles: ['alertes'] },
+    { code: 'cas', libelle: 'Cas particuliers', cles: ['casParticuliers'] },
+    { code: 'registre', libelle: 'Registre, statistiques et qualité', cles: ['colonnesPatients', 'statsMethode', 'qualite'] },
+    { code: 'decompte', libelle: 'Décompte JLD (masques, papier à en-tête)', cles: ['decompte', 'imagesDecompte'] },
+    { code: 'technique', libelle: 'Exports, rappel des sauvegardes, postes de travail', cles: ['exports', 'sauvegarde', 'verrouDossier', 'verificationVersion'] }
+  ];
+  var REGLAGES_EXCLUS = { compteursRegistre: 1, registreFige: 1, derniersClasseur: 1, registreFigeMesures: 1, rapportsAnnuels: 1, miroir: 1 };
+  var REGLAGES_SUPPLEMENTAIRES = { imagesDecompte: {} };   // paramètres sans valeur par défaut dans CONFIG_DEFAUT
+
+  function groupeDeCle(cle) { return GROUPES_REGLAGES.filter(function (g) { return g.cles.indexOf(cle) >= 0; })[0] || null; }
+  function natureValeur(v) { return v === null ? 'null' : Array.isArray(v) ? 'tableau' : typeof v; }
+
+  /**
+   * Fichier des réglages : `groupes` = codes des groupes à exporter (tous par défaut).
+   * `meta` : { outil (version), etablissement, maintenant (ms) }.
+   */
+  function exporterReglages(config, groupes, meta) {
+    meta = meta || {};
+    var choisis = GROUPES_REGLAGES.filter(function (g) { return !groupes || groupes.indexOf(g.code) >= 0; });
+    var reglages = {};
+    choisis.forEach(function (g) {
+      g.cles.forEach(function (k) {
+        if (config[k] === undefined) return;
+        var v = cloner(config[k]);
+        if (k === 'statsMethode' && v) delete v.methodesAnterieures;   // propre à l'historique de ces données
+        if (k === 'alertes' && Array.isArray(v)) v = v.map(function (r) { var x = Object.assign({}, r); delete x.depuis; return x; });
+        reglages[k] = v;
+      });
+    });
+    return { format: FORMAT_REGLAGES, version: 1, outil: meta.outil || '', exporteLe: new Date(meta.maintenant || Date.now()).toISOString(),
+      etablissement: meta.etablissement || config.etablissement || '', groupes: choisis.map(function (g) { return g.code; }), reglages: reglages };
+  }
+
+  /**
+   * Analyse un fichier de réglages avant import. `ctx` : { servicesUtilises: [codes], rolesUtilises: [codes], maintenant }.
+   * Retourne { source, groupes: [{ code, libelle, prudence, cles: [{ cle, valeur, change }], change }], ignores: [{ cle, raison }] }.
+   * Lève une erreur si le fichier n'est pas un fichier de réglages de l'outil.
+   */
+  function analyserReglages(fichier, config, ctx) {
+    ctx = ctx || {};
+    if (!fichier || typeof fichier !== 'object' || fichier.format !== FORMAT_REGLAGES) throw new Error('Ce fichier n’est pas un fichier de réglages de l’outil (export « Réglages » de l’administration).');
+    if (!(fichier.version >= 1) || fichier.version > 1) throw new Error('Ce fichier de réglages vient d’une version plus récente de l’outil (format ' + fichier.version + ') : mettez d’abord l’outil à jour.');
+    var src = fichier.reglages;
+    if (!src || natureValeur(src) !== 'object') throw new Error('Le fichier de réglages est vide ou abîmé.');
+    var ignores = [], parGroupe = {};
+    Object.keys(src).forEach(function (k) {
+      if (REGLAGES_EXCLUS[k]) { ignores.push({ cle: k, raison: 'propre aux données d’origine, jamais importé' }); return; }
+      var g = groupeDeCle(k);
+      var defaut = CONFIG_DEFAUT[k] !== undefined ? CONFIG_DEFAUT[k] : REGLAGES_SUPPLEMENTAIRES[k];
+      if (!g || defaut === undefined) { ignores.push({ cle: k, raison: 'inconnu de cette version de l’outil' }); return; }
+      if (natureValeur(src[k]) !== natureValeur(defaut)) { ignores.push({ cle: k, raison: 'valeur invalide' }); return; }
+      var notes = [], v = ajusterReglage(k, cloner(src[k]), config, ctx, notes);
+      (parGroupe[g.code] = parGroupe[g.code] || []).push({ cle: k, valeur: v, note: notes.join(' '), change: JSON.stringify(v) !== JSON.stringify(config[k] === undefined ? defaut : config[k]) });
+    });
+    var groupes = GROUPES_REGLAGES.filter(function (g) { return parGroupe[g.code]; }).map(function (g) {
+      var cles = parGroupe[g.code];
+      return { code: g.code, libelle: g.libelle, prudence: !!g.prudence, cles: cles, change: cles.some(function (c) { return c.change; }) };
+    });
+    return { source: { etablissement: String(fichier.etablissement || ''), exporteLe: fichier.exporteLe || '', outil: String(fichier.outil || '') }, groupes: groupes, ignores: ignores };
+  }
+
+  /** Adapte une valeur importée aux données présentes (sans jamais retirer ce qui est utilisé). */
+  function ajusterReglage(k, v, config, ctx, notes) {
+    if (k === 'alertes') {
+      // Une alerte ne s'applique qu'aux mesures saisies après son activation : jamais à l'historique.
+      var actuelles = alertesConfig(config);
+      return v.filter(function (r) { return r && typeof r === 'object'; }).map(function (r) {
+        var a = actuelles.filter(function (x) { return x.id === r.id; })[0];
+        return Object.assign({}, r, { depuis: r.active ? (a && a.active && a.declencheur === r.declencheur ? (a.depuis || 0) : (ctx.maintenant || Date.now())) : 0 });
+      });
+    }
+    if (k === 'statsMethode') {
+      var ant = (config.statsMethode || {}).methodesAnterieures;
+      delete v.methodesAnterieures;
+      if (ant) v.methodesAnterieures = cloner(ant);
+      return v;
+    }
+    if (k === 'services') {
+      v = v.filter(function (x) { return x && typeof x.code === 'string' && x.code.trim(); });
+      var codes = v.map(function (x) { return x.code; }), gardes = [];
+      (ctx.servicesUtilises || []).forEach(function (c) {
+        if (codes.indexOf(c) >= 0) return;
+        var a = (config.services || []).filter(function (x) { return x.code === c; })[0];
+        v.push(a ? cloner(a) : { code: c, libelle: c });
+        codes.push(c); gardes.push(c);
+      });
+      if (gardes.length) notes.push('Service(s) absent(s) du fichier mais utilisé(s) dans ces données (mesures ou comptes), conservé(s) : ' + gardes.join(', ') + '.');
+      return v;
+    }
+    if (k === 'roles') {
+      var act = config.roles || {}, rgardes = [];
+      (ctx.rolesUtilises || []).forEach(function (c) {
+        if (c === 'ADMIN' || ROLES_FOURNIS.indexOf(c) >= 0) return;
+        if ((!v[c] || v[c].supprime) && act[c]) { v[c] = cloner(act[c]); rgardes.push(act[c].libelle || c); }
+      });
+      if (rgardes.length) notes.push('Rôle(s) attribué(s) à des comptes mais absent(s) du fichier, conservé(s) : ' + rgardes.join(', ') + '.');
+      return v;
+    }
+    return v;
+  }
+
+  /**
+   * Changements à enregistrer pour les groupes choisis, et avertissements sur leur cohérence avec les données.
+   * Retourne { changements: [[cle, valeur]], avertissements: [texte] }.
+   */
+  function reglagesAImporter(analyse, groupesChoisis, config, ctx) {
+    ctx = ctx || {};
+    var changements = [], avert = [], finale = Object.assign({}, config);
+    analyse.groupes.forEach(function (g) {
+      if (groupesChoisis.indexOf(g.code) < 0) return;
+      g.cles.forEach(function (c) { if (c.change) { changements.push([c.cle, c.valeur]); finale[c.cle] = c.valeur; } });
+    });
+    var importe = {}; changements.forEach(function (c) { importe[c[0]] = c[1]; });
+    analyse.groupes.forEach(function (g) {
+      if (groupesChoisis.indexOf(g.code) >= 0) g.cles.forEach(function (c) { if (c.change && c.note) avert.push(c.note); });
+    });
+    var codesSv = (finale.services || []).map(function (x) { return x.code; });
+    var orphelins = {};
+    function voir(c) { if (c && c !== '*' && codesSv.indexOf(c) < 0) orphelins[c] = 1; }
+    if (importe.lieuxCSI) Object.keys(importe.lieuxCSI).forEach(voir);
+    if (importe.periodesService) Object.keys(importe.periodesService).forEach(voir);
+    if (importe.decompte) Object.keys(importe.decompte).forEach(voir);
+    if (importe.alertes) importe.alertes.forEach(function (r) { (r.services || []).forEach(voir); });
+    if (importe.roles) Object.keys(importe.roles).forEach(function (k) { var r = importe.roles[k]; if (r && Array.isArray(r.services)) r.services.forEach(voir); });
+    if (Object.keys(orphelins).length) avert.push('Réglages prévus pour des services qui n’existent pas ici (sans effet tant que ces services n’existent pas) : ' + Object.keys(orphelins).join(', ') + '.');
+    if (importe.alertes && importe.alertes.some(function (r) { return r.active; })) avert.push('Les alertes actives ne s’appliqueront qu’aux mesures saisies après l’import, jamais à l’historique.');
+    if (importe.parametres) avert.push('Les règles légales (seuils et cycles JLD) seront modifiées : à n’importer qu’en cas d’évolution des textes, après vérification.');
+    if (importe.verrouDossier === true) avert.push('Le choix du dossier sera bloqué sur les postes à leur prochaine connexion.');
+    if (importe.exports && JSON.stringify((importe.exports || {}).cheminReseau) !== JSON.stringify((config.exports || {}).cheminReseau)) avert.push('Le chemin réseau du dossier des exports change : vérifiez-le (Établissement et services → Dossier des exports).');
+    return { changements: changements, avertissements: avert };
+  }
+
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, GROUPES_REGLAGES: GROUPES_REGLAGES, REGLAGES_EXCLUS: REGLAGES_EXCLUS, exporterReglages: exporterReglages, analyserReglages: analyserReglages, reglagesAImporter: reglagesAImporter, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

@@ -77,6 +77,10 @@ Onglet *Administration* :
 | Rôles et accès | Facultatif : adapter le libellé et les accès des rôles fournis (IDE, AS, secrétaire, cadre de santé), créer des rôles propres à l'établissement (ex. direction des soins, consultation seule) ; le rôle Administrateur est fixe. |
 | Comptes | Un compte par agent, avec ses rôles (IDE, AS, secrétaire, cadre, administrateur, ou rôles créés) et ses **services affectés**. Pour toute une équipe : *Créer des comptes en lot…* (voir ci-dessous). Chaque compte reçoit un mot de passe provisoire tiré au hasard ; l'agent doit le remplacer à sa première connexion. |
 
+### Reprendre un paramétrage préparé ailleurs
+
+*Administration → Informations → Réglages : export et import.* Le paramétrage peut être préparé et validé dans un dossier d'essai (données fictives), puis exporté (fichier `.json`) et importé dans le dossier des données réelles. Il peut aussi venir d'un autre établissement qui utilise l'outil. À l'import, l'outil montre les rubriques qui changent ; l'administrateur coche celles à reprendre. Les règles légales sont décochées par prudence. Les services et rôles déjà utilisés ne sont jamais retirés, et les alertes importées ne s'appliquent qu'aux mesures saisies ensuite. L'import tient en une ligne du journal, annulable en une fois. Le fichier ne contient ni donnée de patient, ni compte, ni mot de passe. Avant de le transmettre hors de l'établissement, décocher à l'export la liste des psychiatres, l'écran de connexion (contact) et les exports (chemin réseau).
+
 ### Créer les comptes d'une équipe en une fois
 
 1. Préparer la liste dans un tableur, une ligne par agent, colonnes : **Nom affiché**, **Identifiant** (facultatif), **Rôles** (facultatif), **Services** (facultatif). Exemple :

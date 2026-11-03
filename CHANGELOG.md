@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.56.0 — 3 novembre 2026
+
+- **Export et import des réglages** (*Administration → Informations*) : le paramétrage de l'établissement s'exporte dans un fichier `.json`, rubrique par rubrique, sans aucune donnée de patient, ni compte, ni mot de passe. Usages : reporter dans les données réelles un paramétrage préparé dans un dossier d'essai, partager un paramétrage avec un autre établissement.
+- **Import contrôlé** : l'outil affiche les rubriques qui changent, l'administrateur coche celles à reprendre (règles légales décochées par prudence). Les services et rôles utilisés ne sont jamais retirés ; les alertes importées ne s'appliquent qu'aux mesures saisies ensuite ; la numérotation du registre antérieur, les rapports annuels et le dossier de secours ne sont jamais repris. L'import tient en une ligne du journal, annulable en une fois.
+
 ## 1.55.1 — 3 novembre 2026
 
 - **Correction : saisies signalées à tort comme illisibles.** Un fichier de saisie qui n'avait pas pu être lu au moment de la connexion (partage momentanément indisponible, fichier verrouillé ou en cours de synchronisation) restait considéré comme illisible pendant toute la session, et ses saisies manquaient à l'écran. Il est désormais relu à chaque synchronisation (toutes les 5 secondes) et sort de la liste des anomalies dès qu'il est lu.
