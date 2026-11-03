@@ -30,7 +30,7 @@
     var cfg = U.config();
     // Copie de travail des rôles réglables (l'administrateur est fixe)
     var liste = M.rolesConfig(cfg).filter(function (r) { return !r.admin; }).map(function (r) {
-      return { code: r.code, libelle: r.libelle, acces: r.acces.slice(), services: r.services, journal: r.journal, fourni: r.fourni };
+      return { code: r.code, libelle: r.libelle, acces: r.acces.slice(), services: r.services, journal: r.journal, registreAnonyme: !!r.registreAnonyme, fourni: r.fourni };
     });
     var avant = JSON.parse(JSON.stringify(liste));
     var zone = h('div', { class: 'pile' }), zoneErr = h('div');
@@ -54,13 +54,20 @@
       var selJournal = h('select', { 'aria-label': 'Journal des saisies', onchange: function () { r.journal = selJournal.value; majNote(); } },
         M.NIVEAUX_JOURNAL.map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: r.journal === x.code }); }));
       majNote();
+      // Rôle « registre anonymisé seulement » (rôles créés) : remplace les accès et le journal
+      var grilleAcces = h('div', { class: 'grille-acces' }, cases), blocJournal = h('label', {}, 'Journal des saisies', selJournal);
+      var cbAnonyme = r.fourni ? null : h('input', { type: 'checkbox', checked: !!r.registreAnonyme, onchange: function () { r.registreAnonyme = cbAnonyme.checked; majAnonyme(); } });
+      var noteAnonyme = h('small', { class: 'muted', text: 'Seul l’onglet Registre est ouvert, dans sa version anonymisée (identifiant et âge du patient, psychiatre, soignants et lieu occultés ; dates sans l’heure) : ni mesures, ni patients, ni journal, ni exports. Les agents peuvent l’imprimer ou l’exporter en CSV (tracé au journal). Exemple : représentant des usagers, membre d’une instance, direction qui n’a pas à connaître les patients.' });
+      function majAnonyme() { var a = !!r.registreAnonyme; grilleAcces.hidden = a; blocJournal.hidden = a; noteJournal.hidden = a || noteJournal.hidden; noteAnonyme.hidden = !a; }
+      majAnonyme();
       return h('fieldset', { class: 'role' },
         h('legend', {}, r.libelle || r.code),
         h('div', { class: 'grille-2' }, h('label', {}, 'Libellé', lib),
           h('div', { class: 'muted' }, h('small', { text: (r.fourni ? 'Rôle fourni avec l’outil' : 'Rôle propre à l’établissement') + ' — code ' + r.code + ' — ' + n + ' compte(s) actif(s)' }))),
-        h('div', { class: 'grille-acces' }, cases),
+        cbAnonyme ? h('label', { class: 'case' }, cbAnonyme, h('span', { text: 'Accès limité au registre anonymisé (consultation seule, aucune donnée nominative)' })) : null, noteAnonyme,
+        grilleAcces,
         h('label', { class: 'case' }, tous, h('span', { text: 'Accès à tous les services (sans affectation de services au compte), par exemple pour une direction des soins' })),
-        h('label', {}, 'Journal des saisies', selJournal), noteJournal,
+        blocJournal, noteJournal,
         h('div', { class: 'actions gauche' },
           r.fourni ? h('button', { class: 'btn petit', type: 'button', onclick: function () {
             r.acces = M.accesDefaut(r.code); r.services = true; r.libelle = M.ROLES[r.code]; r.journal = M.rolesConfig({}).filter(function (x) { return x.code === r.code; })[0].journal; dessiner();
@@ -77,7 +84,7 @@
         h('small', { class: 'muted', text: 'Rôle fixe : réglages, comptes et clés, imports, annulation de toute saisie, intégrité des données, accès à tous les services, journal complet. Il ne se modifie pas, pour qu’un établissement ne puisse pas perdre l’accès aux réglages ; il se cumule avec un autre rôle.' })));
     }
 
-    var modele = h('select', { 'aria-label': 'Modèle du nouveau rôle' }, h('option', { value: '', text: 'aucun accès' }),
+    var modele = h('select', { 'aria-label': 'Modèle du nouveau rôle' }, h('option', { value: '', text: 'aucun accès' }), h('option', { value: '__anonyme', text: 'registre anonymisé seulement' }),
       liste.map(function (r) { return h('option', { value: r.code, text: 'copie de « ' + r.libelle + ' »' }); }));
     var nomNouveau = h('input', { type: 'text', maxlength: 40, placeholder: 'Ex. : Interne, Direction des soins, Psychologue…' });
     var ajout = h('div', { class: 'actions gauche' },
@@ -87,7 +94,7 @@
         var libelle = nomNouveau.value.trim();
         if (!libelle) return U.erreurDans(zoneErr, new Error('Indiquez le libellé du nouveau rôle.'));
         var src = liste.filter(function (x) { return x.code === modele.value; })[0];
-        liste.push({ code: nouveauCode(libelle, liste.map(function (x) { return x.code; }).concat(['ADMIN'])), libelle: libelle, acces: src ? src.acces.slice() : [], services: src ? src.services : true, journal: src ? src.journal : 'services', fourni: false });
+        liste.push({ code: nouveauCode(libelle, liste.map(function (x) { return x.code; }).concat(['ADMIN'])), libelle: libelle, acces: src ? src.acces.slice() : [], services: src ? src.services : true, journal: src ? src.journal : 'services', registreAnonyme: modele.value === '__anonyme' || !!(src && src.registreAnonyme), fourni: false });
         nomNouveau.value = ''; dessiner();
       } }, '+ Ajouter'));
 
@@ -102,20 +109,22 @@
           if (!l) throw new Error('Un rôle n’a pas de libellé.');
           if (vus[l.toLowerCase()] || l.toLowerCase() === M.ROLES.ADMIN.toLowerCase()) throw new Error('Deux rôles portent le libellé « ' + l + ' ».');
           vus[l.toLowerCase()] = 1;
-          valeur[r.code] = { libelle: l, acces: r.acces.slice(), services: !!r.services, journal: r.journal };
+          valeur[r.code] = { libelle: l, acces: r.registreAnonyme ? [] : r.acces.slice(), services: !!r.services, journal: r.journal };
+          if (r.registreAnonyme) valeur[r.code].registreAnonyme = true;
         });
         // Résumé des changements, à confirmer
         var lignes = [];
         liste.forEach(function (r) {
           var a = avant.filter(function (x) { return x.code === r.code; })[0], n = comptesAvec(r.code).length;
-          if (!a) { lignes.push('Nouveau rôle « ' + r.libelle + ' » : ' + resumeAcces(r.acces) + ' ; journal : ' + minuscule(libJournal(r.journal)) + '.'); return; }
+          if (!a) { lignes.push('Nouveau rôle « ' + r.libelle + ' » : ' + (r.registreAnonyme ? 'registre anonymisé seulement' : resumeAcces(r.acces) + ' ; journal : ' + minuscule(libJournal(r.journal))) + '.'); return; }
           var plus = r.acces.filter(function (x) { return a.acces.indexOf(x) < 0; }), moins = a.acces.filter(function (x) { return r.acces.indexOf(x) < 0; });
           var ch = [];
           if (a.libelle !== r.libelle.trim()) ch.push('renommé « ' + r.libelle.trim() + ' »');
           if (plus.length) ch.push('accès ajoutés : ' + resumeAcces(plus));
           if (moins.length) ch.push('accès retirés : ' + resumeAcces(moins));
           if (a.services !== r.services) ch.push(r.services ? 'limité aux services affectés' : 'accès à tous les services');
-          if (a.journal !== r.journal) ch.push('journal : ' + minuscule(libJournal(r.journal)));
+          if (a.journal !== r.journal && !r.registreAnonyme) ch.push('journal : ' + minuscule(libJournal(r.journal)));
+          if (!!a.registreAnonyme !== !!r.registreAnonyme) ch.push(r.registreAnonyme ? 'accès limité au registre anonymisé' : 'accès complet rétabli selon les cases cochées');
           if (ch.length) lignes.push('« ' + a.libelle + ' » (' + n + ' compte(s)) : ' + ch.join(' ; ') + '.');
         });
         avant.forEach(function (a) { if (!liste.some(function (r) { return r.code === a.code; })) lignes.push('Rôle « ' + a.libelle + ' » supprimé.'); });

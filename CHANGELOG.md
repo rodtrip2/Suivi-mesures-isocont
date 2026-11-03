@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.65.0 — 3 novembre 2026
+
+- **Rôle « registre anonymisé seulement »** (*Administration → Comptes et sécurité → Rôles et accès*) : *Nouveau rôle* à partir du modèle *registre anonymisé seulement*, ou case *Accès limité au registre anonymisé* d'un rôle créé. Les agents qui le portent n'ont qu'un onglet, *Registre*, dans sa version anonymisée. Les occultations les plus protectrices s'appliquent sans réglage : identifiant et âge du patient, psychiatre, soignants et lieu occultés, dates sans l'heure. Ces agents n'ont accès ni aux mesures, ni aux patients, ni au journal, ni aux exports. Impression et export CSV possibles, tracés au journal.
+- Ce rôle convient par exemple à un représentant des usagers ou à un membre d'une instance. La liste *Affichage* de l'administrateur permet de le vérifier.
+
 ## 1.64.0 — 3 novembre 2026
 
 - **Voir l'affichage d'un rôle** (administrateur) : une liste *Affichage* dans l'en-tête montre l'outil tel qu'un agent portant ce rôle le voit (IDE, aide-soignant, secrétaire, cadre de santé, rôles créés par l'établissement). Les onglets, les boutons et le journal suivent les droits du rôle, sur tous les services ; la liste des services permet de se placer dans l'un d'eux.

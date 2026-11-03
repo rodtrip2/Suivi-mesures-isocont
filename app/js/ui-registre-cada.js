@@ -98,5 +98,34 @@
       } }]);
   };
 
+  /**
+   * Onglet Registre d'un compte « registre anonymisé seulement » (demande du porteur) : la version occultée, avec les
+   * choix les plus protecteurs (M.OCCULTATION_DEFAUT), sans réglage possible ; impression et export CSV tracés.
+   */
+  U.actions.vueRegistreAnonyme = function (service, annee, selAn, maintenant) {
+    selAn.classList.add('champ-court');
+    if (!service) return h('p', { class: 'muted', text: 'Aucun service n’est affecté à votre compte : demandez-le à l’administrateur.' });
+    var r = M.registreCommunicable(U.st(), service, annee, maintenant || Date.now(), M.OCCULTATION_DEFAUT, FMT);
+    function tracer(format) { return U.App.session.tracer('REGISTRE_ANONYME', { libelle: U.libService(service) + ' ' + annee + ' — ' + format + ' — ' + r.occultations.join(' ; ') }); }
+    return h('div', {},
+      h('div', { class: 'barre' }, h('h1', { text: 'Registre anonymisé' }), h('div', { class: 'espace' }),
+        h('label', { class: 'en-ligne' }, 'Année', selAn),
+        h('button', { class: 'btn', type: 'button', onclick: async function () {
+          await tracer('CSV');
+          await U.exporter('communication', 'registre_anonymise_' + service + '_' + annee + '.csv', csv(service, annee, r, ''), 'text/csv;charset=utf-8', { sansTrace: true, service: service });
+        } }, 'Exporter (CSV)'),
+        h('button', { class: 'btn primaire', type: 'button', onclick: async function () {
+          await tracer('impression');
+          var doc = documentRegistre(service, annee, r, '');
+          setTimeout(function () { U.imprimer(doc); }, 50);
+        } }, 'Imprimer / PDF')),
+      h('p', { class: 'muted', text: 'Version du registre sans aucune donnée permettant d’identifier les patients ou les soignants (' + r.occultations.join(' ; ') + '). C’est la seule partie de l’outil ouverte à votre compte. Choisissez le service dans la liste en haut de l’écran.' }),
+      r.lignes.length ? h('div', { class: 'table-wrap' }, h('table', {},
+        h('thead', {}, h('tr', {}, r.colonnes.map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, r.lignes.map(function (l) { return h('tr', {}, l.map(function (v) { return h('td', { text: v }); })); }))))
+        : h('p', { class: 'muted', text: 'Aucune entrée au registre de ' + U.libService(service) + ' pour ' + annee + '.' }),
+      h('p', { class: 'muted', text: 'Catégories : ' + Object.keys(M.LIB_CATEGORIES).map(function (k) { return k + ' = ' + U.lieu(M.LIB_CATEGORIES[k]); }).join(' ; ') + '.' }));
+  };
+
   U.actions.documentRegistreCADA = documentRegistre;
 })();
