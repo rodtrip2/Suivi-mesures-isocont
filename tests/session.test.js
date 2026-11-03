@@ -514,3 +514,25 @@ test('Vérification d’un administrateur (déblocage du choix du dossier) sans 
   assert.equal(await Session.verifierAdministrateur(d, '', code), 'code de secours');
   await assert.rejects(Session.verifierAdministrateur(d, '', 'AAAA-BBBB-CCCC-DDDD-EEEE'), /Code de secours incorrect/);
 });
+
+test('Lecture d’une saisie en échec passager : relue à la synchronisation suivante, sans rester signalée illisible', async () => {
+  const { racine, admin } = await nouveauDossier();
+  await admin.enregistrer('PATIENT', { patientId: 'P1', nom: 'P1 (fictif)' });
+  // Un autre poste se connecte pendant que le fichier est momentanément illisible (réseau, synchronisation…)
+  const mois = racine.e.get('evenements');
+  const fichiers = [];
+  (function parcourir(rep) { for (const v of rep.e.values()) { if (v.kind === 'directory') parcourir(v); else fichiers.push(v); } })(mois);
+  const cible = fichiers.find((f) => /\.enc$/.test(f.name) && f.data.length > 0);
+  const getFile = cible.getFile.bind(cible);
+  let panne = true;
+  cible.getFile = async () => { if (panne) throw Object.assign(new Error('fichier verrouillé'), { name: 'NotReadableError' }); return getFile(); };
+  const poste = await connecter(racine, 'admin', 'mot de passe solide');
+  assert.equal(poste.rejetes.length, 1);
+  assert.match(poste.rejetes[0].raison, /lecture refusée par le système/);
+  panne = false;
+  await poste.synchroniser();
+  assert.equal(poste.rejetes.length, 0);
+  assert.ok(poste.etat.patients.P1);
+  const r = await poste.verifierIntegrite();
+  assert.equal(r.fichiersIllisibles.length, 0);
+});

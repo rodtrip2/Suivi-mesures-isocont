@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.55.1 — 3 novembre 2026
+
+- **Correction : saisies signalées à tort comme illisibles.** Un fichier de saisie qui n'avait pas pu être lu au moment de la connexion (partage momentanément indisponible, fichier verrouillé ou en cours de synchronisation) restait considéré comme illisible pendant toute la session, et ses saisies manquaient à l'écran. Il est désormais relu à chaque synchronisation (toutes les 5 secondes) et sort de la liste des anomalies dès qu'il est lu.
+- **Diagnostic** : le détail des anomalies d'intégrité indique la raison de chaque échec de lecture (fichier vide, tronqué, lecture refusée par le système, déchiffrement impossible…) et la taille du fichier.
+
 ## 1.55.0 — 3 novembre 2026
 
 - **Ouverture dans une fenêtre séparée** : bouton *Installer comme application* (en-tête, écran d'accueil et de connexion), affiché quand Edge ou Chrome le permet. Une fois installé, l'outil s'ouvre dans sa propre fenêtre, sans onglets ni barre d'adresse, avec son icône sur le bureau, dans le menu Démarrer et la barre des tâches.

@@ -62,7 +62,7 @@
     var s = U.App.session, res = [], parId = {};
     if (!r) return res;
     s.evts.forEach(function (e) { parId[e.id] = e.by; });
-    r.fichiersIllisibles.forEach(function (f) { res.push({ nature: 'Fichier illisible (abîmé, modifié ou chiffré par un autre outil)', chemin: f.chemin, agent: agentDeNom(f.nom), date: dateDeNom(f.nom), conseil: 'à restaurer ou mettre en quarantaine' }); });
+    r.fichiersIllisibles.forEach(function (f) { res.push({ nature: 'Fichier illisible' + (f.raison ? ' — ' + f.raison : ' (abîmé, modifié ou chiffré par un autre outil)'), chemin: f.chemin, agent: agentDeNom(f.nom), date: dateDeNom(f.nom), conseil: 'à restaurer ou mettre en quarantaine' }); });
     var illisibles = {}; r.fichiersIllisibles.forEach(function (f) { illisibles[f.nom.replace(/\.enc$/, '')] = true; });
     r.listeManquants.filter(function (x) { return !illisibles[x.id]; }).forEach(function (x) { res.push({ nature: 'Saisie absente (trou dans le chaînage)', chemin: x.chemin, agent: x.by, date: dateDeNom(x.id), conseil: 'à restaurer' }); });
     r.disparus.forEach(function (nom) { var id = nom.replace(/\.enc$/, ''); res.push({ nature: 'Saisie disparue du partage depuis l’ouverture de la session', chemin: M.cheminEvenement(nom), agent: parId[id] || agentDeNom(nom), date: dateDeNom(nom), conseil: 'à restaurer' }); });

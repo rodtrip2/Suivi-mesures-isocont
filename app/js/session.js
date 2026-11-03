@@ -379,7 +379,7 @@
   Session.prototype.verifierIntegrite = async function () {
     var s = this, d = dossierActif(this), etat = this.etat || { manquants: [], manquantsAcquis: [] };
     var res = { verifieLe: Date.now(), reperes: [], disparus: [],
-      fichiersIllisibles: this.rejetes.map(function (r) { return { nom: r.nom, chemin: r.chemin || M.cheminEvenement(r.nom), raison: r.raison || '' }; }),
+      fichiersIllisibles: this.rejetes.map(function (r) { return { nom: r.nom, chemin: r.chemin || M.cheminEvenement(r.nom), raison: r.raison || '', taille: r.taille }; }),
       listeManquants: etat.manquants.map(function (x) { return { id: x.manque, chemin: M.cheminEvenement(x.manque + '.enc'), by: x.by, suivant: x.evt }; }),
       manquantsAcquis: (etat.manquantsAcquis || []).length };
     res.manquants = res.listeManquants.length;
@@ -539,7 +539,11 @@
       } catch (e) { /* coffre momentanément illisible : nouvelle tentative plus tard */ }
     }
     var r = await dossierActif(this).lireNouveaux(cleActive(this), this.connus);
-    this.rejetes = this.rejetes.concat(r.rejetes);
+    // Fichiers illisibles : liste tenue à jour à chaque lecture (un fichier relu avec succès en sort)
+    var lus = {}; r.evenements.forEach(function (e) { lus[e.id + '.enc'] = true; });
+    var parNom = {}; this.rejetes.forEach(function (x) { if (!lus[x.nom]) parNom[x.nom] = x; });
+    r.rejetes.forEach(function (x) { var a = parNom[x.nom]; x.essais = (a && a.essais || 0) + 1; parNom[x.nom] = x; });
+    this.rejetes = Object.keys(parNom).map(function (k) { return parNom[k]; });
     this.derniereSynchro = Date.now();
     if (r.evenements.length || !this.etat) {
       this.evts = this.evts.concat(r.evenements);

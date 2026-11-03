@@ -440,6 +440,17 @@
     return cle < d.toISOString().slice(0, 7);
   }
 
+  /** Raison lisible d'un échec de lecture d'une saisie (diagnostic d'intégrité). */
+  function diagnosticLecture(err, taille) {
+    if (taille === 0) return 'fichier vide (0 octet) : écriture interrompue, ou fichier remplacé par un service de synchronisation (OneDrive, Google Drive…)';
+    if (taille != null && taille < 40) return 'fichier tronqué (' + taille + ' octets)';
+    var m = (err && (err.name + ' ' + err.message)) || String(err);
+    if (/nom incohérent/.test(m)) return 'contenu d’une autre saisie (fichier renommé ou copié sous un autre nom)';
+    if (/OperationError|decrypt|déchiffr/i.test(m)) return 'déchiffrement impossible (' + taille + ' octets) : fichier modifié, chiffré avec une autre clé, ou contenu remplacé';
+    if (/NotReadable|NotAllowed|Security/i.test(m)) return 'lecture refusée par le système (' + m.trim() + ') : fichier verrouillé, hors ligne ou en cours de synchronisation';
+    return m.trim() + (taille != null ? ' (' + taille + ' octets)' : '');
+  }
+
   async function lireEvenement(cle, fichier) {
     var octets = new Uint8Array(await (await fichier.getFile()).arrayBuffer());
     var e = await C.dechiffrerJSON(cle, octets, 'evt:' + fichier.name);
@@ -476,11 +487,18 @@
           var nom = fichiers[i].name;
           if (duMois[nom] || connus.has(nom)) continue; // déjà lu (instantané ou session en cours)
           try { duMois[nom] = await lireEvenement(cle, fichiers[i]); }
-          catch (err) { rejetsMois++; res.rejetes.push({ nom: nom, chemin: 'evenements/' + an.name + '/' + mois.name + '/' + nom, raison: err.message || String(err) }); }
+          catch (err) {
+            rejetsMois++;
+            var taille = null; try { taille = (await fichiers[i].getFile()).size; } catch (e2) { /* taille inconnue */ }
+            res.rejetes.push({ nom: nom, chemin: 'evenements/' + an.name + '/' + mois.name + '/' + nom, raison: diagnosticLecture(err, taille), taille: taille });
+          }
         }
+        // Un fichier illisible n'est pas marqué comme connu : il est relu à la synchronisation suivante
+        // (un échec passager — réseau, fichier en cours de synchronisation — ne doit pas masquer une saisie).
         nouveaux.forEach(function (x) {
+          if (!duMois[x.name]) return;
           connus.add(x.name);
-          if (duMois[x.name]) res.evenements.push(duMois[x.name]);
+          res.evenements.push(duMois[x.name]);
         });
         // Instantané : seulement si tous les fichiers du mois sont lisibles et en main.
         if (clos && !rejetsMois && fichiers.every(function (x) { return duMois[x.name]; })) {
