@@ -153,6 +153,7 @@
   // ---------------------------------------------------------------- Accueil
   function ecranAccueil() {
     var zoneErr = h('div');
+    if (App.message) { zoneErr.appendChild(h('div', { class: 'info', text: App.message })); App.message = null; }
     var pile = h('div', { class: 'pile' });
     var carte = h('div', { class: 'carte' }, marque(), h('p', { text: 'Les données restent dans un dossier du réseau de l’établissement, chiffrées sur ce poste avant d’y être écrites. Rien n’est envoyé sur Internet.' }), zoneErr, pile);
 
@@ -165,8 +166,9 @@
       pile.appendChild(h('div', { class: 'separateur', text: 'panne du réseau' }));
       pile.appendChild(h('button', { class: 'btn', title: 'Copie locale des données de ce poste, tenue à jour toutes les 10 minutes', onclick: function () { ouvrir(SIC.Dossier.ouvrirLocal); } }, 'Travailler hors réseau (copie locale de ce poste)'));
     }).catch(function () {});
-    SIC.Dossier.precedent().then(function (prec) {
-      if (prec) {
+    Promise.all([SIC.Dossier.precedent(), SIC.Dossier.lireVerrou().catch(function () { return null; })]).then(function (r) {
+      var prec = r[0];
+      if (prec && !(r[1] && prec.mode === 'demo')) {
         pile.insertBefore(h('button', { class: 'btn primaire', onclick: function () { ouvrir(function () { return SIC.Dossier.rouvrir(prec); }); } }, 'Reprendre : ' + prec.nom), pile.firstChild);
         pile.insertBefore(h('div', { class: 'separateur', text: 'ou' }), pile.children[1]);
       }
@@ -180,10 +182,10 @@
       if (!reseauOk) zoneChoix.appendChild(h('small', { text: 'L’ouverture d’un dossier réseau nécessite Edge ou Chrome à jour.' }));
       zoneChoix.appendChild(h('button', { class: 'btn', onclick: function () { ouvrir(SIC.Dossier.demo); } }, 'Mode démonstration (données fictives)'));
     }
-    choixLibres();
-    // Choix du dossier bloqué par l'établissement : seules les mêmes données s'ouvrent sans administrateur
-    SIC.Dossier.lireVerrou().then(function (v) {
-      if (!v) return;
+    // Choix du dossier bloqué par l'établissement : seules les mêmes données s'ouvrent sans administrateur,
+    // ni autre dossier ni mode démonstration (rien n'est proposé avant de savoir si le poste est bloqué)
+    SIC.Dossier.lireVerrou().catch(function () { return null; }).then(function (v) {
+      if (!v) { choixLibres(); astuce.hidden = false; return; }
       vider(zoneChoix);
       zoneChoix.appendChild(h('div', { class: 'info', text: 'Choix du dossier bloqué sur ce poste : données de « ' + v.nom + ' ».' }));
       zoneChoix.appendChild(h('button', { class: 'btn', disabled: !reseauOk, title: 'Dossier de secours, nouveau dossier après un déplacement…', onclick: function () { ouvrir(SIC.ui.verrou.ouvrirMemesDonnees); } }, 'Ouvrir un autre dossier de ces mêmes données…'));
@@ -193,7 +195,8 @@
         catch (e) { if (e.name !== 'AbortError') erreurDans(zoneErr, e); }
       } }, 'Débloquer le choix du dossier (administrateur)…'));
     }).catch(function () {});
-    pile.appendChild(h('small', { text: location.protocol === 'file:' ? 'Application ouverte depuis un fichier : les clés de sécurité (YubiKey) ne sont pas disponibles dans ce mode.' : 'Astuce démonstration : ouvrez un second onglet pour simuler un autre poste et observer la saisie simultanée.' }));
+    var astuce = h('small', { hidden: true, text: location.protocol === 'file:' ? 'Application ouverte depuis un fichier : les clés de sécurité (YubiKey) ne sont pas disponibles dans ce mode.' : 'Astuce démonstration : ouvrez un second onglet pour simuler un autre poste et observer la saisie simultanée.' });
+    pile.appendChild(astuce);
     return h('div', { class: 'ecran' }, carte);
   }
 
@@ -341,6 +344,28 @@
     if (a.length < 12) throw new Error('Le mot de passe doit comporter au moins 12 caractères.');
     if (a !== b) throw new Error('Les deux saisies diffèrent.');
     if (/^(.)\1+$/.test(a)) throw new Error('Ce mot de passe est trop simple.');
+  }
+
+  /**
+   * Ouverture de l'outil : si ce poste a déjà un dossier réseau dont l'accès est encore accordé par le navigateur,
+   * il est rouvert directement (invite de connexion) ; sinon, écran d'accueil (« Reprendre » demande l'accès).
+   */
+  async function demarrer() {
+    var prec = null;
+    try { prec = await SIC.Dossier.precedent(); } catch (e) { prec = null; }
+    if (prec && prec.mode === 'reseau' && prec.handle && prec.handle.queryPermission) {
+      try {
+        if ((await prec.handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
+          App.dossier = await SIC.Dossier.rouvrir(prec);
+          await demarrerSession();
+          return;
+        }
+      } catch (e) {
+        App.dossier = null; App.session = null;
+        App.message = 'Le dossier « ' + prec.nom + ' » est inaccessible pour le moment (réseau ou partage indisponible). ' + (e && e.message ? '(' + e.message + ')' : '');
+      }
+    }
+    rendre();
   }
 
   async function changerDossier() {
@@ -2738,6 +2763,6 @@
     boutonEnregistrer: boutonEnregistrer, enregistrerConfig: enregistrerConfig, changerDossier: function () { return changerDossier(); },
     lieu: lieu, exporter: exporter, telechargerOctets: telechargerOctets, detailMesure: function (m) { modaleDetail(m); }, cellEcheance: cellEcheance, selectPsychiatre: selectPsychiatre, recapMesure: recapMesure, rendreContenu: rendreContenu,
     LIB_TIERS: LIB_TIERS, LIB_STATUT: LIB_STATUT, LIB_NATURE: LIB_NATURE,
-    demarrer: rendre, verrouiller: verrouiller
+    demarrer: demarrer, verrouiller: verrouiller
   };
 })();

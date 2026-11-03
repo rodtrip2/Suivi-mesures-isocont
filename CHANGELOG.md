@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.54.1 — 3 novembre 2026
+
+- **Ouverture directe sur l'invite de connexion** : un poste qui a déjà ouvert le dossier réseau du service, et dont le navigateur a gardé l'accès, rouvre ce dossier sans clic. Si le partage est inaccessible, l'écran d'accueil l'indique et propose *Reprendre* (ou *Travailler hors réseau*).
+- **Poste au choix du dossier bloqué** : le mode démonstration n'est plus proposé (ni « Reprendre » une démonstration) ; les choix de l'écran d'accueil n'apparaissent qu'après lecture du blocage.
+
 ## 1.54.0 — 3 novembre 2026
 
 - **Choix du dossier bloqué sur les postes** (*Administration → Informations*, désactivé par défaut) : une fois activé, chaque poste retient à sa connexion suivante les données qu'il utilise. Il ne peut plus ouvrir que des dossiers contenant ces mêmes données (dossier habituel, dossier de secours, copie locale, nouveau dossier après un déplacement). Ouvrir d'autres données ou le mode démonstration demande le déblocage par un administrateur (identifiant et mot de passe, ou code de secours), vérifié sur le coffre des données du poste.
