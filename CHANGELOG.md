@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.55.0 — 3 novembre 2026
+
+- **Ouverture dans une fenêtre séparée** : bouton *Installer comme application* (en-tête, écran d'accueil et de connexion), affiché quand Edge ou Chrome le permet. Une fois installé, l'outil s'ouvre dans sa propre fenêtre, sans onglets ni barre d'adresse, avec son icône sur le bureau, dans le menu Démarrer et la barre des tâches.
+- Guide d'installation : installation sur tous les postes par la stratégie Edge `WebAppInstallForceList`, ou raccourci Windows `msedge.exe --app=…` (fenêtre séparée aussi pour un outil ouvert sans HTTPS).
+
 ## 1.54.1 — 3 novembre 2026
 
 - **Ouverture directe sur l'invite de connexion** : un poste qui a déjà ouvert le dossier réseau du service, et dont le navigateur a gardé l'accès, rouvre ce dossier sans clic. Si le partage est inaccessible, l'écran d'accueil l'indique et propose *Reprendre* (ou *Travailler hors réseau*).

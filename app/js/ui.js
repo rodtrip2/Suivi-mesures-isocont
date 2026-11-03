@@ -197,6 +197,7 @@
     }).catch(function () {});
     var astuce = h('small', { hidden: true, text: location.protocol === 'file:' ? 'Application ouverte depuis un fichier : les clés de sécurité (YubiKey) ne sont pas disponibles dans ce mode.' : 'Astuce démonstration : ouvrez un second onglet pour simuler un autre poste et observer la saisie simultanée.' });
     pile.appendChild(astuce);
+    pile.appendChild(SIC.ui.horsReseau.boutonInstaller('btn lien'));
     return h('div', { class: 'ecran' }, carte);
   }
 
@@ -308,7 +309,7 @@
 
     return h('div', { class: 'ecran-pile' }, h('div', { class: 'ecran' }, h('div', { class: 'carte' }, marque(App.dossier.nom), blocAccueil(), zoneErr, form,
       h('div', { class: 'separateur', text: 'secours' }), autres,
-      h('div', { class: 'actions' }, h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier')))));
+      h('div', { class: 'actions' }, SIC.ui.horsReseau.boutonInstaller('btn lien'), h('button', { class: 'btn lien', onclick: changerDossier }, 'Changer de dossier')))));
   }
 
   /** Première connexion ou mot de passe réinitialisé : changement obligatoire avant tout accès. */
@@ -677,6 +678,7 @@
       h('div', { class: 'utilisateur' }, h('b', { text: s.utilisateur.nom }), s.utilisateur.roles.map(function (r) { return M.libRole(config(), r); }).join(' · ')),
       s.utilisateur.id !== 'secours' ? h('button', { class: 'btn petit', onclick: modaleMonMotDePasse }, 'Mot de passe') : null,
       h('button', { class: 'btn petit', title: 'Fichiers exportés (décomptes, registres, statistiques…)', onclick: modaleExports }, 'Exports'),
+      SIC.ui.horsReseau.boutonInstaller(),
       boutonTheme(),
       h('button', { class: 'btn petit', title: 'Licence, crédits, signaler un problème', onclick: function () { SIC.ui.apropos.modale(); } }, 'À propos'),
       h('button', { class: 'btn petit', onclick: function () { verrouiller(); } }, 'Verrouiller')));

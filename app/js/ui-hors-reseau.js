@@ -91,5 +91,26 @@
       zoneErr, zone);
   }
 
-  U.horsReseau = { demarrer: demarrer, etat: etat, activer: activer, desactiver: desactiver, section: section, possible: possible };
+  // ------------------------------------------------------------ Installation comme application (fenêtre séparée)
+  // Edge et Chrome proposent d'installer l'outil (manifeste, display « standalone ») : il s'ouvre alors dans sa propre
+  // fenêtre, avec son icône, depuis le bureau ou le menu Démarrer. HTTPS requis (intranet ou page GitHub).
+  var invite = null;
+  self.addEventListener('beforeinstallprompt', function (ev) { ev.preventDefault(); invite = ev; if (U.rendreContenu) { try { majBoutonsInstaller(); } catch (e) { /* écran sans bouton */ } } });
+  self.addEventListener('appinstalled', function () { invite = null; majBoutonsInstaller(); U.toast && U.toast('Outil installé : il s’ouvre désormais dans sa propre fenêtre (icône sur le bureau et dans le menu Démarrer).'); });
+  function enFenetre() { try { return matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches; } catch (e) { return false; } }
+  var boutons = [];
+  function majBoutonsInstaller() { boutons = boutons.filter(function (b) { return document.contains(b); }); boutons.forEach(function (b) { b.hidden = !invite || enFenetre(); }); }
+  /** Bouton « Installer comme application » (visible seulement quand le navigateur le permet). */
+  function boutonInstaller(classe) {
+    var b = h('button', { class: classe || 'btn petit', type: 'button', hidden: !invite || enFenetre(), title: 'Ouvrir l’outil dans sa propre fenêtre, avec son icône sur le bureau', onclick: async function () {
+      if (!invite) return;
+      var e = invite; invite = null;
+      try { await e.prompt(); await e.userChoice; } catch (er) { /* refus ou fermeture */ }
+      majBoutonsInstaller();
+    } }, 'Installer comme application');
+    boutons.push(b);
+    return b;
+  }
+
+  U.horsReseau = { boutonInstaller: boutonInstaller, enFenetre: enFenetre, demarrer: demarrer, etat: etat, activer: activer, desactiver: desactiver, section: section, possible: possible };
 })();

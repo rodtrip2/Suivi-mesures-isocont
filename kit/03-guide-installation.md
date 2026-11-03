@@ -30,10 +30,11 @@
 
 **Intranet (recommandé)** — copier le contenu de `app/` dans un site web statique servi en HTTPS, par exemple `https://intranet.etablissement.fr/isocont/`. Ajouter les en-têtes conseillés dans la fiche technique (section 3). Diffuser le lien sur les postes (favori, raccourci).
 
-**Raccourci et icône.** L'application fournit son icône (`app/img/icone.ico`, et des images PNG pour le navigateur). Trois façons de la mettre à disposition des agents :
+**Raccourci et icône, dans une fenêtre séparée.** L'application fournit son icône (`app/img/icone.ico`, et des images PNG pour le navigateur) et se déclare comme application (manifeste, affichage « standalone ») : installée, elle s'ouvre **dans sa propre fenêtre**, sans onglets ni barre d'adresse, avec son icône dans la barre des tâches. Quatre façons de la mettre à disposition des agents :
 
-- **Edge ou Chrome** : ouvrir l'outil, puis menu *Applications → Installer ce site en tant qu'application* : l'outil s'ouvre dans sa propre fenêtre, avec son icône, depuis le menu Démarrer ou le bureau ;
-- **raccourci Windows** : clic droit sur le bureau → *Nouveau → Raccourci*, cible `msedge.exe --app=https://intranet.etablissement.fr/isocont/` (ou le simple lien), puis *Propriétés → Changer d'icône* et choisir `icone.ico` copié sur le partage ou le poste ;
+- **depuis l'outil** (HTTPS : intranet ou page GitHub) : bouton *Installer comme application* (en-tête, écran d'accueil ou de connexion), affiché quand Edge ou Chrome le permet ; ou menu du navigateur *Applications → Installer ce site en tant qu'application* ;
+- **stratégie Edge déployée par le service informatique** (recommandé, HTTPS) : la stratégie `WebAppInstallForceList` installe l'outil sur les postes choisis, avec un raccourci sur le bureau, sans action des agents. Valeur (JSON) : `[{"url": "https://intranet.etablissement.fr/isocont/app/", "default_launch_container": "window", "create_desktop_shortcut": true}]` (Chrome : même stratégie) ;
+- **raccourci Windows** (toutes situations, y compris outil ouvert sans HTTPS) : clic droit sur le bureau → *Nouveau → Raccourci*, cible `"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --app=https://intranet.etablissement.fr/isocont/app/` : l'option `--app` ouvre l'outil dans une fenêtre séparée (un simple lien l'ouvre dans un onglet). Puis *Propriétés → Changer d'icône* et choisir `icone.ico` copié sur le partage ou le poste. Pour un outil copié sur le poste, le script du document 10 crée ce raccourci ;
 - **stratégie de groupe** (service informatique) : raccourci déployé sur les postes concernés (préférence *Raccourcis*, champ *Fichier d'icône* pointant vers `\\serveur\partage\isocont\img\icone.ico`).
 
 **Repli sans serveur web** — copier `app/` dans un dossier en lecture seule du partage et ouvrir `index.html` avec Edge ou Chrome. Les clés de sécurité ne fonctionnent pas dans ce mode.
