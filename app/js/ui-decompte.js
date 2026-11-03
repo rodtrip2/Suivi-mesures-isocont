@@ -115,6 +115,22 @@
     });
   }
 
+  /** Mise en forme des titres d'un masque (valeurs par défaut si absentes). */
+  function titresDe(masque) {
+    var t = masque.titres || {}, d = M.MASQUE_DEFAUT.titres;
+    return { etab: Object.assign({}, d.etab, t.etab), titre: Object.assign({}, d.titre, t.titre) };
+  }
+  var ALIGN_CSS = { gauche: 'left', centre: 'center', droite: 'right' };
+  /** Applique taille (pt), alignement et espace au-dessus (mm) par CSSOM (pas d'attribut style : CSP). */
+  function styleTitre(el, t, alignementSeul) {
+    el.style.setProperty('text-align', ALIGN_CSS[t.aligne] || 'left');
+    if (!alignementSeul) {
+      el.style.setProperty('font-size', t.taille + 'pt');
+      if (t.avant) el.style.setProperty('margin-top', t.avant + 'mm');
+    }
+    return el;
+  }
+
   /** Document imprimable. `options` : { auteur, images } (images : papier à en-tête disponible, sinon celles du paramétrage). */
   function document_(etat, m, reference, masque, options) {
     options = options || {};
@@ -137,9 +153,9 @@
         masque.entete ? multiligne(masque.entete, 'doc-entete') : h('div'),
         masque.destinataire ? multiligne(masque.destinataire, 'doc-destinataire') : null) : null,
       h('header', {},
-        h('div', { class: 'doc-etab', text: [U.etablissement(), U.libService(m.service)].filter(Boolean).join(' — ') }),
-        h('h1', { text: c.titre }),
-        masque.sousTitre ? h('div', { class: 'doc-sous-titre', text: masque.sousTitre }) : null),
+        styleTitre(h('div', { class: 'doc-etab', text: [U.etablissement(), U.libService(m.service)].filter(Boolean).join(' — ') }), titresDe(masque).etab),
+        styleTitre(h('h1', { text: c.titre }), titresDe(masque).titre),
+        masque.sousTitre ? styleTitre(h('div', { class: 'doc-sous-titre', text: masque.sousTitre }), titresDe(masque).titre, true) : null),
       c.identite.length ? h('table', { class: 'doc-identite' }, h('tbody', {}, c.identite.map(function (x) { return h('tr', {}, h('th', { text: x[0] }), h('td', { text: x[1] })); }))) : null,
       c.entetes.length ? h('table', { class: 'doc-tableau' },
         h('thead', {}, h('tr', {}, c.entetes.map(function (t) { return h('th', { text: t }); }))),
@@ -216,9 +232,10 @@
       doc.y = Math.min(yE, doc.y) - 10;
     }
     var etab = [U.etablissement(), U.libService(m.service)].filter(Boolean).join(' — ');
-    if (etab) doc.paragraphe(etab, { taille: 8.5, rgb: [0.35, 0.35, 0.35], apres: 2 });
-    doc.paragraphe(c.titre, { taille: 15, style: 'gras', apres: masque.sousTitre ? 2 : 8 });
-    if (masque.sousTitre) doc.paragraphe(masque.sousTitre, { taille: 10, rgb: [0.3, 0.3, 0.3], apres: 8 });
+    var tt = titresDe(masque), MMPT = 72 / 25.4;
+    if (etab) doc.paragraphe(etab, { taille: tt.etab.taille, rgb: [0.35, 0.35, 0.35], aligne: tt.etab.aligne, avant: tt.etab.avant * MMPT, apres: 2 });
+    doc.paragraphe(c.titre, { taille: tt.titre.taille, style: 'gras', aligne: tt.titre.aligne, avant: tt.titre.avant * MMPT, apres: masque.sousTitre ? 2 : 8 });
+    if (masque.sousTitre) doc.paragraphe(masque.sousTitre, { taille: 10, rgb: [0.3, 0.3, 0.3], aligne: tt.titre.aligne, apres: 8 });
     if (c.identite.length) doc.tableau({ lignes: c.identite, poids: [32, 68], taille: 8.5, colonneGrasse: 0 });
     if (c.entetes.length) {
       var POIDS = { 'N°': 5, 'Début': 13.5, 'Fin ou référence': 13.5, 'Durée': 9, 'Cumul': 9, 'Statut': 10, 'Lieu': 15, 'Commentaire': 25 };
@@ -417,6 +434,17 @@
         fichier.value = '';
       } });
       var selPages = h('select', {}, h('option', { value: 'toutes', text: 'Sur toutes les pages', selected: mq.fondPages !== 'premiere' }), h('option', { value: 'premiere', text: 'Sur la première page seulement', selected: mq.fondPages === 'premiere' }));
+      // Mise en forme des titres : taille, alignement, espace au-dessus
+      var champsTitres = {};
+      var blocTitres = h('div', { class: 'pile' }, [['etab', 'Établissement et service'], ['titre', 'Titre de la mesure (et sous-titre)']].map(function (x) {
+        var t = (mq.titres || M.MASQUE_DEFAUT.titres)[x[0]];
+        var c = champsTitres[x[0]] = {
+          taille: h('input', { type: 'number', min: 6, max: 36, step: 0.5, value: t.taille, class: 'champ-court' }),
+          aligne: h('select', {}, [['gauche', 'À gauche'], ['centre', 'Centré'], ['droite', 'À droite']].map(function (a) { return h('option', { value: a[0], text: a[1], selected: t.aligne === a[0] }); })),
+          avant: h('input', { type: 'number', min: 0, max: 120, step: 1, value: t.avant, class: 'champ-court' })
+        };
+        return h('div', { class: 'grille-4' }, h('b', { text: x[1] }), h('label', {}, 'Taille (points)', c.taille), h('label', {}, 'Position', c.aligne), h('label', {}, 'Espace au-dessus (mm)', c.avant));
+      }));
       var marges = {};
       var blocMarges = h('div', { class: 'grille-4' }, [['haut', 'Haut'], ['droite', 'Droite'], ['bas', 'Bas'], ['gauche', 'Gauche']].map(function (x) {
         marges[x[0]] = h('input', { type: 'number', min: 0, max: 80, step: 1, value: mq.marges[x[0]] });
@@ -435,6 +463,7 @@
           miseEnEvidence: selEv.value, exportCSV: cbCSV.checked,
           trancheIsolement: Math.max(0, Math.min(168, +trIso.value || 0)), trancheContention: Math.max(0, Math.min(168, +trCont.value || 0)),
           fond: selFond.value, fondPages: selPages.value,
+          titres: Object.keys(champsTitres).reduce(function (o, k) { var c = champsTitres[k]; o[k] = { taille: +c.taille.value, aligne: c.aligne.value, avant: +c.avant.value || 0 }; return o; }, {}),
           marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
         };
       }
@@ -445,12 +474,13 @@
         U.vider(vue);
         try {
           var m2 = Object.assign({}, M.MASQUE_DEFAUT, lire()); m2.sections = Object.assign({}, M.MASQUE_DEFAUT.sections, m2.sections);
+          m2.titres = M.masqueDecompte({ decompte: { '*': { titres: m2.titres } } }, '*').titres;
           if (!m2.titreIsolement) m2.titreIsolement = M.MASQUE_DEFAUT.titreIsolement;
           var doc = document_(etatEx, etatEx.mesures.B, Date.now(), m2, { auteur: U.App.session.utilisateur.nom, images: images });
           vue.appendChild(doc); ajusterApercu(vue, doc);
         } catch (e) { vue.appendChild(h('div', { class: 'erreur', text: e.message })); }
       }
-      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont, selEv].concat(Object.keys(marges).map(function (k) { return marges[k]; })).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
+      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont, selEv].concat(Object.keys(marges).map(function (k) { return marges[k]; }), Object.keys(champsTitres).reduce(function (l, k) { var c = champsTitres[k]; return l.concat([c.taille, c.aligne, c.avant]); }, [])).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
       Object.keys(casesIdentite).concat([]).forEach(function (k) { casesIdentite[k].addEventListener('change', apercu); });
       Object.keys(casesSections).forEach(function (k) { casesSections[k].addEventListener('change', apercu); });
       setTimeout(apercu, 0);
@@ -487,6 +517,8 @@
           cible !== '*' && !dec[cible] ? h('div', { class: 'info', text: 'Ce service utilise le masque de l’établissement, affiché ci-dessous. Modifiez-le puis enregistrez pour créer un masque propre au service.' }) : null,
           h('div', { class: 'grille-2' }, h('label', {}, 'Titre (isolement)', tIso), h('label', {}, 'Titre (contention)', tCont)),
           h('label', {}, 'Sous-titre', sous),
+          h('fieldset', {}, h('legend', { text: 'Mise en forme des titres' }), blocTitres,
+            h('small', { class: 'muted', text: 'Tailles en points (8,5 et 15 par défaut). L’espace au-dessus permet de descendre les titres sous le logo d’un papier à en-tête.' })),
           h('div', { class: 'grille-2' }, h('label', {}, 'En-tête (adresse, service, téléphone…)', entete), h('label', {}, 'Destinataire (affiché à droite)', dest)),
           h('label', { class: 'case' }, conf, h('span', { text: 'Bandeau « Document confidentiel — données personnelles de santé »' })),
           h('label', { class: 'case' }, cbCSV, h('span', { text: 'Proposer aussi l’export CSV du décompte (fichier nominatif ; désactivé par défaut)' })),

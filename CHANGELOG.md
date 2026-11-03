@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.59.0 — 3 novembre 2026
+
+- **Décompte JLD : mise en forme des titres** (*Administration → Décompte JLD*, rubrique *Mise en forme des titres* de chaque masque). Elle se règle séparément pour la ligne « établissement — service » et pour le titre de la mesure : taille en points, position (à gauche, centrée ou à droite), espace au-dessus en millimètres. Cet espace permet par exemple de descendre les titres sous le logo d'un papier à en-tête. Le sous-titre suit la position du titre. Le réglage s'applique au PDF, à l'impression et à l'aperçu, et se transmet du masque de l'établissement aux masques des services.
+- Par défaut, rien ne change pour le PDF (8,5 et 15 points, à gauche). À l'impression, les titres prennent désormais les mêmes tailles que le PDF.
+
 ## 1.58.1 — 3 novembre 2026
 
 - **Sous-onglet *Informations* supprimé** : les informations techniques (version, dossier, saisies, révision du coffre) et l'effacement de la démonstration passent dans *À propos* ; le **choix du dossier bloqué sur les postes** passe dans *Comptes et sécurité*.

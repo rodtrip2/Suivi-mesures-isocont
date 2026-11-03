@@ -1931,8 +1931,12 @@
     // Papier à en-tête : image de fond (identifiant dans config.imagesDecompte), sur toutes les pages ou la première, marges (mm).
     fond: '', fondPages: 'toutes', marges: { haut: 15, droite: 15, bas: 15, gauche: 15 },
     // Export CSV du décompte (fichier nominatif) : proposé seulement si l'établissement l'active.
-    exportCSV: false
+    exportCSV: false,
+    // Mise en forme des titres (demande du porteur) : ligne « établissement — service » et titre de la mesure (le sous-titre
+    // suit l'alignement du titre). taille en points (6 à 36), aligne 'gauche' | 'centre' | 'droite', avant : espace au-dessus (mm, 0 à 120).
+    titres: { etab: { taille: 8.5, aligne: 'gauche', avant: 0 }, titre: { taille: 15, aligne: 'gauche', avant: 0 } }
   };
+  var ALIGNEMENTS_TITRE = ['gauche', 'centre', 'droite'];
 
   /**
    * Masque du décompte d'un service : masque par défaut, puis masque de l'établissement (`'*'`), puis
@@ -1953,6 +1957,7 @@
           delete r.sections.editeur;
         }
         else if (k === 'marges') Object.assign(r.marges, x.marges);
+        else if (k === 'titres') ['etab', 'titre'].forEach(function (t) { if (x.titres && x.titres[t]) Object.assign(r.titres[t], x.titres[t]); });
         else if (k === 'titreIsolement' || k === 'titreContention') { if (x[k]) r[k] = x[k]; }
         else r[k] = cloner(x[k]);
       });
@@ -1967,6 +1972,12 @@
     r.identite = r.identite.filter(function (c) { return IDENTITE_DECOMPTE.indexOf(c) >= 0; });
     Object.keys(r.marges).forEach(function (k) { var v = +r.marges[k]; r.marges[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; });
     ['formatDuree', 'formatCumul'].forEach(function (k) { if (FORMATS_DUREE.indexOf(r[k]) < 0) r[k] = 'j'; });
+    ['etab', 'titre'].forEach(function (t) {
+      var x = r.titres[t], d = MASQUE_DEFAUT.titres[t], tl = +x.taille, av = +x.avant;
+      r.titres[t] = { taille: isFinite(tl) && tl >= 6 && tl <= 36 ? Math.round(tl * 2) / 2 : d.taille,
+        aligne: ALIGNEMENTS_TITRE.indexOf(x.aligne) >= 0 ? x.aligne : d.aligne,
+        avant: isFinite(av) ? Math.max(0, Math.min(120, Math.round(av))) : 0 };
+    });
     if (['aucune', 'actuelle', 'anterieures', 'les-deux'].indexOf(r.miseEnEvidence) < 0) r.miseEnEvidence = 'aucune';
     r.exportCSV = r.exportCSV === true;
     delete r.colonnesLieu;
