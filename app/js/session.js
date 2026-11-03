@@ -104,6 +104,32 @@
     await this.synchroniser();
   };
 
+  /**
+   * Vérifie, sans ouvrir de session de travail, qu'un identifiant et un mot de passe (ou le code de secours,
+   * `login` vide) sont ceux d'un administrateur de ce dossier. Retourne le nom de l'administrateur.
+   */
+  Session.verifierAdministrateur = async function (dossier, login, secret) {
+    var s = new Session(dossier);
+    await s.chargerCoffre();
+    if (!s.coffre) throw new Error('Coffre du dossier illisible : vérification impossible.');
+    try {
+      if (login) {
+        login = login.trim().toLowerCase();
+        var embs = s.coffre.emballages.filter(function (e) { return e.methode === 'mdp' && e.login === login; });
+        for (var i = 0; i < embs.length && !s.cle; i++) { try { s.cle = await C.deballerMotDePasse(embs[i], secret); } catch (e) { s.cle = null; } }
+        if (!s.cle) throw new Error('Identifiant ou mot de passe incorrect.');
+        await lireComptes(s);
+        var u = s.comptes.filter(function (c) { return c.id === embs[0].userId; })[0];
+        if (!u || !u.actif || (u.roles || []).indexOf('ADMIN') < 0) throw new Error('Ce compte n’est pas un compte administrateur actif.');
+        return u.nom;
+      }
+      var emb = s.coffre.emballages.filter(function (e) { return e.methode === 'secours'; })[0];
+      if (!emb) throw new Error('Aucun code de secours enregistré.');
+      try { await C.deballerCodeSecours(emb, secret); } catch (e) { throw new Error('Code de secours incorrect.'); }
+      return 'code de secours';
+    } finally { s.verrouiller(); }
+  };
+
   Session.prototype.verrouiller = function () {
     this.cle = null; this.utilisateur = null; this.evts = []; this.connus = new Set(); this.etat = null; this.comptes = [];
     this.donnees = null; this.cleDonnees = null; this.formation = false; this.rejetes = []; this.reperesLus = {}; this.integrite = null; this.preferences = null;

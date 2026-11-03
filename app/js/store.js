@@ -86,6 +86,14 @@
     return new Dossier(prec.handle, 'reseau');
   };
 
+  /**
+   * Verrou du choix du dossier sur ce poste (demande du porteur) : { nom, le, par } ou null. Posé à la connexion quand
+   * l'établissement l'a activé ; seul un administrateur (mot de passe ou code de secours vérifiés sur le coffre du
+   * dossier verrouillé) peut le lever. Réglage du navigateur : contrainte d'organisation, pas une barrière technique.
+   */
+  Dossier.lireVerrou = function () { return relire('verrou'); };
+  Dossier.ecrireVerrou = function (v) { return memoriser('verrou', v || null); };
+
   /** Réglages propres à ce poste de travail (navigateur), hors données. */
   Dossier.lireReglage = relire;
   Dossier.ecrireReglage = memoriser;

@@ -204,6 +204,8 @@
     affichage: { mesuresTermineesJours: 15, contact: '', consigne: '', logo: '' },
     // Dossier de secours (miroir) : attendu ou non, nom du dossier (le lien est propre à chaque poste) — Administration → Informations
     miroir: { attendu: false, nom: '' },
+    // Bloquer le changement de dossier sur les postes (déblocage par un administrateur) — Administration → Informations
+    verrouDossier: false,
     // Page GitHub : vérifier que la version utilisée est la dernière publiée (désactivable)
     verificationVersion: true,
     // Exports (PDF, CSV) enregistrés automatiquement dans ce sous-dossier du dossier des données

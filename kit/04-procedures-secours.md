@@ -39,6 +39,10 @@
 
 Sur les postes désignés (document 10) : ouvrir l'outil comme d'habitude, puis **Travailler hors réseau (copie locale de ce poste)** et se connecter (bandeau rouge « Hors réseau »). Au retour du réseau : *Verrouiller*, *Changer de dossier*, **Reprendre** le dossier habituel ; les saisies faites hors réseau sont reprises automatiquement. Les autres postes appliquent la procédure dégradée sur papier ci-dessous.
 
+## Choix du dossier bloqué et déblocage impossible
+
+Si l'établissement a bloqué le choix du dossier sur les postes, le déblocage par un administrateur se vérifie sur le dossier habituel ou la copie locale du poste. S'ils sont tous deux inaccessibles et qu'il faut absolument ouvrir un autre dossier : le service informatique efface les données de l'outil dans le navigateur du poste (Edge : *Paramètres → Cookies et autorisations de site → Gérer et supprimer les cookies et les données de site*, adresse de l'outil). Le poste oublie alors son dossier, sa copie locale et son blocage ; aucune donnée du partage n'est touchée. Refaire ensuite le choix du dossier et, si besoin, la copie locale.
+
 ## Dossier réseau indisponible, dossier de secours en place
 
 Si l'établissement a mis en place un **dossier de secours** (*Administration → Informations*, sur un autre serveur, tenu à jour par des postes reliés ou par une copie robocopy du service informatique, document 09) :

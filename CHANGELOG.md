@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.54.0 — 3 novembre 2026
+
+- **Choix du dossier bloqué sur les postes** (*Administration → Informations*, désactivé par défaut) : une fois activé, chaque poste retient à sa connexion suivante les données qu'il utilise. Il ne peut plus ouvrir que des dossiers contenant ces mêmes données (dossier habituel, dossier de secours, copie locale, nouveau dossier après un déplacement). Ouvrir d'autres données ou le mode démonstration demande le déblocage par un administrateur (identifiant et mot de passe, ou code de secours), vérifié sur le coffre des données du poste.
+- Procédures de secours : conduite à tenir si le déblocage est impossible (dossier et copie locale inaccessibles).
+
 ## 1.53.0 — 3 novembre 2026
 
 - **Surveillance en CSI : liste des agents à cocher.** La fenêtre *Ajouter* présente les agents de l'équipe (comptes affectés au service portant les rôles choisis, IDE et AS par défaut) : il suffit de cocher les présents, plusieurs à la fois. Les agents déjà inscrits pour le poste sont grisés ; recherche par nom pour les grandes équipes.

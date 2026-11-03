@@ -503,3 +503,14 @@ test('Plusieurs dossiers de secours (serveur et copies locales) : état de chacu
   await new Dossier(racine, 'reseau').oublierMiroir(idA);
   assert.equal(Object.keys((await new Dossier(racine, 'reseau').lireEtatMiroir()).miroirs).length, 2);
 });
+
+test('Vérification d’un administrateur (déblocage du choix du dossier) sans ouvrir de session', async () => {
+  const { racine, admin, code } = await nouveauDossier();
+  await admin.creerCompte({ nom: 'IDE (fictif)', login: 'ide', motDePasse: 'mot de passe ide', roles: ['IDE'], services: ['U1'] });
+  const d = new Dossier(racine, 'reseau');
+  assert.equal(await Session.verifierAdministrateur(d, 'admin', 'mot de passe solide'), 'Admin');
+  await assert.rejects(Session.verifierAdministrateur(d, 'admin', 'faux'), /incorrect/);
+  await assert.rejects(Session.verifierAdministrateur(d, 'ide', 'mot de passe ide'), /pas un compte administrateur/);
+  assert.equal(await Session.verifierAdministrateur(d, '', code), 'code de secours');
+  await assert.rejects(Session.verifierAdministrateur(d, '', 'AAAA-BBBB-CCCC-DDDD-EEEE'), /Code de secours incorrect/);
+});

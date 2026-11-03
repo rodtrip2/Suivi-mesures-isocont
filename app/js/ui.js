@@ -172,9 +172,27 @@
       }
     });
     var reseauOk = !!window.showDirectoryPicker;
-    pile.appendChild(h('button', { class: 'btn' + (reseauOk ? ' primaire' : ''), disabled: !reseauOk, onclick: function () { ouvrir(SIC.Dossier.choisirReseau); } }, 'Ouvrir le dossier réseau du service…'));
-    if (!reseauOk) pile.appendChild(h('small', { text: 'L’ouverture d’un dossier réseau nécessite Edge ou Chrome à jour.' }));
-    pile.appendChild(h('button', { class: 'btn', onclick: function () { ouvrir(SIC.Dossier.demo); } }, 'Mode démonstration (données fictives)'));
+    var zoneChoix = h('div', { class: 'pile' });
+    pile.appendChild(zoneChoix);
+    function choixLibres() {
+      vider(zoneChoix);
+      zoneChoix.appendChild(h('button', { class: 'btn' + (reseauOk ? ' primaire' : ''), disabled: !reseauOk, onclick: function () { ouvrir(SIC.Dossier.choisirReseau); } }, 'Ouvrir le dossier réseau du service…'));
+      if (!reseauOk) zoneChoix.appendChild(h('small', { text: 'L’ouverture d’un dossier réseau nécessite Edge ou Chrome à jour.' }));
+      zoneChoix.appendChild(h('button', { class: 'btn', onclick: function () { ouvrir(SIC.Dossier.demo); } }, 'Mode démonstration (données fictives)'));
+    }
+    choixLibres();
+    // Choix du dossier bloqué par l'établissement : seules les mêmes données s'ouvrent sans administrateur
+    SIC.Dossier.lireVerrou().then(function (v) {
+      if (!v) return;
+      vider(zoneChoix);
+      zoneChoix.appendChild(h('div', { class: 'info', text: 'Choix du dossier bloqué sur ce poste : données de « ' + v.nom + ' ».' }));
+      zoneChoix.appendChild(h('button', { class: 'btn', disabled: !reseauOk, title: 'Dossier de secours, nouveau dossier après un déplacement…', onclick: function () { ouvrir(SIC.ui.verrou.ouvrirMemesDonnees); } }, 'Ouvrir un autre dossier de ces mêmes données…'));
+      zoneChoix.appendChild(h('button', { class: 'btn lien', onclick: async function () {
+        erreurDans(zoneErr, null);
+        try { if (await SIC.ui.verrou.debloquer('Pour ouvrir d’autres données ou le mode démonstration.')) choixLibres(); }
+        catch (e) { if (e.name !== 'AbortError') erreurDans(zoneErr, e); }
+      } }, 'Débloquer le choix du dossier (administrateur)…'));
+    }).catch(function () {});
     pile.appendChild(h('small', { text: location.protocol === 'file:' ? 'Application ouverte depuis un fichier : les clés de sécurité (YubiKey) ne sont pas disponibles dans ce mode.' : 'Astuce démonstration : ouvrez un second onglet pour simuler un autre poste et observer la saisie simultanée.' }));
     return h('div', { class: 'ecran' }, carte);
   }
@@ -328,7 +346,8 @@
   async function changerDossier() {
     arreterMinuteurs();
     if (App.session) App.session.verrouiller();
-    if (App.secours !== 'local') await SIC.Dossier.oublier();   // la copie locale n'a jamais remplacé le dossier habituel retenu
+    // La copie locale n'a jamais remplacé le dossier habituel retenu ; un poste au choix bloqué garde aussi son dossier (« Reprendre »)
+    if (App.secours !== 'local' && !(await SIC.Dossier.lireVerrou())) await SIC.Dossier.oublier();
     App.secours = false;
     App.dossier = null; App.session = null;
     rendre();
@@ -518,6 +537,7 @@
 
   function demarrerMinuteurs() {
     chargerPreferences();
+    try { SIC.ui.verrou.appliquer(); } catch (e) { /* sans effet sur la session */ }
     try { SIC.ui.miroir.demarrer(); } catch (e) { /* sans effet sur la session */ }
     retenirAccueil();
     setTimeout(purgeAutomatique, 4000);
@@ -994,7 +1014,7 @@
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
   var LIB_CONFIG = {
-    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', miroir: 'Dossier de secours', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
+    etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', miroir: 'Dossier de secours', verrouDossier: 'Choix du dossier bloqué sur les postes', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
     parametres: 'Règles légales (seuils et cycles JLD)', delaiModeHospiHeures: 'Délai de bascule du mode d’hospitalisation (registre)',
     compteursRegistre: 'Numérotation du registre antérieur', decompte: 'Masques du décompte JLD', imagesDecompte: 'Papier à en-tête du décompte',
@@ -1068,6 +1088,7 @@
       case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return (function (o) { return o.minParPoste + ' par poste ; agents proposés : ' + (o.rolesListe.map(function (r) { return M.libRole(config(), r); }).join(', ') || 'aucun'); })(M.optionsSurveillance(Object.assign({}, config(), { surveillance: v })));
+      case 'verrouDossier': return v === true ? 'activé' : 'désactivé';
       case 'miroir': return v && v.attendu ? '« ' + v.nom + ' »' : 'aucun';
       case 'listes': return (v && v.fonctionsSurveillance ? v.fonctionsSurveillance.length : 0) + ' fonction(s), ' + (v && v.motifsPause ? v.motifsPause.length : 0) + ' motif(s) de pause, ' + (v && v.motifsFin ? v.motifsFin.length : 0) + ' motif(s) de fin propres, raccourcis ' + ((v && v.raccourcisPause) || []).map(M.libRaccourci).join(', ');
       case 'vigilance': return v ? 'rouge ' + v.isolementRouge + ' h / ' + v.contentionRouge + ' h, orange ' + v.isolementJaune + ' h / ' + v.contentionJaune + ' h (isolement / contention)' : '—';
@@ -2567,7 +2588,7 @@
       ['registre', 'Registre et statistiques', [pDocs, pColsP, SIC.ui.methode.panneauAdmin(), SIC.ui.qualite.panneauAdmin()]],
       ['decompte', 'Décompte JLD', [pMasques]],
       ['reprise', 'Reprise des données', [pImport]],
-      ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), SIC.ui.miroir.panneau(), demo]],
+      ['infos', 'Informations', [infos, SIC.ui.sauvegarde.panneau(), SIC.ui.miroir.panneau(), SIC.ui.verrou.panneau(), demo]],
       ['apropos', 'À propos', [SIC.ui.apropos.panneau(), SIC.ui.version.panneau()]]
     ]);
 

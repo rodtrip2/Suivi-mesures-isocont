@@ -38,6 +38,8 @@
 
 **Repli sans serveur web** — copier `app/` dans un dossier en lecture seule du partage et ouvrir `index.html` avec Edge ou Chrome. Les clés de sécurité ne fonctionnent pas dans ce mode.
 
+**Choix du dossier bloqué** (facultatif) : après la mise en service, l'administrateur peut empêcher l'ouverture d'autres données sur les postes (*Administration → Informations → Choix du dossier sur les postes*) ; le blocage est posé sur chaque poste à sa connexion suivante et ne se lève que par un administrateur.
+
 **Travail hors réseau** (facultatif, postes désignés) : voir le document 10 — mise en cache de l'outil par le navigateur si l'outil est servi en HTTPS (intranet ou page GitHub), sinon copie de l'outil sur le poste par le script fourni ; copie locale des données chiffrées.
 
 **Démonstration** — https://rodtrip2.github.io/Suivi-mesures-isocont/, en *mode démonstration* uniquement, sans aucune donnée réelle. Ouverte depuis cette page (adresse en « github.io »), l'outil vérifie à l'ouverture puis toutes les 30 minutes qu'il s'agit de la dernière version publiée et propose de recharger la page sinon (réglage *Administration → À propos → Mise à jour de l'outil*, activé par défaut). Sur l'intranet ou un partage, la vérification n'a pas lieu : la mise à jour reste faite par le service informatique, après contrôle des empreintes.
