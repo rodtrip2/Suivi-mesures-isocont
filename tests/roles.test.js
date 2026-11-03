@@ -47,3 +47,21 @@ test('Création de comptes en lot : rôles de l’établissement reconnus par le
   assert.deepEqual(res[1].roles, ['IDE']);
   assert.match(res[2].erreurs.join(), /rôle inconnu/);
 });
+
+test('Surveillance : agents proposés selon les rôles réglés, le service et la validité du compte', () => {
+  const comptes = [
+    { id: 'a', nom: 'Zoé IDE (fictif)', roles: ['IDE'], services: ['U1'], actif: true },
+    { id: 'b', nom: 'Bruno AS (fictif)', roles: ['AS'], services: ['U1'], actif: true },
+    { id: 'c', nom: 'Chloé IDE U2 (fictif)', roles: ['IDE'], services: ['U2'], actif: true },
+    { id: 'd', nom: 'Denis inactif (fictif)', roles: ['IDE'], services: ['U1'], actif: false },
+    { id: 'e', nom: 'Emma intérim (fictif)', roles: ['IDE'], services: ['U1'], actif: true, finValidite: '2026-10-31' },
+    { id: 'f', nom: 'Fanny secrétaire (fictif)', roles: ['SECRETAIRE'], services: ['U1'], actif: true },
+    { id: 'g', nom: 'Gaël cadre (fictif)', roles: ['CADRE'], services: ['U1'], actif: true }
+  ];
+  const noms = (cfg) => M.agentsSurveillance(comptes, cfg, 'U1', '2026-11-03').map((c) => c.id);
+  assert.deepEqual(noms({}), ['b', 'a']);
+  assert.deepEqual(M.optionsSurveillance({}).rolesListe, ['IDE', 'AS']);
+  assert.deepEqual(noms({ surveillance: { rolesListe: ['IDE', 'AS', 'CADRE', 'INCONNU', 'ADMIN'] } }), ['b', 'g', 'a']);
+  assert.deepEqual(M.optionsSurveillance({ surveillance: { rolesListe: ['INCONNU'] } }).rolesListe, []);
+  assert.deepEqual(M.agentsSurveillance(comptes, {}, 'U1', '2026-10-30').map((c) => c.id), ['b', 'e', 'a']);
+});

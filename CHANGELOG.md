@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.53.0 — 3 novembre 2026
+
+- **Surveillance en CSI : liste des agents à cocher.** La fenêtre *Ajouter* présente les agents de l'équipe (comptes affectés au service portant les rôles choisis, IDE et AS par défaut) : il suffit de cocher les présents, plusieurs à la fois. Les agents déjà inscrits pour le poste sont grisés ; recherche par nom pour les grandes équipes.
+- Une **personne non listée** (intérim, renfort, étudiant) s'ajoute toujours par son nom et sa fonction ; les noms déjà saisis dans le service sont proposés.
+- Réglage des rôles proposés dans *Administration → Établissement et services → Postes de surveillance*.
+- Guide pratique IDE / AS (captures) et guide utilisateur mis à jour.
+
 ## 1.52.0 — 3 novembre 2026
 
 - **Avertissement sur le poste désigné** : bandeau orange en haut de l'outil, pour tous les agents, quand la copie locale des données n'a pas été mise à jour depuis plus d'une heure, quand sa mise à jour échoue ou quand le navigateur a perdu l'accès au dossier local ; bouton *Mettre à jour maintenant* ou *Autoriser l'accès et mettre à jour*.

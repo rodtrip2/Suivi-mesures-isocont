@@ -33,6 +33,8 @@ with sync_playwright() as p:
     # Compte IDE fictif (mot de passe déjà personnel, pour éviter l'étape de changement)
     a.evaluate("""async () => { const s = SIC.ui.App.session;
       await s.creerCompte({ nom: 'Alex IDE (fictif)', login: 'alex.ide', motDePasse: 'motdepasse-ide-demo', roles: ['IDE'], services: ['U1'] });
+      await s.creerCompte({ nom: 'Sam AS (fictif)', login: 'sam.as', motDePasse: 'motdepasse-as-demo', roles: ['AS'], services: ['U1'] });
+      await s.creerCompte({ nom: 'Camille IDE (fictif)', login: 'camille.ide', motDePasse: 'motdepasse-ide-demo2', roles: ['IDE'], services: ['U1'] });
       await s.modifierCoffre(async (coffre, comptes) => { comptes.find(c => c.login === 'alex.ide').mdpProvisoire = false; }); }""")
     a.get_by_role('button', name='Verrouiller').click(); time.sleep(1)
     a.get_by_label('Identifiant').fill('alex.ide'); a.get_by_label('Mot de passe', exact=True).fill('motdepasse-ide-demo')
@@ -114,17 +116,14 @@ with sync_playwright() as p:
     shot(a, '13-surveillance')
     a.locator('main button').filter(has_text=re.compile(r'^Ajouter$')).first.click(); time.sleep(0.8)
     d = a.locator('dialog'); print('surv labels:', d.locator('label').all_inner_texts()[:8])
-    champ(d, 'Nom').fill('Alex IDE (fictif)')
-    if champ(d, 'Fonction').count():
-        f = champ(d, 'Fonction')
-        try: f.select_option(label='IDE')
-        except Exception: f.fill('IDE')
+    d.locator('.liste-agents label', has_text='Alex IDE').locator('input').check()
+    d.locator('.liste-agents label', has_text='Sam AS').locator('input').check()
     time.sleep(0.3); shot(d, '14-professionnel')
     d.get_by_role('button', name='Enregistrer', exact=True).click(); time.sleep(1.5)
     print('erreurs:', a.locator('dialog .erreur').all_inner_texts())
     # Second professionnel, lieux précisés
     a.locator('main button').filter(has_text=re.compile(r'^Ajouter$')).first.click(); time.sleep(0.8)
-    d = a.locator('dialog'); champ(d, 'Nom').fill('Sam AS (fictif)'); champ(d, 'Fonction').select_option(label='AS')
+    d = a.locator('dialog'); champ(d, 'Nom').fill('Lou Renfort (fictif)'); champ(d, 'Fonction').select_option(label='AS')
     d.locator('label.case', has_text='Tous les lieux').locator('input').uncheck(); time.sleep(0.2)
     d.locator('label.case', has_text='CSI 1').locator('input').check(); time.sleep(0.3)
     shot(d, '20-professionnel-lieux')

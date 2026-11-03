@@ -1067,7 +1067,7 @@
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
       case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
-      case 'surveillance': return M.optionsSurveillance({ surveillance: v }).minParPoste + ' par poste';
+      case 'surveillance': return (function (o) { return o.minParPoste + ' par poste ; agents proposés : ' + (o.rolesListe.map(function (r) { return M.libRole(config(), r); }).join(', ') || 'aucun'); })(M.optionsSurveillance(Object.assign({}, config(), { surveillance: v })));
       case 'miroir': return v && v.attendu ? '« ' + v.nom + ' »' : 'aucun';
       case 'listes': return (v && v.fonctionsSurveillance ? v.fonctionsSurveillance.length : 0) + ' fonction(s), ' + (v && v.motifsPause ? v.motifsPause.length : 0) + ' motif(s) de pause, ' + (v && v.motifsFin ? v.motifsFin.length : 0) + ' motif(s) de fin propres, raccourcis ' + ((v && v.raccourcisPause) || []).map(M.libRaccourci).join(', ');
       case 'vigilance': return v ? 'rouge ' + v.isolementRouge + ' h / ' + v.contentionRouge + ' h, orange ' + v.isolementJaune + ' h / ' + v.contentionJaune + ' h (isolement / contention)' : '—';
@@ -1981,13 +1981,55 @@
     var selSv = h('select', {}, services().map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: x.code === service }); }));
     var jour = h('input', { type: 'date', value: dateISO || M.dateLocaleISO(Date.now()) });
     var selP = h('select', {}, (config().periodes || []).map(function (p) { return h('option', { value: p.code, text: p.libelle + ' (' + p.debut + '–' + p.fin + ')', selected: p.code === periode }); }));
-    var nom = h('input', { type: 'text', placeholder: 'Prénom NOM' });
+    function norm(t) { return String(t || '').trim().toLowerCase(); }
+
+    // Agents de l'équipe : comptes portant un rôle choisi par l'établissement (IDE et AS par défaut), cochés en un clic
+    var zoneAgents = h('div', { class: 'liste-agents' }), filtre = h('input', { type: 'search', placeholder: 'Rechercher un nom…', 'aria-label': 'Rechercher un agent' });
+    var cases = [];
+    function inscrits() {
+      return st().professionnels.filter(function (x) { return x.service === selSv.value && x.date === jour.value && x.periode === selP.value; }).map(function (x) { return norm(x.nom); });
+    }
+    function majAgents() {
+      vider(zoneAgents); cases = [];
+      var deja = inscrits(), moiId = App.session.utilisateur.id;
+      var agents = M.agentsSurveillance(App.session.comptes, config(), selSv.value, jour.value);
+      if (!agents.length) zoneAgents.appendChild(h('small', { class: 'muted', text: 'Aucun compte proposé pour ce service (réglage : Administration → Établissement et services → Postes de surveillance). Utilisez « Autre personne ».' }));
+      agents.forEach(function (c) {
+        var inscrit = deja.indexOf(norm(c.nom)) >= 0, f = fonctionDe(c) || M.libRole(config(), (c.roles || [])[0]);
+        var cb = h('input', { type: 'checkbox', checked: inscrit, disabled: inscrit });
+        var lbl = h('label', { class: 'case agent' + (inscrit ? ' inscrit' : '') }, cb,
+          h('span', { text: c.nom + (c.id === moiId ? ' (vous)' : '') }), h('small', { class: 'muted', text: ' ' + f + (inscrit ? ' — déjà inscrit(e)' : '') }));
+        cases.push({ compte: c, cb: cb, lbl: lbl, fonction: f, inscrit: inscrit });
+        zoneAgents.appendChild(lbl);
+      });
+      filtre.hidden = agents.length < 8;
+      appliquerFiltre();
+      moi.hidden = agents.some(function (c) { return c.id === moiId; });
+    }
+    function appliquerFiltre() { var q = norm(filtre.value); cases.forEach(function (x) { x.lbl.hidden = !!q && norm(x.compte.nom).indexOf(q) < 0; }); }
+    filtre.addEventListener('input', appliquerFiltre);
+
+    // Autre personne, non listée (intérimaire, renfort, étudiant…) : noms déjà saisis dans ce service proposés
+    var nom = h('input', { type: 'text', placeholder: 'Prénom NOM', list: 'noms-surveillance', autocomplete: 'off' });
     var fonction = h('select', {}, M.listesConfig(config()).fonctionsSurveillance.map(function (x) { return h('option', { value: x, text: x }); }));
+    var listeNoms = h('datalist', { id: 'noms-surveillance' });
     var moi = h('button', { type: 'button', class: 'btn petit', onclick: function () {
       var u = App.session.utilisateur; nom.value = u.nom; var f = fonctionDe(u); if (f) fonction.value = f;
     } }, 'Moi-même');
+    function majNoms() {
+      vider(listeNoms);
+      var comptes = (App.session.comptes || []).map(function (c) { return norm(c.nom); }), vus = {}, limite = Date.now() - 90 * 86400000;
+      st().professionnels.filter(function (x) { return x.service === selSv.value && Date.parse(x.date) >= limite; }).slice().reverse().forEach(function (x) {
+        var k = norm(x.nom); if (!k || vus[k] || comptes.indexOf(k) >= 0) return; vus[k] = 1;
+        listeNoms.appendChild(h('option', { value: x.nom }));
+        if (x.fonction) nomsFonctions[k] = x.fonction;
+      });
+    }
+    var nomsFonctions = {};
+    nom.addEventListener('change', function () { var f = nomsFonctions[norm(nom.value)]; if (f && Array.prototype.some.call(fonction.options, function (o) { return o.value === f; })) fonction.value = f; });
+
     var ajoutes = h('div', { class: 'recap', hidden: true });
-    // Lieux surveillés : tous par défaut ; l'agent peut préciser
+    // Lieux surveillés : tous par défaut ; l'agent peut préciser (s'applique à toutes les personnes de la saisie)
     var tous = h('input', { type: 'checkbox', checked: true }), zoneLieux = h('div', { class: 'cases-ligne', hidden: true }), casesLieux = {};
     var blocLieux = h('fieldset', {}, h('legend', { text: lieu('Lieux surveillés') }),
       h('label', { class: 'case' }, tous, h('span', { text: lieu('Tous les lieux (CSI) du service') })), zoneLieux);
@@ -1999,33 +2041,51 @@
       zoneLieux.hidden = tous.checked;
     }
     tous.addEventListener('change', function () { zoneLieux.hidden = tous.checked; });
-    selSv.addEventListener('change', majLieux); majLieux();
+    function majTout() { majLieux(); majAgents(); majNoms(); }
+    selSv.addEventListener('change', majTout);
+    [jour, selP].forEach(function (x) { x.addEventListener('change', majAgents); });
+    majTout();
     function lieuxChoisis() {
       if (tous.checked || blocLieux.hidden) return [];
       var l = Object.keys(casesLieux).filter(function (k) { return casesLieux[k].checked; });
       if (!l.length) throw new Error('Cochez au moins un lieu, ou « Tous les lieux ».');
       return l;
     }
+    /** Enregistre les agents cochés et la personne saisie ; retourne les libellés enregistrés. */
     async function enregistrer() {
-      if (!nom.value.trim()) throw new Error('Indiquez le nom du professionnel.');
       if (!jour.value) throw new Error('Indiquez la date.');
-      var data = { service: selSv.value, date: jour.value, periode: selP.value, nom: nom.value.trim(), fonction: fonction.value };
-      var l = lieuxChoisis(); if (l.length) data.lieux = l;
-      await App.session.enregistrer('PROFESSIONNEL', data);
+      var personnes = cases.filter(function (x) { return x.cb.checked && !x.inscrit; }).map(function (x) { return { nom: x.compte.nom, fonction: x.fonction }; });
+      var autre = nom.value.trim();
+      if (autre) {
+        if (personnes.some(function (p) { return norm(p.nom) === norm(autre); }) || inscrits().indexOf(norm(autre)) >= 0) throw new Error(autre + ' est déjà inscrit(e) pour ce poste.');
+        personnes.push({ nom: autre, fonction: fonction.value });
+      }
+      if (!personnes.length) throw new Error('Cochez au moins un agent, ou indiquez le nom d’une autre personne.');
+      var l = lieuxChoisis(), faits = [];
+      for (var i = 0; i < personnes.length; i++) {
+        var data = { service: selSv.value, date: jour.value, periode: selP.value, nom: personnes[i].nom, fonction: personnes[i].fonction };
+        if (l.length) data.lieux = l;
+        await App.session.enregistrer('PROFESSIONNEL', data);
+        faits.push(personnes[i].nom + ' (' + personnes[i].fonction + ')' + (l.length ? ' — ' + l.join(', ') : ''));
+      }
+      return faits;
     }
-    modale('Professionnel chargé de la surveillance', h('div', { class: 'pile' },
+    modale('Professionnels chargés de la surveillance', h('div', { class: 'pile' },
       h('div', { class: 'grille-2' }, h('label', {}, 'Service', selSv), h('label', {}, 'Date', jour)),
       h('label', {}, 'Période', selP),
-      h('div', { class: 'grille-2' }, h('label', {}, 'Nom', h('div', { class: 'en-ligne' }, nom, moi)), h('label', {}, 'Fonction', fonction)), blocLieux, ajoutes), [
+      h('fieldset', {}, h('legend', { text: 'Agents de l’équipe (cochez les présents)' }), filtre, zoneAgents),
+      h('fieldset', {}, h('legend', { text: 'Autre personne, non listée (intérim, renfort, étudiant…)' }),
+        h('div', { class: 'grille-2' }, h('label', {}, 'Nom', h('div', { class: 'en-ligne' }, nom, moi)), h('label', {}, 'Fonction', fonction)), listeNoms),
+      blocLieux, ajoutes), [
       { texte: 'Fermer' },
-      { texte: 'Enregistrer et ajouter un autre', action: async function () {
-        await enregistrer();
-        ajoutes.hidden = false; ajoutes.appendChild(h('div', { text: '✓ ' + nom.value.trim() + ' (' + fonction.value + ')' + (tous.checked ? '' : ' — ' + Object.keys(casesLieux).filter(function (k) { return casesLieux[k].checked; }).join(', ')) }));
-        nom.value = ''; nom.focus();
+      { texte: 'Enregistrer et continuer', action: async function () {
+        var faits = await enregistrer();
+        ajoutes.hidden = false; faits.forEach(function (t) { ajoutes.appendChild(h('div', { text: '✓ ' + t })); });
+        nom.value = ''; majAgents(); majNoms();
         return false;
       } },
-      { texte: 'Enregistrer', classe: 'primaire', action: async function () { await enregistrer(); toast('Professionnel enregistré.'); } }
-    ], { focus: nom });
+      { texte: 'Enregistrer', classe: 'primaire', action: async function () { var faits = await enregistrer(); toast(faits.length > 1 ? faits.length + ' professionnels enregistrés.' : 'Professionnel enregistré.'); } }
+    ]);
   }
 
   // ---------------------------------------------------------------- Mot de passe
@@ -2242,6 +2302,11 @@
     var lignesPS = [];
     Object.keys(cfg.periodesService || {}).forEach(function (sv) { (cfg.periodesService[sv] || []).forEach(function (p) { lignesPS.push(sv + ' ; ' + p.code + ' ; ' + p.libelle + ' ; ' + p.debut + ' ; ' + p.fin); }); });
     var tPerSv = zoneTexte(lignesPS.join('\n'), 3);
+    var rolesSurv = M.optionsSurveillance(cfg).rolesListe, cbRolesSurv = {};
+    var casesRolesSurv = h('div', { class: 'cases-ligne' }, M.rolesConfig(cfg).filter(function (r) { return !r.admin; }).map(function (r) {
+      cbRolesSurv[r.code] = h('input', { type: 'checkbox', checked: rolesSurv.indexOf(r.code) >= 0 });
+      return h('label', { class: 'case' }, cbRolesSurv[r.code], h('span', { text: r.libelle }));
+    }));
     var minPoste = h('select', {}, [1, 2, 3, 4, 5, 6].map(function (n) { return h('option', { value: n, text: String(n), selected: n === M.optionsSurveillance(cfg).minParPoste }); }));
     var pSurv = h('section', { class: 'panneau' }, h('h2', { text: lieu('Postes de surveillance en CSI') }),
       h('div', { class: 'grille-2' },
@@ -2249,12 +2314,13 @@
         h('label', {}, 'Postes propres à un service (service ; code ; libellé ; début ; fin)', tPerSv)),
       h('small', { class: 'muted', text: 'Un service qui a ses propres postes n’utilise pas les postes par défaut. Ne changez pas le code d’un poste déjà utilisé.' }),
       h('label', { class: 'en-ligne' }, 'Professionnels attendus par poste (minimum)', minPoste),
+      h('fieldset', {}, h('legend', { text: 'Agents proposés dans la liste de la fenêtre « Ajouter » (comptes portant ces rôles, affectés au service)' }), casesRolesSurv),
       h('small', { class: 'muted', text: lieu('En dessous de ce nombre, le poste est signalé « à renseigner » (onglet Surveillance CSI et tableau de bord).') }),
       boutonEnregistrer(async function () {
         var pers = lignesDe(tPer).map(function (l) { return periodeDepuis(l.split(';').map(function (v) { return v.trim(); }), l); });
         var parSv = {};
         lignesDe(tPerSv).forEach(function (l) { var x = l.split(';').map(function (v) { return v.trim(); }); if (x.length !== 5) throw new Error('Poste mal formé : ' + l); (parSv[x[0]] = parSv[x[0]] || []).push(periodeDepuis(x.slice(1), l)); });
-        await enregistrerConfig([['periodes', pers], ['periodesService', parSv], ['surveillance', { minParPoste: +minPoste.value }]]);
+        await enregistrerConfig([['periodes', pers], ['periodesService', parSv], ['surveillance', { minParPoste: +minPoste.value, rolesListe: Object.keys(cbRolesSurv).filter(function (k) { return cbRolesSurv[k].checked; }) }]]);
       }));
 
     // -- Règles légales

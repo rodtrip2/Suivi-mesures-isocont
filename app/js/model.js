@@ -549,7 +549,25 @@
   function optionsSurveillance(config) {
     var v = (config && config.surveillance) || {};
     var n = Math.round(+v.minParPoste);
-    return { minParPoste: isFinite(n) && n >= 1 && n <= 6 ? n : 2 };
+    // Rôles dont les comptes sont proposés dans la liste des professionnels (IDE et AS par défaut)
+    var codes = rolesConfig(config).map(function (r) { return r.code; });
+    var roles = Array.isArray(v.rolesListe) ? v.rolesListe.filter(function (c) { return codes.indexOf(c) >= 0 && c !== 'ADMIN'; }) : ['IDE', 'AS'];
+    return { minParPoste: isFinite(n) && n >= 1 && n <= 6 ? n : 2, rolesListe: roles };
+  }
+
+  /**
+   * Agents proposés pour la surveillance d'un service : comptes actifs, non expirés au jour `dateISO` (AAAA-MM-JJ),
+   * portant un rôle de la liste réglée et affectés au service (ou à tous les services). Triés par nom.
+   */
+  function agentsSurveillance(comptes, config, service, dateISO) {
+    var roles = optionsSurveillance(config).rolesListe;
+    return (comptes || []).filter(function (c) {
+      if (!c || c.actif === false || c.id === 'secours') return false;
+      if (c.finValidite && dateISO && c.finValidite < dateISO) return false;
+      var r = (c.roles || []).filter(function (x) { return roles.indexOf(x) >= 0; });
+      if (!r.length) return false;
+      return voitTousServices(c.roles, config) || (c.services || []).indexOf(service) >= 0;
+    }).sort(function (a, b) { return String(a.nom).localeCompare(String(b.nom), 'fr'); });
   }
 
   /** Durées de conservation proposées pour les exports (jours ; 0 = aucune purge). */
@@ -1991,7 +2009,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
