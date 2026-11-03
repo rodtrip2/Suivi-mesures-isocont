@@ -291,7 +291,8 @@
     var selType = h('select', {}, h('option', { value: 'serveur', text: 'Dossier de secours sur un autre serveur', selected: type !== 'local' }), h('option', { value: 'local', text: 'Copie locale d’un poste désigné (travail hors réseau)', selected: type === 'local' }));
     var principal = h('input', { type: 'text', value: oe.cheminReseau, placeholder: '\\\\serveur\\partage\\SuiviIsoCont' });
     var secours = h('input', { type: 'text', value: type === 'local' ? 'C:\\SuiviIsoCont-local' : '' });
-    var selCompte = h('select', {}, h('option', { value: 'service', text: 'Un compte de service (la copie se fait même si personne n’est connecté)' }), h('option', { value: 'agents', text: 'Les agents connectés à la machine (aucun mot de passe à saisir)' }));
+    var selCompte = h('select', {}, h('option', { value: 'service', text: 'Un compte de service (la copie se fait même si personne n’est connecté)' }), h('option', { value: 'agents', text: 'Les agents connectés à la machine (aucun mot de passe à saisir)' }),
+      h('option', { value: 'session', text: 'Ma session Windows seulement (sans droits d’administrateur)' }));
     var utilisateur = h('input', { type: 'text', placeholder: 'DOMAINE\\svc-isocont' });
     try { utilisateur.value = localStorage.getItem('sic-compte-robocopy') || ''; } catch (e) { /* rien */ }
     var selIntervalle = h('select', {}, M.INTERVALLES_ROBOCOPY.map(function (m) { return h('option', { value: m, text: 'Toutes les ' + m + ' minutes', selected: m === 15 }); }));
@@ -310,13 +311,18 @@
       if (!dejaTouche) secours.value = selType.value === 'local' ? 'C:\\SuiviIsoCont-local' : '';
       selCompte.value = selType.value === 'local' ? 'agents' : 'service';
     });
+    var optSession = selCompte.querySelector('option[value="session"]');
     selCompte.value = type === 'local' ? 'agents' : 'service';
     function maj() {
-      var local = selType.value === 'local', agents = selCompte.value === 'agents';
+      var local = selType.value === 'local';
+      optSession.disabled = !local;
+      if (!local && selCompte.value === 'session') selCompte.value = 'service';
+      var session = selCompte.value === 'session', agents = selCompte.value === 'agents' || session;
       lblSecours.firstChild.textContent = local ? 'Dossier de la copie sur le disque du poste' : 'Dossier de secours (chemin réseau complet)';
       aideSecours.textContent = local ? 'Dossier du disque du poste désigné, créé s’il n’existe pas. Pour que l’outil et la tâche tiennent la même copie, indiquez le dossier choisi dans « Créer une copie locale des données sur ce poste ».' : 'Dossier vide, créé au préalable sur le second serveur, avec les mêmes droits que le dossier des données.';
       lblUtil.hidden = agents;
-      aideCompte.textContent = agents ? 'La copie se fait seulement quand un agent est connecté (à l’ouverture de session, puis à intervalle régulier), avec ses propres droits : les agents doivent avoir accès au dossier des données. ' + (local ? 'Suffisant pour la copie locale d’un poste désigné.' : 'Déconseillé pour un serveur, où personne n’est connecté.') : 'Compte du domaine avec lecture et écriture sur les deux dossiers et le droit « Ouvrir une session en tant que tâche ». Son mot de passe sera demandé dans PowerShell, une fois : il n’apparaît pas dans les commandes.';
+      aideCompte.textContent = session ? 'Pour un poste toujours utilisé par la même session Windows (compte du poste ou agent référent). Les commandes se collent dans un PowerShell ordinaire ; le script et son journal vont dans le profil de cette session. La copie se fait seulement pendant cette session (à son ouverture, puis à intervalle régulier). Les autres agents qui se connectent au poste ne la font pas : pour eux, choisissez « Les agents connectés à la machine » (administrateur requis). Certains postes interdisent les tâches planifiées sans droits d’administrateur : un message l’indiquera.'
+        : agents ? 'La copie se fait seulement quand un agent est connecté (à l’ouverture de session, puis à intervalle régulier), avec ses propres droits : les agents doivent avoir accès au dossier des données. ' + (local ? 'Suffisant pour la copie locale d’un poste désigné.' : 'Déconseillé pour un serveur, où personne n’est connecté.') : 'Compte du domaine avec lecture et écriture sur les deux dossiers et le droit « Ouvrir une session en tant que tâche ». Son mot de passe sera demandé dans PowerShell, une fois : il n’apparaît pas dans les commandes.';
       var r = M.commandesRobocopy({ type: selType.value, principal: principal.value, secours: secours.value, exports: oe.dossier, intervalle: +selIntervalle.value,
         compte: selCompte.value, utilisateur: utilisateur.value, script: SIC.scriptRobocopy });
       U.vider(zoneErr);
@@ -324,18 +330,18 @@
       try { if (!agents) localStorage.setItem('sic-compte-robocopy', utilisateur.value.trim()); } catch (e) { /* rien */ }
       sortie.value = r.texte; resultat.hidden = false;
       U.vider(etapes);
-      [local ? 'Sur le poste désigné, connectez-vous avec un compte administrateur du poste.' : 'Sur le serveur (ou le poste toujours allumé) qui fera la copie, connectez-vous avec un compte administrateur.',
-        'Clic droit sur le bouton Démarrer → « Terminal (administrateur) » ou « Windows PowerShell (administrateur) ».',
+      [session ? 'Sur le poste désigné, ouvrez la session Windows qui utilise le poste (celle qui fera la copie).' : local ? 'Sur le poste désigné, connectez-vous avec un compte administrateur du poste.' : 'Sur le serveur (ou le poste toujours allumé) qui fera la copie, connectez-vous avec un compte administrateur.',
+        session ? 'Ouvrez PowerShell normalement : menu Démarrer, tapez « PowerShell », puis Entrée (pas besoin de droits d’administrateur).' : 'Clic droit sur le bouton Démarrer → « Terminal (administrateur) » ou « Windows PowerShell (administrateur) ».',
         'Cliquez sur « Copier les commandes » ci-dessous, puis collez dans la fenêtre PowerShell (clic droit ou Ctrl + V) et appuyez sur Entrée.',
         agents ? null : 'Saisissez le mot de passe du compte de service quand il est demandé.',
         'Attendez le message vert « Installation terminée » (la première copie peut prendre quelques minutes). Un message rouge indique ce qui manque : rien n’est planifié.',
-        local ? 'C’est tout : la copie locale est tenue à jour par la tâche « ' + r.tache + ' ».' : 'Dans l’outil (Sauvegardes et exports), cliquez ensuite sur « Surveiller la copie robocopy » : l’administrateur sera alerté après 24 h sans copie.'
+        session ? 'C’est tout : la copie locale est tenue à jour pendant cette session par la tâche « ' + r.tache.replace(' - <votre identifiant Windows>', ' - ') + 'identifiant Windows ».' : local ? 'C’est tout : la copie locale est tenue à jour par la tâche « ' + r.tache + ' ».' : 'Dans l’outil (Sauvegardes et exports), cliquez ensuite sur « Surveiller la copie robocopy » : l’administrateur sera alerté après 24 h sans copie.'
       ].filter(Boolean).forEach(function (t) { etapes.appendChild(h('li', { text: t })); });
     }
     [selType, principal, secours, selCompte, utilisateur, selIntervalle].forEach(function (x) { x.addEventListener('input', maj); x.addEventListener('change', maj); });
     maj();
     return U.modale('Installer la copie automatique (robocopy)', h('div', { class: 'pile' },
-      h('p', { class: 'muted', text: 'L’outil prépare, avec vos chemins exacts, les commandes à coller une seule fois dans PowerShell sur la machine qui fera la copie : le script est enregistré, les dossiers créés, une première copie faite, puis la tâche planifiée. Les données copiées restent chiffrées.' }),
+      h('p', { class: 'muted', text: 'L’outil prépare, avec vos chemins exacts, les commandes à coller une seule fois dans PowerShell (en administrateur, sauf pour « Ma session Windows seulement ») sur la machine qui fera la copie : le script est enregistré, les dossiers créés, une première copie faite, puis la tâche planifiée. Les données copiées restent chiffrées.' }),
       h('label', {}, 'Ce qu’il faut copier', selType),
       h('label', {}, 'Dossier des données (chemin réseau, tel que dans l’Explorateur Windows)', principal),
       oe.cheminReseau ? null : h('small', { class: 'muted', text: 'Astuce : renseignez une fois ce chemin dans « Dossier des exports → Chemin réseau du dossier des données », il sera proposé ici.' }),

@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.63.0 — 3 novembre 2026
+
+- **Copie locale robocopy sans droits d'administrateur.** L'assistant propose un troisième choix, *Ma session Windows seulement*, réservé à la copie locale d'un poste. Il convient à un poste toujours ouvert sous la même session (compte du poste ou agent référent). Les commandes se collent dans un PowerShell ordinaire ; le script et son journal sont enregistrés dans le profil de la session. La tâche planifiée est créée au nom de cette session : la copie ne se fait que lorsqu'elle est ouverte. Si le poste interdit les tâches planifiées aux utilisateurs, un message l'explique, une fois la première copie faite.
+
 ## 1.62.0 — 3 novembre 2026
 
 - **Assistant d'installation de la copie robocopy** (*Administration → Sauvegardes et exports*) : *Installer une copie automatique par robocopy…* (dossier de secours sur un autre serveur) et *Tenir la copie locale à jour par robocopy…* (poste désigné pour le travail hors réseau). L'outil demande les chemins exacts : le dossier des données est proposé d'après le chemin réseau déjà renseigné. Il demande aussi qui fait la copie (compte de service, ou agents connectés au poste sans aucun mot de passe) et la fréquence. Il prépare ensuite un bloc de commandes à coller une seule fois dans PowerShell ouvert en administrateur.

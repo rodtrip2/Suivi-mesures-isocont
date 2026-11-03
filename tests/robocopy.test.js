@@ -57,3 +57,15 @@ test('Robocopy : dossier de secours par un compte de service ; guillemets et apo
   assert.match(r.texte, /^& \{$/m);
   assert.match(r.texte, /^\}\r\n$/m);
 });
+
+test('Robocopy : « ma session » sans droits d’administrateur (copie locale seulement)', () => {
+  const r = M.commandesRobocopy(Object.assign({}, base, { type: 'local', secours: 'C:\\SuiviIsoCont-local', compte: 'session' }));
+  assert.deepEqual(r.erreurs, []);
+  assert.doesNotMatch(r.texte, /IsInRole|icacls|Get-Credential|GroupId/);
+  assert.match(r.texte, /\$Outil = Join-Path \$env:LOCALAPPDATA 'SuiviIsoCont'/);
+  assert.match(r.texte, /New-ScheduledTaskPrincipal -UserId \$Moi -LogonType Interactive/);
+  assert.match(r.texte, /-AtLogOn -User \$Moi/);
+  assert.match(r.texte, /-Journal \$Log/);
+  assert.match(r.tache, /copie locale - /);
+  assert.ok(M.commandesRobocopy(Object.assign({}, base, { type: 'serveur', secours: '\\\\srv2\\secours', compte: 'session' })).erreurs.some((t) => /réservé à la copie locale/.test(t)));
+});

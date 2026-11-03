@@ -55,9 +55,10 @@ La copie faite par l'outil n'a lieu que lorsqu'un agent a l'outil ouvert sur le 
 
 **Méthode simple (assistant de l'outil).** Sur le poste désigné : *Administration → Sauvegardes et exports → Tenir la copie locale à jour par robocopy…*. Indiquer le même dossier local que pour la copie de l'outil (ex. `C:\SuiviIsoCont-local`). Choisir qui fait la copie :
 - **les agents connectés à la machine** : aucun mot de passe ; la copie se fait à chaque ouverture de session Windows, puis à intervalle régulier, même si l'outil n'est pas ouvert ;
-- **un compte de service** : la copie se fait même quand personne n'est connecté.
+- **un compte de service** : la copie se fait même quand personne n'est connecté ;
+- **ma session Windows seulement**, sans droits d'administrateur : pour un poste toujours ouvert sous la même session (compte du poste ou agent référent). Les commandes se collent dans un PowerShell ordinaire ; le script et son journal vont dans le profil de la session (`%LOCALAPPDATA%\SuiviIsoCont`). La copie ne se fait que pendant cette session. Si le poste interdit les tâches planifiées aux utilisateurs, un message l'indique : la première copie est faite, l'installation en administrateur reste nécessaire.
 
-Ouvrir ensuite PowerShell en administrateur sur le poste (clic droit sur Démarrer → *Terminal (administrateur)*). Coller les commandes préparées par l'outil (*Copier les commandes*), puis appuyer sur Entrée. Le message vert « Installation terminée » confirme la mise en place.
+Ouvrir ensuite PowerShell sur le poste, en administrateur (clic droit sur Démarrer → *Terminal (administrateur)*), sauf pour « ma session Windows seulement » : dans ce cas, un PowerShell ordinaire suffit. Coller les commandes préparées par l'outil (*Copier les commandes*), puis appuyer sur Entrée. Le message vert « Installation terminée » confirme la mise en place.
 
 **Méthode détaillée.** Pour une copie tenue à jour dès que le poste est allumé, sans assistant, le service informatique ajoute sur le poste désigné la tâche planifiée du document 09, en mode « local » :
 

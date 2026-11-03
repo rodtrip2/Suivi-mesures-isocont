@@ -2127,7 +2127,9 @@
     o = o || {};
     var erreurs = [], type = o.type === 'local' ? 'local' : 'serveur';
     var p = cheminWindows(o.principal), sv = cheminWindows(o.secours), outil = cheminWindows(o.dossierOutil || 'C:\\SuiviIsoCont');
-    var compte = o.compte === 'agents' ? 'agents' : 'service', utilisateur = String(o.utilisateur || '').trim();
+    // compte : 'service' (compte du domaine), 'agents' (groupe Utilisateurs, administrateur requis pour l'installer),
+    // 'session' (session Windows de la personne qui colle les commandes, sans droits d'administrateur ; copie locale seulement)
+    var compte = o.compte === 'agents' || o.compte === 'session' ? o.compte : 'service', utilisateur = String(o.utilisateur || '').trim();
     var intervalle = INTERVALLES_ROBOCOPY.indexOf(+o.intervalle) >= 0 ? +o.intervalle : 15;
     var exports = String(o.exports || 'exports').replace(/\//g, '\\').replace(/^\\+|\\+$/g, '') || 'exports';
     if (!p) erreurs.push('Chemin du dossier des données : indiquez un chemin réseau complet (ex. \\\\serveur\\partage\\SuiviIsoCont) ou un lecteur (ex. Z:\\SuiviIsoCont).');
@@ -2137,20 +2139,28 @@
     if (p && sv && sv.chemin.toLowerCase().indexOf(p.chemin.toLowerCase() + '\\') === 0) erreurs.push('Le dossier de copie ne doit pas se trouver à l’intérieur du dossier des données.');
     if (!outil || outil.unc) erreurs.push('Dossier du script : indiquez un dossier du disque de la machine (ex. C:\\SuiviIsoCont).');
     if (compte === 'service' && !/^[^\\\s'"]+\\[^\\\s'"]+$/.test(utilisateur) && !/^[^@\s'"]+@[^@\s'"]+$/.test(utilisateur)) erreurs.push('Compte de service : indiquez-le sous la forme DOMAINE\\nom-du-compte.');
+    if (compte === 'session' && type !== 'local') erreurs.push('« Ma session seulement » est réservé à la copie locale d’un poste : un dossier de secours sur un serveur doit être copié par un compte de service, même quand personne n’est connecté.');
     if (!o.script) erreurs.push('Script de copie introuvable dans l’outil.');
     var tache = type === 'local' ? 'SuiviIsoCont - copie locale' : 'SuiviIsoCont - dossier de secours';
+    if (compte === 'session') tache += ' - <votre identifiant Windows>';
     if (erreurs.length) return { erreurs: erreurs, texte: '', tache: tache };
     function q(v) { return "'" + String(v).replace(/'/g, "''") + "'"; }
     var L = [];
     L.push('# Suivi des mesures d’isolement et de contention — installation de la ' + (type === 'local' ? 'copie locale de ce poste' : 'copie vers le dossier de secours') + ' (robocopy).');
-    L.push('# À coller en une fois dans PowerShell ouvert en administrateur, sur ' + (type === 'local' ? 'le poste désigné' : 'la machine qui fera la copie (serveur de préférence)') + ', puis Entrée.');
+    L.push(compte === 'session' ? '# À coller en une fois dans PowerShell (sans droits d’administrateur), dans la session Windows qui utilisera le poste, puis Entrée.' : '# À coller en une fois dans PowerShell ouvert en administrateur, sur ' + (type === 'local' ? 'le poste désigné' : 'la machine qui fera la copie (serveur de préférence)') + ', puis Entrée.');
     L.push('& {');
     L.push("$ErrorActionPreference = 'Stop'");
     L.push('$Principal = ' + q(p.chemin) + '; $Secours = ' + q(sv.chemin) + '; $Exports = ' + q(exports) + "; $Type = '" + type + "'");
-    L.push('$Outil = ' + q(outil.chemin) + "; $Script = Join-Path $Outil 'miroir-robocopy.ps1'; $Tache = " + q(tache));
-    L.push("$Journal = Join-Path $env:ProgramData 'SuiviIsoCont'");
-    L.push("$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)");
-    L.push("if (-not $admin) { throw 'PowerShell n’est pas ouvert en administrateur : clic droit sur PowerShell, « Exécuter en tant qu’administrateur », puis recollez ces commandes.' }");
+    if (compte === 'session') {
+      // Sans droits d'administrateur : script et journal dans le profil de la personne, tâche à son nom
+      L.push("$Outil = Join-Path $env:LOCALAPPDATA 'SuiviIsoCont'; $Script = Join-Path $Outil 'miroir-robocopy.ps1'; $Journal = $Outil");
+      L.push("$Moi = $env:USERDOMAIN + '\\' + $env:USERNAME; $Tache = " + q(tache.replace(' - <votre identifiant Windows>', '')) + " + ' - ' + $env:USERNAME");
+    } else {
+      L.push('$Outil = ' + q(outil.chemin) + "; $Script = Join-Path $Outil 'miroir-robocopy.ps1'; $Tache = " + q(tache));
+      L.push("$Journal = Join-Path $env:ProgramData 'SuiviIsoCont'");
+      L.push("$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)");
+      L.push("if (-not $admin) { throw 'PowerShell n’est pas ouvert en administrateur : clic droit sur PowerShell, « Exécuter en tant qu’administrateur », puis recollez ces commandes.' }");
+    }
     L.push("if (-not (Test-Path -LiteralPath $Principal)) { throw ('Dossier des données inaccessible depuis cette machine : ' + $Principal) }");
     L.push("if (-not (Test-Path -LiteralPath (Join-Path $Principal 'coffre.json'))) { throw ('Ce dossier ne contient pas les données de l’outil (coffre.json absent) : ' + $Principal) }");
     if (type === 'local') L.push("if (-not (Test-Path -LiteralPath $Secours)) { New-Item -ItemType Directory -Path $Secours | Out-Null; Write-Host ('Dossier créé : ' + $Secours) }");
@@ -2160,6 +2170,8 @@
       L.push("# Agents connectés au poste : droits de modification sur le journal et la copie locale (groupe Utilisateurs)");
       L.push("& icacls.exe $Journal /grant '*S-1-5-32-545:(OI)(CI)M' | Out-Null");
       if (type === 'local') L.push("& icacls.exe $Secours /grant '*S-1-5-32-545:(OI)(CI)M' | Out-Null");
+    } else if (compte === 'session') {
+      // rien à régler : la personne a déjà accès à son profil et au dossier qu'elle crée
     } else if (type === 'local') {
       L.push("& icacls.exe $Journal /grant ($Compte + ':(OI)(CI)M') | Out-Null; & icacls.exe $Secours /grant ($Compte + ':(OI)(CI)M') | Out-Null".replace(/\$Compte/g, q(utilisateur)));
     } else {
@@ -2171,23 +2183,29 @@
     L.push('[IO.File]::WriteAllText($Script, $contenu, (New-Object Text.UTF8Encoding $true))');
     L.push("Write-Host ('Script enregistré : ' + $Script)");
     L.push("Write-Host 'Première copie en cours (quelques minutes la première fois)…'");
-    L.push('& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Script -Principal $Principal -Secours $Secours -Exports $Exports -Type $Type');
-    L.push("if ($LASTEXITCODE -ne 0) { throw ('La première copie s’est arrêtée (code ' + $LASTEXITCODE + ') : la raison est dans ' + (Join-Path $Journal 'miroir-robocopy.log') + '. Rien n’a été planifié.') }");
-    L.push("$arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"' + $Script + '\" -Principal \"' + $Principal + '\" -Secours \"' + $Secours + '\" -Exports \"' + $Exports + '\" -Type ' + $Type");
+    L.push("$Log = Join-Path $Journal 'miroir-robocopy.log'");
+    L.push('& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Script -Principal $Principal -Secours $Secours -Exports $Exports -Type $Type -Journal $Log');
+    L.push("if ($LASTEXITCODE -ne 0) { throw ('La première copie s’est arrêtée (code ' + $LASTEXITCODE + ') : la raison est dans ' + $Log + '. Rien n’a été planifié.') }");
+    L.push("$arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"' + $Script + '\" -Principal \"' + $Principal + '\" -Secours \"' + $Secours + '\" -Exports \"' + $Exports + '\" -Type ' + $Type + ' -Journal \"' + $Log + '\"'");
     L.push("$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments");
     L.push('$declencheurs = @(New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes ' + intervalle + '))');
     if (compte === 'agents') L.push('$declencheurs += New-ScheduledTaskTrigger -AtLogOn');
+    if (compte === 'session') L.push('$declencheurs += New-ScheduledTaskTrigger -AtLogOn -User $Moi');
     L.push('$reglages = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2)');
     if (compte === 'agents') {
       L.push("$qui = New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited");
       L.push('Register-ScheduledTask -TaskName $Tache -Action $action -Trigger $declencheurs -Settings $reglages -Principal $qui -Force | Out-Null');
+    } else if (compte === 'session') {
+      L.push("$qui = New-ScheduledTaskPrincipal -UserId $Moi -LogonType Interactive -RunLevel Limited");
+      L.push("try { Register-ScheduledTask -TaskName $Tache -Action $action -Trigger $declencheurs -Settings $reglages -Principal $qui -Force -ErrorAction Stop | Out-Null }");
+      L.push("catch { throw ('Ce poste n’autorise pas la création de tâches planifiées sans droits d’administrateur (' + $_.Exception.Message + '). La première copie est faite ; demandez au service informatique l’installation en mode administrateur.') }");
     } else {
       L.push('$id = Get-Credential -UserName ' + q(utilisateur) + " -Message 'Mot de passe du compte de service qui exécutera la copie'");
       L.push("if (-not $id) { throw 'Mot de passe non saisi : rien n’a été planifié (la première copie est faite).' }");
       L.push('Register-ScheduledTask -TaskName $Tache -Action $action -Trigger $declencheurs -Settings $reglages -User $id.UserName -Password $id.GetNetworkCredential().Password -RunLevel Limited -Force | Out-Null');
     }
-    L.push("Write-Host ('Installation terminée : tâche « ' + $Tache + ' » toutes les " + intervalle + " minutes" + (compte === 'agents' ? ", quand un agent est connecté au poste" : ", sous le compte " + utilisateur.replace(/'/g, "''")) + ".') -ForegroundColor Green");
-    L.push("Write-Host ('Journal : ' + (Join-Path $Journal 'miroir-robocopy.log'))");
+    L.push("Write-Host ('Installation terminée : tâche « ' + $Tache + ' » toutes les " + intervalle + " minutes" + (compte === 'agents' ? ", quand un agent est connecté au poste" : compte === 'session' ? ", pendant la session de ' + $Moi + '" : ", sous le compte " + utilisateur.replace(/'/g, "''")) + ".') -ForegroundColor Green");
+    L.push("Write-Host ('Journal : ' + $Log)");
     L.push('}');
     // PowerShell lit l'apostrophe typographique comme un guillemet : apostrophes droites (doublées dans les chaînes),
     // sauf dans le script intégré (chaîne littérale) et les commentaires.
