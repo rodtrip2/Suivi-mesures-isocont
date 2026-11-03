@@ -581,7 +581,7 @@ test('Listes, vigilance et affichage de l’établissement : défauts et validat
 
 test('Décompte : mise en forme des titres (taille, position, espace), héritage et valeurs bornées', () => {
   const d = M.masqueDecompte({}, 'U1').titres;
-  assert.deepEqual(d, { etab: { taille: 8.5, aligne: 'gauche', avant: 0, gras: false, italique: false, serviceALaLigne: false }, titre: { taille: 15, aligne: 'gauche', avant: 0, gras: true, italique: false } });
+  assert.deepEqual(d, { etab: { taille: 8.5, aligne: 'gauche', avant: 0, gras: false, italique: false, serviceALaLigne: false }, titre: { taille: 15, aligne: 'gauche', avant: 0, gras: true, italique: false }, service: { taille: 8.5, aligne: 'gauche', avant: 0, gras: false, italique: false } });
   const cfg = { decompte: { '*': { titres: { titre: { taille: 18, aligne: 'centre' } } }, U2: { titres: { etab: { aligne: 'droite', avant: 25, serviceALaLigne: true } } } } };
   assert.deepEqual(M.masqueDecompte(cfg, 'U1').titres.titre, { taille: 18, aligne: 'centre', avant: 0, gras: true, italique: false });
   const u2 = M.masqueDecompte(cfg, 'U2').titres;
@@ -593,4 +593,9 @@ test('Décompte : mise en forme des titres (taille, position, espace), héritage
   assert.deepEqual(bornes.titre, { taille: 15, aligne: 'gauche', avant: 120, gras: true, italique: false });
   const st = M.masqueDecompte({ decompte: { '*': { titres: { etab: { gras: true, italique: true }, titre: { gras: false, italique: 'oui' } } } } }, '*').titres;
   assert.deepEqual([st.etab.gras, st.etab.italique, st.titre.gras, st.titre.italique], [true, true, false, false]);
+  // Service à la ligne : mise en forme propre, sinon celle de l'établissement (sans l'espace au-dessus)
+  const sv = M.masqueDecompte({ decompte: { '*': { titres: { etab: { taille: 12, gras: true, avant: 20, serviceALaLigne: true } } }, U1: { titres: { service: { taille: 9, italique: true, aligne: 'droite' } } } } }, '*').titres.service;
+  assert.deepEqual(sv, { taille: 12, aligne: 'gauche', avant: 0, gras: true, italique: false });
+  const sv1 = M.masqueDecompte({ decompte: { '*': { titres: { etab: { taille: 12, gras: true, serviceALaLigne: true } } }, U1: { titres: { service: { taille: 9, italique: true, aligne: 'droite' } } } } }, 'U1').titres.service;
+  assert.deepEqual(sv1, { taille: 9, aligne: 'droite', avant: 0, gras: true, italique: true });
 });

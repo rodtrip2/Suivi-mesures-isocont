@@ -117,12 +117,18 @@
 
   /** Mise en forme des titres d'un masque (valeurs par défaut si absentes). */
   function titresDe(masque) {
-    var t = masque.titres || {}, d = M.MASQUE_DEFAUT.titres;
-    return { etab: Object.assign({}, d.etab, t.etab), titre: Object.assign({}, d.titre, t.titre) };
+    var t = masque.titres || {};
+    if (t.etab && t.titre && t.service) return t;   // masque déjà validé (masqueDecompte)
+    return M.masqueDecompte({ decompte: { '*': { titres: t } } }, '*').titres;
   }
-  /** Ligne « établissement — service », ou établissement puis service à la ligne (réglage du masque). */
-  function ligneEtab(m, masque) {
-    return [U.etablissement(), U.libService(m.service)].filter(Boolean).join(titresDe(masque).etab.serviceALaLigne ? '\n' : ' — ');
+  /**
+   * Lignes de l'en-tête du document : « établissement — service » sur une ligne (mise en forme de l'établissement),
+   * ou établissement puis service à la ligne, chacun avec sa mise en forme. [{ texte, style }]
+   */
+  function lignesEtab(m, masque) {
+    var tt = titresDe(masque), etab = U.etablissement(), sv = U.libService(m.service);
+    if (!tt.etab.serviceALaLigne) { var t = [etab, sv].filter(Boolean).join(' — '); return t ? [{ texte: t, style: tt.etab }] : []; }
+    return [etab ? { texte: etab, style: tt.etab } : null, sv ? { texte: sv, style: etab ? tt.service : tt.etab } : null].filter(Boolean);
   }
   function stylePdf(t) { return t.gras && t.italique ? 'gras-italique' : t.gras ? 'gras' : t.italique ? 'italique' : ''; }
   var ALIGN_CSS = { gauche: 'left', centre: 'center', droite: 'right' };
@@ -160,7 +166,7 @@
         masque.entete ? multiligne(masque.entete, 'doc-entete') : h('div'),
         masque.destinataire ? multiligne(masque.destinataire, 'doc-destinataire') : null) : null,
       h('header', {},
-        styleTitre(multiligne(ligneEtab(m, masque), 'doc-etab'), titresDe(masque).etab),
+        lignesEtab(m, masque).map(function (l) { return styleTitre(h('div', { class: 'doc-etab', text: l.texte }), l.style); }),
         styleTitre(h('h1', { text: c.titre }), titresDe(masque).titre),
         masque.sousTitre ? styleTitre(h('div', { class: 'doc-sous-titre', text: masque.sousTitre }), titresDe(masque).titre, true) : null),
       c.identite.length ? h('table', { class: 'doc-identite' }, h('tbody', {}, c.identite.map(function (x) { return h('tr', {}, h('th', { text: x[0] }), h('td', { text: x[1] })); }))) : null,
@@ -238,9 +244,10 @@
       if (masque.destinataire) doc.paragraphe(masque.destinataire, { taille: 9, x: G + L * 0.58, largeur: L * 0.42, apres: 0 });
       doc.y = Math.min(yE, doc.y) - 10;
     }
-    var etab = ligneEtab(m, masque);
     var tt = titresDe(masque), MMPT = 72 / 25.4;
-    if (etab) doc.paragraphe(etab, { taille: tt.etab.taille, style: stylePdf(tt.etab), rgb: [0.35, 0.35, 0.35], aligne: tt.etab.aligne, avant: tt.etab.avant * MMPT, apres: 2 });
+    lignesEtab(m, masque).forEach(function (l, i, tout) {
+      doc.paragraphe(l.texte, { taille: l.style.taille, style: stylePdf(l.style), rgb: [0.35, 0.35, 0.35], aligne: l.style.aligne, avant: l.style.avant * MMPT, apres: i < tout.length - 1 ? 0 : 2 });
+    });
     doc.paragraphe(c.titre, { taille: tt.titre.taille, style: stylePdf(tt.titre), aligne: tt.titre.aligne, avant: tt.titre.avant * MMPT, apres: masque.sousTitre ? 2 : 8 });
     if (masque.sousTitre) doc.paragraphe(masque.sousTitre, { taille: 10, rgb: [0.3, 0.3, 0.3], aligne: tt.titre.aligne, apres: 8 });
     if (c.identite.length) doc.tableau({ lignes: c.identite, poids: [32, 68], taille: 8.5, colonneGrasse: 0 });
@@ -443,8 +450,8 @@
       var selPages = h('select', {}, h('option', { value: 'toutes', text: 'Sur toutes les pages', selected: mq.fondPages !== 'premiere' }), h('option', { value: 'premiere', text: 'Sur la première page seulement', selected: mq.fondPages === 'premiere' }));
       // Mise en forme des titres : taille, alignement, espace au-dessus
       var champsTitres = {};
-      var blocTitres = h('div', { class: 'pile' }, [['etab', 'Établissement et service'], ['titre', 'Titre de la mesure (et sous-titre)']].map(function (x) {
-        var t = (mq.titres || M.MASQUE_DEFAUT.titres)[x[0]];
+      var blocTitres = h('div', { class: 'pile' }, [['etab', 'Établissement (et service sur la même ligne)'], ['service', 'Service (à la ligne)'], ['titre', 'Titre de la mesure (et sous-titre)']].map(function (x) {
+        var t = titresDe(mq)[x[0]];
         var c = champsTitres[x[0]] = {
           taille: h('input', { type: 'number', min: 6, max: 36, step: 0.5, value: t.taille, class: 'champ-court' }),
           aligne: h('select', {}, [['gauche', 'À gauche'], ['centre', 'Centré'], ['droite', 'À droite']].map(function (a) { return h('option', { value: a[0], text: a[1], selected: t.aligne === a[0] }); })),
@@ -453,10 +460,11 @@
           italique: h('input', { type: 'checkbox', checked: !!t.italique })
         };
         if (x[0] === 'etab') c.service = h('select', { 'aria-label': 'Service' }, h('option', { value: '', text: 'Établissement — service, sur une ligne', selected: !t.serviceALaLigne }), h('option', { value: '1', text: 'Service à la ligne, sous l’établissement', selected: !!t.serviceALaLigne }));
-        return h('div', { class: 'pile' }, h('div', { class: 'grille-4' }, h('b', { text: x[1] }), h('label', {}, 'Taille (points)', c.taille), h('label', {}, 'Position', c.aligne), h('label', {}, 'Espace au-dessus (mm)', c.avant)),
+        return c.ligne = h('div', { class: 'pile', hidden: x[0] === 'service' && !titresDe(mq).etab.serviceALaLigne }, h('div', { class: 'grille-4' }, h('b', { text: x[1] }), h('label', {}, 'Taille (points)', c.taille), h('label', {}, 'Position', c.aligne), h('label', {}, 'Espace au-dessus (mm)', c.avant)),
           h('div', { class: 'actions gauche' }, h('label', { class: 'case' }, c.gras, h('span', { text: 'Gras' })), h('label', { class: 'case' }, c.italique, h('span', { text: 'Italique' }))),
           c.service ? h('label', {}, 'Service', c.service) : null);
       }));
+      champsTitres.etab.service.addEventListener('change', function () { champsTitres.service.ligne.hidden = champsTitres.etab.service.value !== '1'; });
       var marges = {};
       var blocMarges = h('div', { class: 'grille-4' }, [['haut', 'Haut'], ['droite', 'Droite'], ['bas', 'Bas'], ['gauche', 'Gauche']].map(function (x) {
         marges[x[0]] = h('input', { type: 'number', min: 0, max: 80, step: 1, value: mq.marges[x[0]] });

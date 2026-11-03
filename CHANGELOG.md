@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.61.0 — 3 novembre 2026
+
+- **Décompte JLD** : quand le service est placé à la ligne, sa ligne a sa **propre mise en forme** (taille, gras, italique, position, espace au-dessus), indépendante de celle de l'établissement. Le réglage apparaît dans *Mise en forme des titres* dès que *Service à la ligne* est choisi. Sans réglage propre, le service reprend la mise en forme de l'établissement, comme jusqu'ici.
+
 ## 1.60.0 — 3 novembre 2026
 
 - **Décompte JLD** : la ligne « établissement — service » et le titre de la mesure peuvent chacun être mis en **gras** et/ou en **italique** (*Administration → Décompte JLD → Mise en forme des titres*). Ces réglages s'appliquent au PDF, à l'impression et à l'aperçu. Par défaut, rien ne change : l'établissement reste en caractères normaux et le titre en gras.
