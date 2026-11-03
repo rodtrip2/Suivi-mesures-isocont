@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.65.1 — 4 novembre 2026
+
+- **Rôle « registre seulement »** (anciennement « registre anonymisé seulement ») : les agents qui le portent voient désormais le **registre tel qu'il s'affiche habituellement**. Les patients y sont désignés par leur identifiant (IPP) et leur âge, avec le psychiatre et les soignants chargés de la surveillance ; on peut l'imprimer et l'enregistrer en PDF ou en CSV. Le reste de l'outil leur reste fermé : ni mesures, ni fiches patient, ni journal, ni fenêtre des exports, ni saisie. Un rôle créé en 1.65.0 est repris sans rien changer.
+
 ## 1.65.0 — 3 novembre 2026
 
 - **Rôle « registre anonymisé seulement »** (*Administration → Comptes et sécurité → Rôles et accès*) : *Nouveau rôle* à partir du modèle *registre anonymisé seulement*, ou case *Accès limité au registre anonymisé* d'un rôle créé. Les agents qui le portent n'ont qu'un onglet, *Registre*, dans sa version anonymisée. Les occultations les plus protectrices s'appliquent sans réglage : identifiant et âge du patient, psychiatre, soignants et lieu occultés, dates sans l'heure. Ces agents n'ont accès ni aux mesures, ni aux patients, ni au journal, ni aux exports. Impression et export CSV possibles, tracés au journal.

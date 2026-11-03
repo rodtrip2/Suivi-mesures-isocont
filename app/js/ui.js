@@ -669,8 +669,8 @@
     var maintenant = Date.now();
     var estAdmin = s.roles().indexOf('ADMIN') >= 0;
     var nivJournal = M.niveauJournal(s.roles(), config());
-    // Rôle « registre anonymisé seulement » : un seul onglet, sans données nominatives
-    var anonyme = M.registreAnonymeSeul(s.roles(), config());
+    // Rôle « registre seulement » : un seul onglet, le registre tel qu'il s'affiche habituellement
+    var anonyme = M.registreSeul(s.roles(), config());
     if (anonyme) App.onglet = 'registre';
     var conflits = nivJournal === 'aucun' ? 0 : conflitsVisibles().length;
     if (nivJournal === 'aucun' && App.onglet === 'journal') App.onglet = 'tableau';
@@ -996,7 +996,6 @@
   function vueRegistre(maintenant) {
     var svCode = App.service === '*' ? (services()[0] || {}).code : App.service;
     var selAn = h('input', { type: 'number', value: anneeRegistre, min: 2020, max: 2100, onchange: function () { anneeRegistre = +selAn.value; rendreContenu(); } });
-    if (M.registreAnonymeSeul(App.session.roles(), config())) return SIC.ui.actions.vueRegistreAnonyme(svCode, anneeRegistre, selAn, maintenant);
     var entrees = svCode ? M.registre(st(), svCode, anneeRegistre, maintenant) : [];
     var synthese = { A: 0, B: 0, C: 0, D: 0, E: 0 };
     entrees.forEach(function (e) { synthese[e.categorie]++; });
@@ -1143,7 +1142,7 @@
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + lieu(', surveillance hors CSI ') + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
-      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.registreAnonyme ? r.libelle + (r.services ? '' : ' (tous les services)') + ' : registre anonymisé seulement' : r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces) + ' ; journal ' + ({ complet: 'complet', services: 'de ses services', siennes: 'de ses saisies', aucun: 'masqué' })[r.journal]; }).join(' ; ');
+      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.registreSeul ? r.libelle + (r.services ? '' : ' (tous les services)') + ' : registre seulement' : r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces) + ' ; journal ' + ({ complet: 'complet', services: 'de ses services', siennes: 'de ses saisies', aucun: 'masqué' })[r.journal]; }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return (function (o) { return o.minParPoste + ' par poste ; agents proposés : ' + (o.rolesListe.map(function (r) { return M.libRole(config(), r); }).join(', ') || 'aucun'); })(M.optionsSurveillance(Object.assign({}, config(), { surveillance: v })));
       case 'verrouDossier': return v === true ? 'activé' : 'désactivé';

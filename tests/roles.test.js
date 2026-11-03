@@ -112,16 +112,17 @@ test('Journal : saisies visibles selon le niveau (services, siennes, aucun)', ()
   assert.equal(M2.journalVisible(st, ideA, cfgA).length, 0);
 });
 
-test('Rôle « registre anonymisé seulement » : aucun accès ni journal, réservé aux rôles créés, cumul plus large l’emporte', () => {
+test('Rôle « registre seulement » : aucun accès ni journal, réservé aux rôles créés, cumul plus large l’emporte, ancien réglage repris', () => {
   const M2 = require('../app/js/model.js');
-  const cfg = { roles: { R_INSTANCE: { libelle: 'Instance (fictif)', acces: ['mesures', 'jld'], registreAnonyme: true }, IDE: { registreAnonyme: true } } };
+  const cfg = { roles: { R_INSTANCE: { libelle: 'Instance (fictif)', acces: ['mesures', 'jld'], registreSeul: true }, R_ANCIEN: { libelle: 'Ancien (fictif)', registreAnonyme: true }, IDE: { registreSeul: true } } };
   const r = M2.rolesConfig(cfg).find((x) => x.code === 'R_INSTANCE');
-  assert.deepEqual([r.registreAnonyme, r.acces, r.types, r.journal], [true, [], [], 'aucun']);
+  assert.deepEqual([r.registreSeul, r.acces, r.types, r.journal], [true, [], [], 'aucun']);
+  assert.ok(M2.registreSeul(['R_ANCIEN'], cfg));   // réglage enregistré en 1.65.0
   assert.ok(!M2.peut(['R_INSTANCE'], 'MESURE_DEBUT', cfg));
-  assert.ok(M2.registreAnonymeSeul(['R_INSTANCE'], cfg));
-  assert.ok(!M2.registreAnonymeSeul(['R_INSTANCE', 'IDE'], cfg));   // l'IDE, rôle fourni, ne peut pas être restreint ainsi
-  assert.ok(!M2.rolesConfig(cfg).find((x) => x.code === 'IDE').registreAnonyme);
-  assert.ok(!M2.registreAnonymeSeul([], cfg));
-  assert.ok(!M2.registreAnonymeSeul(['ADMIN', 'R_INSTANCE'], cfg));
+  assert.ok(M2.registreSeul(['R_INSTANCE'], cfg));
+  assert.ok(!M2.registreSeul(['R_INSTANCE', 'IDE'], cfg));   // l'IDE, rôle fourni, ne peut pas être restreint ainsi
+  assert.ok(!M2.rolesConfig(cfg).find((x) => x.code === 'IDE').registreSeul);
+  assert.ok(!M2.registreSeul([], cfg));
+  assert.ok(!M2.registreSeul(['ADMIN', 'R_INSTANCE'], cfg));
   assert.equal(M2.niveauJournal(['R_INSTANCE'], cfg), 'aucun');
 });
