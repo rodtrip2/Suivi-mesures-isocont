@@ -124,12 +124,15 @@
   function ligneEtab(m, masque) {
     return [U.etablissement(), U.libService(m.service)].filter(Boolean).join(titresDe(masque).etab.serviceALaLigne ? '\n' : ' — ');
   }
+  function stylePdf(t) { return t.gras && t.italique ? 'gras-italique' : t.gras ? 'gras' : t.italique ? 'italique' : ''; }
   var ALIGN_CSS = { gauche: 'left', centre: 'center', droite: 'right' };
   /** Applique taille (pt), alignement et espace au-dessus (mm) par CSSOM (pas d'attribut style : CSP). */
   function styleTitre(el, t, alignementSeul) {
     el.style.setProperty('text-align', ALIGN_CSS[t.aligne] || 'left');
     if (!alignementSeul) {
       el.style.setProperty('font-size', t.taille + 'pt');
+      el.style.setProperty('font-weight', t.gras ? '700' : '400');
+      el.style.setProperty('font-style', t.italique ? 'italic' : 'normal');
       if (t.avant) el.style.setProperty('margin-top', t.avant + 'mm');
     }
     return el;
@@ -237,8 +240,8 @@
     }
     var etab = ligneEtab(m, masque);
     var tt = titresDe(masque), MMPT = 72 / 25.4;
-    if (etab) doc.paragraphe(etab, { taille: tt.etab.taille, rgb: [0.35, 0.35, 0.35], aligne: tt.etab.aligne, avant: tt.etab.avant * MMPT, apres: 2 });
-    doc.paragraphe(c.titre, { taille: tt.titre.taille, style: 'gras', aligne: tt.titre.aligne, avant: tt.titre.avant * MMPT, apres: masque.sousTitre ? 2 : 8 });
+    if (etab) doc.paragraphe(etab, { taille: tt.etab.taille, style: stylePdf(tt.etab), rgb: [0.35, 0.35, 0.35], aligne: tt.etab.aligne, avant: tt.etab.avant * MMPT, apres: 2 });
+    doc.paragraphe(c.titre, { taille: tt.titre.taille, style: stylePdf(tt.titre), aligne: tt.titre.aligne, avant: tt.titre.avant * MMPT, apres: masque.sousTitre ? 2 : 8 });
     if (masque.sousTitre) doc.paragraphe(masque.sousTitre, { taille: 10, rgb: [0.3, 0.3, 0.3], aligne: tt.titre.aligne, apres: 8 });
     if (c.identite.length) doc.tableau({ lignes: c.identite, poids: [32, 68], taille: 8.5, colonneGrasse: 0 });
     if (c.entetes.length) {
@@ -445,10 +448,13 @@
         var c = champsTitres[x[0]] = {
           taille: h('input', { type: 'number', min: 6, max: 36, step: 0.5, value: t.taille, class: 'champ-court' }),
           aligne: h('select', {}, [['gauche', 'À gauche'], ['centre', 'Centré'], ['droite', 'À droite']].map(function (a) { return h('option', { value: a[0], text: a[1], selected: t.aligne === a[0] }); })),
-          avant: h('input', { type: 'number', min: 0, max: 120, step: 1, value: t.avant, class: 'champ-court' })
+          avant: h('input', { type: 'number', min: 0, max: 120, step: 1, value: t.avant, class: 'champ-court' }),
+          gras: h('input', { type: 'checkbox', checked: !!t.gras }),
+          italique: h('input', { type: 'checkbox', checked: !!t.italique })
         };
         if (x[0] === 'etab') c.service = h('select', { 'aria-label': 'Service' }, h('option', { value: '', text: 'Établissement — service, sur une ligne', selected: !t.serviceALaLigne }), h('option', { value: '1', text: 'Service à la ligne, sous l’établissement', selected: !!t.serviceALaLigne }));
         return h('div', { class: 'pile' }, h('div', { class: 'grille-4' }, h('b', { text: x[1] }), h('label', {}, 'Taille (points)', c.taille), h('label', {}, 'Position', c.aligne), h('label', {}, 'Espace au-dessus (mm)', c.avant)),
+          h('div', { class: 'actions gauche' }, h('label', { class: 'case' }, c.gras, h('span', { text: 'Gras' })), h('label', { class: 'case' }, c.italique, h('span', { text: 'Italique' }))),
           c.service ? h('label', {}, 'Service', c.service) : null);
       }));
       var marges = {};
@@ -469,7 +475,7 @@
           miseEnEvidence: selEv.value, exportCSV: cbCSV.checked,
           trancheIsolement: Math.max(0, Math.min(168, +trIso.value || 0)), trancheContention: Math.max(0, Math.min(168, +trCont.value || 0)),
           fond: selFond.value, fondPages: selPages.value,
-          titres: Object.keys(champsTitres).reduce(function (o, k) { var c = champsTitres[k]; o[k] = { taille: +c.taille.value, aligne: c.aligne.value, avant: +c.avant.value || 0 }; if (c.service) o[k].serviceALaLigne = c.service.value === '1'; return o; }, {}),
+          titres: Object.keys(champsTitres).reduce(function (o, k) { var c = champsTitres[k]; o[k] = { taille: +c.taille.value, aligne: c.aligne.value, avant: +c.avant.value || 0, gras: c.gras.checked, italique: c.italique.checked }; if (c.service) o[k].serviceALaLigne = c.service.value === '1'; return o; }, {}),
           marges: Object.keys(marges).reduce(function (o, k) { var v = +marges[k].value; o[k] = isFinite(v) ? Math.max(0, Math.min(80, v)) : 15; return o; }, {})
         };
       }
@@ -486,7 +492,7 @@
           vue.appendChild(doc); ajusterApercu(vue, doc);
         } catch (e) { vue.appendChild(h('div', { class: 'erreur', text: e.message })); }
       }
-      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont, selEv].concat(Object.keys(marges).map(function (k) { return marges[k]; }), Object.keys(champsTitres).reduce(function (l, k) { var c = champsTitres[k]; return l.concat([c.taille, c.aligne, c.avant], c.service ? [c.service] : []); }, [])).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
+      [tIso, tCont, sous, entete, dest, pied, sign, conf, selFond, selPages, fmtDuree, fmtCumul, trIso, trCont, selEv].concat(Object.keys(marges).map(function (k) { return marges[k]; }), Object.keys(champsTitres).reduce(function (l, k) { var c = champsTitres[k]; return l.concat([c.taille, c.aligne, c.avant, c.gras, c.italique], c.service ? [c.service] : []); }, [])).forEach(function (x) { x.addEventListener('input', apercu); x.addEventListener('change', apercu); });
       Object.keys(casesIdentite).concat([]).forEach(function (k) { casesIdentite[k].addEventListener('change', apercu); });
       Object.keys(casesSections).forEach(function (k) { casesSections[k].addEventListener('change', apercu); });
       setTimeout(apercu, 0);

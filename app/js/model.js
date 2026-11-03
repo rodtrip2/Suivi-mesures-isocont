@@ -1934,7 +1934,7 @@
     exportCSV: false,
     // Mise en forme des titres (demande du porteur) : ligne « établissement — service » et titre de la mesure (le sous-titre
     // suit l'alignement du titre ; serviceALaLigne : le service sous l'établissement au lieu de « établissement — service »). taille en points (6 à 36), aligne 'gauche' | 'centre' | 'droite', avant : espace au-dessus (mm, 0 à 120).
-    titres: { etab: { taille: 8.5, aligne: 'gauche', avant: 0, serviceALaLigne: false }, titre: { taille: 15, aligne: 'gauche', avant: 0 } }
+    titres: { etab: { taille: 8.5, aligne: 'gauche', avant: 0, gras: false, italique: false, serviceALaLigne: false }, titre: { taille: 15, aligne: 'gauche', avant: 0, gras: true, italique: false } }
   };
   var ALIGNEMENTS_TITRE = ['gauche', 'centre', 'droite'];
 
@@ -1976,7 +1976,8 @@
       var x = r.titres[t], d = MASQUE_DEFAUT.titres[t], tl = +x.taille, av = +x.avant;
       r.titres[t] = { taille: isFinite(tl) && tl >= 6 && tl <= 36 ? Math.round(tl * 2) / 2 : d.taille,
         aligne: ALIGNEMENTS_TITRE.indexOf(x.aligne) >= 0 ? x.aligne : d.aligne,
-        avant: isFinite(av) ? Math.max(0, Math.min(120, Math.round(av))) : 0 };
+        avant: isFinite(av) ? Math.max(0, Math.min(120, Math.round(av))) : 0,
+        gras: typeof x.gras === 'boolean' ? x.gras : d.gras, italique: x.italique === true };
       if (t === 'etab') r.titres.etab.serviceALaLigne = x.serviceALaLigne === true;
     });
     if (['aucune', 'actuelle', 'anterieures', 'les-deux'].indexOf(r.miseEnEvidence) < 0) r.miseEnEvidence = 'aucune';

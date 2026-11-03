@@ -11,7 +11,7 @@ body:
     id: version
     attributes:
       label: Version de l'outil
-      placeholder: "1.59.1"
+      placeholder: "1.60.0"
   - type: textarea
     id: besoin
     attributes:

@@ -133,7 +133,7 @@
   };
 
   Document.prototype.texte = function (x, y, t, taille, style, rgb) {
-    var gras = style === 'gras', police = gras ? '/F2' : style === 'italique' ? '/F3' : '/F1';
+    var gras = style === 'gras' || style === 'gras-italique', police = style === 'gras-italique' ? '/F4' : gras ? '/F2' : style === 'italique' ? '/F3' : '/F1';
     this.page.ops.push('BT ' + couleur(rgb) + ' rg ' + police + ' ' + num(taille) + ' Tf ' + num(x) + ' ' + num(y) + ' Td (' + code(t, gras) + ') Tj ET');
   };
   Document.prototype.rect = function (x, y, l, h, fond, trait, pointille) {
@@ -148,11 +148,11 @@
   };
 
   /**
-   * Paragraphe dans le flux. `o` : { taille, style, rgb, aligne: 'gauche'|'droite'|'centre', x, largeur, avant, apres, cadre }.
+   * Paragraphe dans le flux. `o` : { taille, style ('gras' | 'italique' | 'gras-italique'), rgb, aligne: 'gauche'|'droite'|'centre', x, largeur, avant, apres, cadre }.
    */
   Document.prototype.paragraphe = function (t, o) {
     o = o || {};
-    var taille = o.taille || 9, gras = o.style === 'gras', inter = taille * 1.3;
+    var taille = o.taille || 9, gras = o.style === 'gras' || o.style === 'gras-italique', inter = taille * 1.3;
     var x0 = o.x != null ? o.x : this.mg.g, l = o.largeur || this.largeurUtile;
     var lignes = couper(t, taille, gras, l - (o.cadre ? 8 : 0));
     this.y -= o.avant || 0;
@@ -228,12 +228,13 @@
     var f1 = obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
     var f2 = obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
     var f3 = obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>');
+    var f4 = obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique /Encoding /WinAnsiEncoding >>');
     var imgId = null;
     if (this.image) {
       var inf = this.image.info;
       imgId = obj({ entete: '<< /Type /XObject /Subtype /Image /Width ' + inf.l + ' /Height ' + inf.h + ' /ColorSpace /' + (inf.comp === 1 ? 'DeviceGray' : inf.comp === 4 ? 'DeviceCMYK' : 'DeviceRGB') + ' /BitsPerComponent 8 /Filter /DCTDecode /Length ' + this.image.octets.length + ' >>', flux: this.image.octets });
     }
-    var ressources = '<< /Font << /F1 ' + f1 + ' 0 R /F2 ' + f2 + ' 0 R /F3 ' + f3 + ' 0 R >>' + (imgId ? ' /XObject << /Fond ' + imgId + ' 0 R >>' : '') + ' >>';
+    var ressources = '<< /Font << /F1 ' + f1 + ' 0 R /F2 ' + f2 + ' 0 R /F3 ' + f3 + ' 0 R /F4 ' + f4 + ' 0 R >>' + (imgId ? ' /XObject << /Fond ' + imgId + ' 0 R >>' : '') + ' >>';
     var idsPages = [];
     this.pages.forEach(function (p, i) {
       var ops = p.ops.slice();
