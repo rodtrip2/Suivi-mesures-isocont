@@ -103,7 +103,7 @@
    * choix les plus protecteurs (M.OCCULTATION_DEFAUT), sans réglage possible ; impression et export CSV tracés.
    */
   U.actions.vueRegistreAnonyme = function (service, annee, selAn, maintenant) {
-    selAn.classList.add('champ-court');
+    selAn.classList.add('champ-annee');
     if (!service) return h('p', { class: 'muted', text: 'Aucun service n’est affecté à votre compte : demandez-le à l’administrateur.' });
     var r = M.registreCommunicable(U.st(), service, annee, maintenant || Date.now(), M.OCCULTATION_DEFAUT, FMT);
     function tracer(format) { return U.App.session.tracer('REGISTRE_ANONYME', { libelle: U.libService(service) + ' ' + annee + ' — ' + format + ' — ' + r.occultations.join(' ; ') }); }
