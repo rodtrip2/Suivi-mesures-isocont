@@ -23,6 +23,20 @@ Cette copie complète, sans la remplacer, la synchronisation que l'outil sait fa
 
 ## 3. Mise en place
 
+### 3.0 Méthode simple : l'assistant de l'outil (recommandée)
+
+L'outil prépare lui-même les commandes, avec les chemins exacts : *Administration → Sauvegardes et exports → Installer une copie automatique par robocopy…*.
+
+1. Choisir *Dossier de secours sur un autre serveur*. Vérifier le chemin du dossier des données : il est proposé si l'administrateur l'a renseigné dans *Dossier des exports*. Saisir le chemin du dossier de secours (créé vide au préalable, étape 1 ci-dessous), le compte de service (étape 2) et la fréquence.
+2. Sur la machine qui fera la copie, ouvrir PowerShell **en administrateur** : clic droit sur Démarrer → *Terminal (administrateur)*.
+3. Dans l'outil, cliquer sur *Copier les commandes*, coller dans PowerShell, puis appuyer sur Entrée. Saisir le mot de passe du compte de service quand il est demandé.
+4. Les commandes contrôlent les deux dossiers, enregistrent le script dans `C:\SuiviIsoCont`, font une première copie, puis créent la tâche planifiée. Au moindre problème, elles s'arrêtent avec un message en rouge et ne planifient rien.
+5. Dans l'outil, cliquer sur *Surveiller la copie robocopy (alerte après 24 h)*.
+
+Le script est intégré aux commandes : il n'y a rien à télécharger ni à modifier. Le compte administrateur qui colle les commandes doit avoir accès aux deux dossiers, car c'est lui qui fait la première copie. La méthode détaillée ci-dessous reste valable, par exemple pour un déploiement par stratégie de groupe.
+
+### 3.1 Méthode détaillée
+
 1. **Dossier de secours** : créer un dossier **vide** sur le second serveur, avec les mêmes droits NTFS que le dossier des données (agents habilités en lecture et écriture, pour pouvoir y travailler en cas de panne du serveur principal).
 2. **Compte de service** : un compte du domaine (ex. `DOMAINE\svc-isocont-secours`) avec **lecture et écriture** sur les deux dossiers, et le droit « Ouvrir une session en tant que tâche ». L'écriture dans le dossier principal ne sert qu'au fichier `miroir-etat.json`.
 3. **Script** : copier `miroir-robocopy.ps1` sur la machine, par exemple dans `C:\SuiviIsoCont\`, puis renseigner en tête du fichier les deux chemins UNC (`$Principal`, `$Secours`) et, si l'établissement l'a changé, le nom du dossier des exports (`$Exports`, « exports » par défaut). On peut aussi passer ces valeurs en paramètres dans la tâche planifiée.

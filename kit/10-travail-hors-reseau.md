@@ -51,7 +51,15 @@ La **copie locale des données** est un dossier de secours placé sur le disque 
 
 ### 3.3 Copie des données indépendante du navigateur (recommandée)
 
-La copie faite par l'outil n'a lieu que lorsqu'un agent est connecté sur le poste (à la connexion, puis toutes les 10 minutes). Après une nuit ou un week-end sans connexion, elle peut être en retard. Pour qu'elle soit tenue à jour dès que le poste est allumé, le service informatique ajoute sur le poste désigné la tâche planifiée du document 09, en mode « local » :
+La copie faite par l'outil n'a lieu que lorsqu'un agent a l'outil ouvert sur le poste (à la connexion, puis toutes les 10 minutes). Après une nuit ou un week-end sans connexion, elle peut être en retard.
+
+**Méthode simple (assistant de l'outil).** Sur le poste désigné : *Administration → Sauvegardes et exports → Tenir la copie locale à jour par robocopy…*. Indiquer le même dossier local que pour la copie de l'outil (ex. `C:\SuiviIsoCont-local`). Choisir qui fait la copie :
+- **les agents connectés à la machine** : aucun mot de passe ; la copie se fait à chaque ouverture de session Windows, puis à intervalle régulier, même si l'outil n'est pas ouvert ;
+- **un compte de service** : la copie se fait même quand personne n'est connecté.
+
+Ouvrir ensuite PowerShell en administrateur sur le poste (clic droit sur Démarrer → *Terminal (administrateur)*). Coller les commandes préparées par l'outil (*Copier les commandes*), puis appuyer sur Entrée. Le message vert « Installation terminée » confirme la mise en place.
+
+**Méthode détaillée.** Pour une copie tenue à jour dès que le poste est allumé, sans assistant, le service informatique ajoute sur le poste désigné la tâche planifiée du document 09, en mode « local » :
 
 ```
 schtasks /Create /TN "SuiviIsoCont - copie locale" /SC MINUTE /MO 15 /RU DOMAINE\svc-isocont-secours /RP * /RL LIMITED /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\SuiviIsoCont\miroir-robocopy.ps1 -Type local -Principal \\serveur-donnees\partage\SuiviIsoCont -Secours C:\SuiviIsoCont-local"

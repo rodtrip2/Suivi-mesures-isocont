@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.62.0 — 3 novembre 2026
+
+- **Assistant d'installation de la copie robocopy** (*Administration → Sauvegardes et exports*) : *Installer une copie automatique par robocopy…* (dossier de secours sur un autre serveur) et *Tenir la copie locale à jour par robocopy…* (poste désigné pour le travail hors réseau). L'outil demande les chemins exacts : le dossier des données est proposé d'après le chemin réseau déjà renseigné. Il demande aussi qui fait la copie (compte de service, ou agents connectés au poste sans aucun mot de passe) et la fréquence. Il prépare ensuite un bloc de commandes à coller une seule fois dans PowerShell ouvert en administrateur.
+- Ce bloc contrôle les dossiers, enregistre le script (intégré : rien à télécharger ni à modifier), règle les droits, fait une première copie et crée la tâche planifiée. Au moindre problème, il s'arrête avec un message clair, sans rien planifier.
+- Fiches 09 et 10 et guide utilisateur : la méthode simple vient en premier, la méthode détaillée reste décrite.
+
 ## 1.61.1 — 3 novembre 2026
 
 - **Correction : création de la copie locale d'un poste.** Le choix du dossier échouait avec le message « Must be handling a user gesture to show a file picker ». Le navigateur n'ouvre le sélecteur de dossier qu'aussitôt après un clic, et la saisie du nom du poste puis le message d'information le retardaient. Le nom du poste se saisit désormais dans une fenêtre dont le bouton *Choisir le dossier…* ouvre directement le sélecteur.

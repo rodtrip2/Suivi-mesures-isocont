@@ -204,6 +204,7 @@
             }); } }, 'Retirer de la liste') : null));
         })))));
       var actions = h('div', { class: 'actions gauche' });
+      actions.appendChild(h('button', { class: 'btn', type: 'button', onclick: function () { assistantRobocopy('serveur'); } }, 'Installer une copie automatique par robocopy…'));
       if (srv && srv.outil === 'robocopy' && !o.attendu) actions.appendChild(h('button', { class: 'btn primaire', type: 'button', onclick: function () { action(async function () {
         await U.enregistrerConfig([['miroir', { attendu: true, nom: srv.nom || '' }]]);
         U.toast('Copie robocopy surveillée : un point de vigilance apparaîtra après 24 h sans copie.');
@@ -279,5 +280,70 @@
       h('div', { class: 'actions' }, h('button', { class: 'btn primaire', onclick: function () { U.changerDossier(); } }, 'Changer de dossier'))));
   }
 
-  U.miroir = { bandeauLocal: bandeauLocal, vigilanceLocale: vigilanceLocale, relierLocal: relierLocal, miroirsConnus: miroirsConnus, demarrer: demarrer, arreter: arreter, vigilance: vigilance, panneau: panneau, ecranDeplace: ecranDeplace, synchroniser: synchroniser, etat: etat };
+  // ------------------------------------------------------------ Assistant d'installation de la copie robocopy
+  /**
+   * Prépare, avec les chemins exacts, le bloc de commandes à coller une fois dans PowerShell (administrateur) sur la
+   * machine qui fera la copie : script, dossiers, première copie, tâche planifiée (M.commandesRobocopy). `type` :
+   * 'serveur' (dossier de secours) ou 'local' (copie locale d'un poste désigné).
+   */
+  function assistantRobocopy(type) {
+    var cfg = U.config(), oe = M.optionsExports(cfg);
+    var selType = h('select', {}, h('option', { value: 'serveur', text: 'Dossier de secours sur un autre serveur', selected: type !== 'local' }), h('option', { value: 'local', text: 'Copie locale d’un poste désigné (travail hors réseau)', selected: type === 'local' }));
+    var principal = h('input', { type: 'text', value: oe.cheminReseau, placeholder: '\\\\serveur\\partage\\SuiviIsoCont' });
+    var secours = h('input', { type: 'text', value: type === 'local' ? 'C:\\SuiviIsoCont-local' : '' });
+    var selCompte = h('select', {}, h('option', { value: 'service', text: 'Un compte de service (la copie se fait même si personne n’est connecté)' }), h('option', { value: 'agents', text: 'Les agents connectés à la machine (aucun mot de passe à saisir)' }));
+    var utilisateur = h('input', { type: 'text', placeholder: 'DOMAINE\\svc-isocont' });
+    try { utilisateur.value = localStorage.getItem('sic-compte-robocopy') || ''; } catch (e) { /* rien */ }
+    var selIntervalle = h('select', {}, M.INTERVALLES_ROBOCOPY.map(function (m) { return h('option', { value: m, text: 'Toutes les ' + m + ' minutes', selected: m === 15 }); }));
+    var lblSecours = h('label', {}, '', secours), lblUtil = h('label', {}, 'Compte de service', utilisateur);
+    var aideSecours = h('small', { class: 'muted' }), aideCompte = h('small', { class: 'muted' });
+    var zoneErr = h('div'), etapes = h('ol', {}), sortie = h('textarea', { rows: 8, readonly: true, class: 'mono', 'aria-label': 'Commandes à coller dans PowerShell' });
+    var resultat = h('div', { class: 'pile', hidden: true }, h('h3', { text: 'À faire sur la machine' }), etapes,
+      h('div', { class: 'actions gauche' }, h('button', { class: 'btn primaire', type: 'button', onclick: async function () {
+        try { await navigator.clipboard.writeText(sortie.value); U.toast('Commandes copiées : collez-les dans PowerShell ouvert en administrateur.'); }
+        catch (e) { sortie.focus(); sortie.select(); U.toast('Copie automatique impossible : le texte est sélectionné, faites Ctrl + C.'); }
+      } }, 'Copier les commandes')), sortie,
+      h('small', { class: 'muted', text: 'Les commandes contiennent le script de copie de cette version de l’outil : rien à télécharger. Elles ne contiennent aucune donnée de patient ni aucun mot de passe. Une copie qui ne peut pas se faire (dossier inaccessible, autres données…) s’arrête sans rien planifier et indique la raison.' }));
+    var dejaTouche = false;
+    secours.addEventListener('input', function () { dejaTouche = true; });
+    selType.addEventListener('change', function () {
+      if (!dejaTouche) secours.value = selType.value === 'local' ? 'C:\\SuiviIsoCont-local' : '';
+      selCompte.value = selType.value === 'local' ? 'agents' : 'service';
+    });
+    selCompte.value = type === 'local' ? 'agents' : 'service';
+    function maj() {
+      var local = selType.value === 'local', agents = selCompte.value === 'agents';
+      lblSecours.firstChild.textContent = local ? 'Dossier de la copie sur le disque du poste' : 'Dossier de secours (chemin réseau complet)';
+      aideSecours.textContent = local ? 'Dossier du disque du poste désigné, créé s’il n’existe pas. Pour que l’outil et la tâche tiennent la même copie, indiquez le dossier choisi dans « Créer une copie locale des données sur ce poste ».' : 'Dossier vide, créé au préalable sur le second serveur, avec les mêmes droits que le dossier des données.';
+      lblUtil.hidden = agents;
+      aideCompte.textContent = agents ? 'La copie se fait seulement quand un agent est connecté (à l’ouverture de session, puis à intervalle régulier), avec ses propres droits : les agents doivent avoir accès au dossier des données. ' + (local ? 'Suffisant pour la copie locale d’un poste désigné.' : 'Déconseillé pour un serveur, où personne n’est connecté.') : 'Compte du domaine avec lecture et écriture sur les deux dossiers et le droit « Ouvrir une session en tant que tâche ». Son mot de passe sera demandé dans PowerShell, une fois : il n’apparaît pas dans les commandes.';
+      var r = M.commandesRobocopy({ type: selType.value, principal: principal.value, secours: secours.value, exports: oe.dossier, intervalle: +selIntervalle.value,
+        compte: selCompte.value, utilisateur: utilisateur.value, script: SIC.scriptRobocopy });
+      U.vider(zoneErr);
+      if (r.erreurs.length) { zoneErr.appendChild(h('div', { class: 'alerte' }, h('ul', {}, r.erreurs.map(function (t) { return h('li', { text: t }); })))); resultat.hidden = true; return; }
+      try { if (!agents) localStorage.setItem('sic-compte-robocopy', utilisateur.value.trim()); } catch (e) { /* rien */ }
+      sortie.value = r.texte; resultat.hidden = false;
+      U.vider(etapes);
+      [local ? 'Sur le poste désigné, connectez-vous avec un compte administrateur du poste.' : 'Sur le serveur (ou le poste toujours allumé) qui fera la copie, connectez-vous avec un compte administrateur.',
+        'Clic droit sur le bouton Démarrer → « Terminal (administrateur) » ou « Windows PowerShell (administrateur) ».',
+        'Cliquez sur « Copier les commandes » ci-dessous, puis collez dans la fenêtre PowerShell (clic droit ou Ctrl + V) et appuyez sur Entrée.',
+        agents ? null : 'Saisissez le mot de passe du compte de service quand il est demandé.',
+        'Attendez le message vert « Installation terminée » (la première copie peut prendre quelques minutes). Un message rouge indique ce qui manque : rien n’est planifié.',
+        local ? 'C’est tout : la copie locale est tenue à jour par la tâche « ' + r.tache + ' ».' : 'Dans l’outil (Sauvegardes et exports), cliquez ensuite sur « Surveiller la copie robocopy » : l’administrateur sera alerté après 24 h sans copie.'
+      ].filter(Boolean).forEach(function (t) { etapes.appendChild(h('li', { text: t })); });
+    }
+    [selType, principal, secours, selCompte, utilisateur, selIntervalle].forEach(function (x) { x.addEventListener('input', maj); x.addEventListener('change', maj); });
+    maj();
+    return U.modale('Installer la copie automatique (robocopy)', h('div', { class: 'pile' },
+      h('p', { class: 'muted', text: 'L’outil prépare, avec vos chemins exacts, les commandes à coller une seule fois dans PowerShell sur la machine qui fera la copie : le script est enregistré, les dossiers créés, une première copie faite, puis la tâche planifiée. Les données copiées restent chiffrées.' }),
+      h('label', {}, 'Ce qu’il faut copier', selType),
+      h('label', {}, 'Dossier des données (chemin réseau, tel que dans l’Explorateur Windows)', principal),
+      oe.cheminReseau ? null : h('small', { class: 'muted', text: 'Astuce : renseignez une fois ce chemin dans « Dossier des exports → Chemin réseau du dossier des données », il sera proposé ici.' }),
+      lblSecours, aideSecours,
+      h('label', {}, 'La copie est faite par', selCompte), aideCompte, lblUtil,
+      h('label', {}, 'Fréquence', selIntervalle),
+      zoneErr, resultat), [{ texte: 'Fermer' }], { large: true });
+  }
+
+  U.miroir = { assistantRobocopy: assistantRobocopy, bandeauLocal: bandeauLocal, vigilanceLocale: vigilanceLocale, relierLocal: relierLocal, miroirsConnus: miroirsConnus, demarrer: demarrer, arreter: arreter, vigilance: vigilance, panneau: panneau, ecranDeplace: ecranDeplace, synchroniser: synchroniser, etat: etat };
 })();
