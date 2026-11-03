@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 1.57.0 — 3 novembre 2026
+
+- **Journal des saisies selon le rôle** (*Administration → Comptes et sécurité → Rôles et accès*, réglage *Journal des saisies* de chaque rôle) : journal complet ; saisies de ses services (et ses propres saisies) ; ses propres saisies seulement ; ou pas d'accès (onglet masqué). Un agent qui cumule des rôles a le niveau le plus large ; l'administrateur garde toujours le journal complet.
+- **Nouveau réglage par défaut** (choix de l'établissement porteur du projet) : IDE, AS et secrétaire ne voient plus que les saisies de leurs services, sans les opérations sur les comptes, le paramétrage, les imports et les exports ; le cadre de santé garde le journal complet. Réglable rôle par rôle.
+- Les saisies en conflit (journal et tableau de bord) sont limitées aux services de l'agent quand son journal est restreint.
+
 ## 1.56.0 — 3 novembre 2026
 
 - **Export et import des réglages** (*Administration → Informations*) : le paramétrage de l'établissement s'exporte dans un fichier `.json`, rubrique par rubrique, sans aucune donnée de patient, ni compte, ni mot de passe. Usages : reporter dans les données réelles un paramétrage préparé dans un dossier d'essai, partager un paramétrage avec un autre établissement.

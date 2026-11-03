@@ -65,3 +65,49 @@ test('Surveillance : agents proposés selon les rôles réglés, le service et l
   assert.deepEqual(M.optionsSurveillance({ surveillance: { rolesListe: ['INCONNU'] } }).rolesListe, []);
   assert.deepEqual(M.agentsSurveillance(comptes, {}, 'U1', '2026-10-30').map((c) => c.id), ['b', 'e', 'a']);
 });
+
+test('Journal : niveau par rôle, le plus large l’emporte ; défauts du porteur', () => {
+  const M2 = require('../app/js/model.js');
+  assert.equal(M2.niveauJournal(['IDE'], {}), 'services');
+  assert.equal(M2.niveauJournal(['AS'], {}), 'services');
+  assert.equal(M2.niveauJournal(['SECRETAIRE'], {}), 'services');
+  assert.equal(M2.niveauJournal(['CADRE'], {}), 'complet');
+  assert.equal(M2.niveauJournal(['ADMIN'], {}), 'complet');
+  assert.equal(M2.niveauJournal(['IDE', 'CADRE'], {}), 'complet');
+  assert.equal(M2.niveauJournal([], {}), 'aucun');
+  const cfg = { roles: { IDE: { journal: 'aucun' }, R_DIR: { libelle: 'Direction (fictif)', acces: [], services: false }, R_PSY: { libelle: 'Psychologue (fictif)', acces: [], journal: 'siennes' } } };
+  assert.equal(M2.niveauJournal(['IDE'], cfg), 'aucun');
+  assert.equal(M2.niveauJournal(['R_DIR'], cfg), 'complet');
+  assert.equal(M2.niveauJournal(['R_PSY'], cfg), 'siennes');
+  assert.equal(M2.niveauJournal(['IDE', 'R_PSY'], cfg), 'siennes');
+  assert.equal(M2.niveauJournal(['IDE'], { roles: { IDE: { journal: 'n’importe quoi' } } }), 'services');
+});
+
+test('Journal : saisies visibles selon le niveau (services, siennes, aucun)', () => {
+  const M2 = require('../app/js/model.js');
+  let k = 0;
+  const ev = (type, data, by) => ({ id: 'j' + String(++k).padStart(4, '0'), at: new Date(Date.UTC(2026, 0, 1, 0, k)).toISOString(), by: by || 'cadre', type, data });
+  const config = { services: [{ code: 'A' }, { code: 'B' }] };
+  const evts = [
+    ev('CONFIG', { cle: 'services', valeur: config.services }, 'admin'),
+    ev('PATIENT', { patientId: 'p1', nom: 'PATIENT A (fictif)', service: 'A' }),
+    ev('MESURE_DEBUT', { mesureId: 'm1', patientId: 'p1', typeMesure: 'Isolement', debut: Date.UTC(2026, 0, 2), service: 'A', lieu: 'CSI 1', csi: true }),
+    ev('PATIENT', { patientId: 'p2', nom: 'PATIENT B (fictif)', service: 'B' }),
+    ev('MESURE_DEBUT', { mesureId: 'm2', patientId: 'p2', typeMesure: 'Isolement', debut: Date.UTC(2026, 0, 2), service: 'B', lieu: 'CSI 2', csi: true }),
+    ev('PAUSE', { mesureId: 'm2', debut: Date.UTC(2026, 0, 2, 5), motif: 'Repas' }, 'ideB'),
+    ev('COMPTE', { action: 'MDP_REINIT', login: 'ideB' }, 'admin'),
+    ev('COMPTE', { action: 'MDP_CHANGE', login: 'ideA' }, 'ideA')
+  ];
+  evts.push(ev('ANNULATION', { cible: evts[5].id, motif: 'erreur' }, 'cadre'));
+  const st = M2.reduire(evts);
+  const ids = (l) => l.map((e) => e.type + (e.data.mesureId || e.data.patientId || e.data.action || e.data.cible || '')).join(',');
+  const ideA = { id: 'ideA', roles: ['IDE'], services: ['A'] };
+  assert.equal(ids(M2.journalVisible(st, ideA, config)), 'PATIENTp1,MESURE_DEBUTm1,COMPTEMDP_CHANGE');
+  const ideB = { id: 'ideB', roles: ['IDE'], services: ['B'] };
+  assert.equal(ids(M2.journalVisible(st, ideB, config)), 'PATIENTp2,MESURE_DEBUTm2,PAUSEm2,ANNULATION' + evts[5].id);
+  assert.equal(M2.journalVisible(st, { id: 'cadre', roles: ['CADRE'], services: ['A'] }, config).length, st.journal.length);
+  const cfgS = Object.assign({}, config, { roles: { IDE: { journal: 'siennes' } } });
+  assert.equal(ids(M2.journalVisible(st, ideB, cfgS)), 'PAUSEm2');
+  const cfgA = Object.assign({}, config, { roles: { IDE: { journal: 'aucun' } } });
+  assert.equal(M2.journalVisible(st, ideA, cfgA).length, 0);
+});

@@ -87,11 +87,85 @@
       var acces = Array.isArray(r.acces) ? r.acces.filter(function (a) { return ACCES.some(function (x) { return x.code === a; }); }) : (fourni ? accesDefaut(code) : []);
       var types = [];
       ACCES.forEach(function (a) { if (acces.indexOf(a.code) >= 0) a.types.forEach(function (t) { if (types.indexOf(t) < 0) types.push(t); }); });
+      var svc = r.services === undefined ? true : !!r.services;
       res.push({ code: code, libelle: String(r.libelle || (fourni ? ROLES[code] : code)).trim() || code, acces: acces, types: types,
-        services: r.services === undefined ? true : !!r.services, fourni: fourni, admin: false });
+        services: svc, journal: journalDefaut(code, svc, r.journal), fourni: fourni, admin: false });
     });
-    res.push({ code: 'ADMIN', libelle: ROLES.ADMIN, acces: [], types: TYPES_ADMIN.slice(), services: false, fourni: true, admin: true });
+    res.push({ code: 'ADMIN', libelle: ROLES.ADMIN, acces: [], types: TYPES_ADMIN.slice(), services: false, journal: 'complet', fourni: true, admin: true });
     return res;
+  }
+
+  // ------------------------------------------------ Visibilité du journal (demande du porteur)
+  // Niveau par rôle (`config.roles[CODE].journal`) ; un compte qui cumule des rôles a le niveau le plus large.
+  // Par défaut (choix du porteur) : cadre de santé et rôles « tous services » complet, autres rôles limités à leurs services.
+  var NIVEAUX_JOURNAL = [
+    { code: 'complet', libelle: 'Journal complet (tous les services, comptes, paramétrage, exports)' },
+    { code: 'services', libelle: 'Saisies de ses services (et ses propres saisies)' },
+    { code: 'siennes', libelle: 'Ses propres saisies seulement' },
+    { code: 'aucun', libelle: 'Pas d’accès au journal (onglet masqué)' }
+  ];
+  function journalDefaut(code, services, valeur) {
+    if (NIVEAUX_JOURNAL.some(function (n) { return n.code === valeur; })) return valeur;
+    if (code === 'CADRE' || !services) return 'complet';
+    return 'services';
+  }
+  /** Niveau de visibilité du journal pour un ensemble de rôles : le plus large l'emporte. */
+  function niveauJournal(roles, config) {
+    var rc = rolesConfig(config), rang = { complet: 0, services: 1, siennes: 2, aucun: 3 }, meilleur = 'aucun';
+    (roles || []).forEach(function (code) {
+      var r = rc.filter(function (x) { return x.code === code; })[0];
+      if (r && rang[r.journal] < rang[meilleur]) meilleur = r.journal;
+    });
+    return meilleur;
+  }
+  // Saisies propres à l'administration (comptes, paramétrage, imports, intégrité) : journal complet seulement.
+  var TYPES_JOURNAL_ADMIN = { CONFIG: 1, COMPTE: 1, LOT: 1, INTEGRITE: 1 };
+
+  /**
+   * Services concernés par une saisie (état réduit `st`) : service de la mesure et de ses segments, du patient et de
+   * ses mesures, de la saisie elle-même ; annulation : ceux de la saisie annulée. [] si aucun (saisie d'administration).
+   */
+  function servicesSaisie(st, e, profondeur) {
+    var d = (e && e.data) || {}, res = {};
+    if (TYPES_JOURNAL_ADMIN[e.type]) return [];
+    function mesure(id) {
+      var m = st.mesures[id];
+      if (!m) return;
+      if (m.service) res[m.service] = 1;
+      (m.segments || []).forEach(function (x) { if (x.service) res[x.service] = 1; });
+    }
+    function patient(id) {
+      var pid = ciblePatient(st, id), p = st.patients[pid];
+      if (p && p.service) res[p.service] = 1;
+      Object.keys(st.mesures).forEach(function (k) { if (st.mesures[k].patientId === pid) mesure(k); });
+    }
+    if (d.service) res[d.service] = 1;
+    if (d.mesureId) mesure(d.mesureId);
+    if (d.patientId) patient(d.patientId);
+    if (e.type === 'FUSION') { patient(d.garde); patient(d.absorbe); }
+    if (d.proposition && st.propositions[d.proposition]) mesure(st.propositions[d.proposition].mesureId);
+    if (d.cible && (profondeur || 0) < 5) {
+      var c = st.parId[d.cible];
+      if (c) servicesSaisie(st, c, (profondeur || 0) + 1).forEach(function (x) { res[x] = 1; });
+    }
+    return Object.keys(res);
+  }
+
+  /**
+   * Saisies du journal visibles par un compte : `complet` tout ; `services` ses propres saisies et les saisies de
+   * soin portant sur ses services ; `siennes` ses propres saisies ; `aucun` rien.
+   */
+  function journalVisible(st, compte, config) {
+    var niveau = niveauJournal(compte && compte.roles, config);
+    if (niveau === 'complet') return st.journal;
+    if (niveau === 'aucun' || !compte) return [];
+    var mien = function (e) { return e.by === compte.id; };
+    if (niveau === 'siennes') return st.journal.filter(mien);
+    var mesSv = servicesDe(compte, config);
+    return st.journal.filter(function (e) {
+      if (mien(e)) return true;
+      return servicesSaisie(st, e).some(function (x) { return mesSv.indexOf(x) >= 0; });
+    });
   }
 
   /** Libellé d'un rôle (rôle supprimé ou inconnu : son code). */
@@ -2157,7 +2231,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, GROUPES_REGLAGES: GROUPES_REGLAGES, REGLAGES_EXCLUS: REGLAGES_EXCLUS, exporterReglages: exporterReglages, analyserReglages: analyserReglages, reglagesAImporter: reglagesAImporter, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, NIVEAUX_JOURNAL: NIVEAUX_JOURNAL, niveauJournal: niveauJournal, servicesSaisie: servicesSaisie, journalVisible: journalVisible, GROUPES_REGLAGES: GROUPES_REGLAGES, REGLAGES_EXCLUS: REGLAGES_EXCLUS, exporterReglages: exporterReglages, analyserReglages: analyserReglages, reglagesAImporter: reglagesAImporter, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,

@@ -20,6 +20,7 @@
     return code;
   }
 
+  function libJournal(c) { var n = M.NIVEAUX_JOURNAL.filter(function (x) { return x.code === c; })[0]; return n ? n.libelle : c; }
   function minuscule(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
   function resumeAcces(acces) {
     return acces.length ? M.ACCES.filter(function (a) { return acces.indexOf(a.code) >= 0; }).map(function (a) { return minuscule(U.lieu(a.libelle)); }).join(', ') : 'aucun accès (consultation seule)';
@@ -29,7 +30,7 @@
     var cfg = U.config();
     // Copie de travail des rôles réglables (l'administrateur est fixe)
     var liste = M.rolesConfig(cfg).filter(function (r) { return !r.admin; }).map(function (r) {
-      return { code: r.code, libelle: r.libelle, acces: r.acces.slice(), services: r.services, fourni: r.fourni };
+      return { code: r.code, libelle: r.libelle, acces: r.acces.slice(), services: r.services, journal: r.journal, fourni: r.fourni };
     });
     var avant = JSON.parse(JSON.stringify(liste));
     var zone = h('div', { class: 'pile' }), zoneErr = h('div');
@@ -44,15 +45,25 @@
       });
       var tous = h('input', { type: 'checkbox', checked: !r.services, onchange: function () { r.services = !tous.checked; } });
       var n = comptesAvec(r.code).length;
+      var noteJournal = h('small', { class: 'alerte-champ' });
+      function majNote() {
+        var arbitre = r.acces.indexOf('annulation') >= 0 && (r.journal === 'aucun' || r.journal === 'siennes');
+        noteJournal.textContent = arbitre ? 'Ce rôle peut annuler des saisies : les saisies en conflit s’arbitrent dans le journal, qui doit montrer au moins les saisies de ses services.' : '';
+        noteJournal.hidden = !arbitre;
+      }
+      var selJournal = h('select', { 'aria-label': 'Journal des saisies', onchange: function () { r.journal = selJournal.value; majNote(); } },
+        M.NIVEAUX_JOURNAL.map(function (x) { return h('option', { value: x.code, text: x.libelle, selected: r.journal === x.code }); }));
+      majNote();
       return h('fieldset', { class: 'role' },
         h('legend', {}, r.libelle || r.code),
         h('div', { class: 'grille-2' }, h('label', {}, 'Libellé', lib),
           h('div', { class: 'muted' }, h('small', { text: (r.fourni ? 'Rôle fourni avec l’outil' : 'Rôle propre à l’établissement') + ' — code ' + r.code + ' — ' + n + ' compte(s) actif(s)' }))),
         h('div', { class: 'grille-acces' }, cases),
         h('label', { class: 'case' }, tous, h('span', { text: 'Accès à tous les services (sans affectation de services au compte), par exemple pour une direction des soins' })),
+        h('label', {}, 'Journal des saisies', selJournal), noteJournal,
         h('div', { class: 'actions gauche' },
           r.fourni ? h('button', { class: 'btn petit', type: 'button', onclick: function () {
-            r.acces = M.accesDefaut(r.code); r.services = true; r.libelle = M.ROLES[r.code]; dessiner();
+            r.acces = M.accesDefaut(r.code); r.services = true; r.libelle = M.ROLES[r.code]; r.journal = M.rolesConfig({}).filter(function (x) { return x.code === r.code; })[0].journal; dessiner();
           } }, 'Rétablir les droits par défaut') : null,
           !r.fourni ? h('button', { class: 'btn petit danger', type: 'button', disabled: n > 0, title: n ? 'Retirez d’abord ce rôle des ' + n + ' compte(s) qui le portent.' : '', onclick: function () {
             liste.splice(liste.indexOf(r), 1); dessiner();
@@ -63,7 +74,7 @@
       U.vider(zone);
       liste.forEach(function (r) { zone.appendChild(carte(r)); });
       zone.appendChild(h('fieldset', { class: 'role' }, h('legend', { text: M.ROLES.ADMIN }),
-        h('small', { class: 'muted', text: 'Rôle fixe : réglages, comptes et clés, imports, annulation de toute saisie, intégrité des données, accès à tous les services. Il ne se modifie pas, pour qu’un établissement ne puisse pas perdre l’accès aux réglages ; il se cumule avec un autre rôle.' })));
+        h('small', { class: 'muted', text: 'Rôle fixe : réglages, comptes et clés, imports, annulation de toute saisie, intégrité des données, accès à tous les services, journal complet. Il ne se modifie pas, pour qu’un établissement ne puisse pas perdre l’accès aux réglages ; il se cumule avec un autre rôle.' })));
     }
 
     var modele = h('select', { 'aria-label': 'Modèle du nouveau rôle' }, h('option', { value: '', text: 'aucun accès' }),
@@ -76,13 +87,13 @@
         var libelle = nomNouveau.value.trim();
         if (!libelle) return U.erreurDans(zoneErr, new Error('Indiquez le libellé du nouveau rôle.'));
         var src = liste.filter(function (x) { return x.code === modele.value; })[0];
-        liste.push({ code: nouveauCode(libelle, liste.map(function (x) { return x.code; }).concat(['ADMIN'])), libelle: libelle, acces: src ? src.acces.slice() : [], services: src ? src.services : true, fourni: false });
+        liste.push({ code: nouveauCode(libelle, liste.map(function (x) { return x.code; }).concat(['ADMIN'])), libelle: libelle, acces: src ? src.acces.slice() : [], services: src ? src.services : true, journal: src ? src.journal : 'services', fourni: false });
         nomNouveau.value = ''; dessiner();
       } }, '+ Ajouter'));
 
     dessiner();
     return h('section', { class: 'panneau' }, h('h2', { text: 'Rôles et accès' }),
-      h('p', { class: 'muted', text: 'Chaque compte porte un ou plusieurs rôles ; ses accès sont la réunion de ceux de ses rôles. Tous les agents voient les données de leurs services ; les accès ci-dessous ouvrent les saisies et actions. Un rôle sans accès donne une consultation seule. Les changements s’appliquent à la prochaine actualisation de chaque poste et sont tracés au journal.' }),
+      h('p', { class: 'muted', text: 'Chaque compte porte un ou plusieurs rôles ; ses accès sont la réunion de ceux de ses rôles. Tous les agents voient les données de leurs services ; les accès ci-dessous ouvrent les saisies et actions. Un rôle sans accès donne une consultation seule. Le journal des saisies montre, selon le rôle, tout le journal, les saisies des services de l’agent, ses propres saisies, ou rien ; un agent qui cumule des rôles a le niveau le plus large. Les changements s’appliquent à la prochaine actualisation de chaque poste et sont tracés au journal.' }),
       zoneErr, zone, ajout,
       U.boutonEnregistrer(async function () {
         var vus = {}, valeur = {};
@@ -91,19 +102,20 @@
           if (!l) throw new Error('Un rôle n’a pas de libellé.');
           if (vus[l.toLowerCase()] || l.toLowerCase() === M.ROLES.ADMIN.toLowerCase()) throw new Error('Deux rôles portent le libellé « ' + l + ' ».');
           vus[l.toLowerCase()] = 1;
-          valeur[r.code] = { libelle: l, acces: r.acces.slice(), services: !!r.services };
+          valeur[r.code] = { libelle: l, acces: r.acces.slice(), services: !!r.services, journal: r.journal };
         });
         // Résumé des changements, à confirmer
         var lignes = [];
         liste.forEach(function (r) {
           var a = avant.filter(function (x) { return x.code === r.code; })[0], n = comptesAvec(r.code).length;
-          if (!a) { lignes.push('Nouveau rôle « ' + r.libelle + ' » : ' + resumeAcces(r.acces) + '.'); return; }
+          if (!a) { lignes.push('Nouveau rôle « ' + r.libelle + ' » : ' + resumeAcces(r.acces) + ' ; journal : ' + minuscule(libJournal(r.journal)) + '.'); return; }
           var plus = r.acces.filter(function (x) { return a.acces.indexOf(x) < 0; }), moins = a.acces.filter(function (x) { return r.acces.indexOf(x) < 0; });
           var ch = [];
           if (a.libelle !== r.libelle.trim()) ch.push('renommé « ' + r.libelle.trim() + ' »');
           if (plus.length) ch.push('accès ajoutés : ' + resumeAcces(plus));
           if (moins.length) ch.push('accès retirés : ' + resumeAcces(moins));
           if (a.services !== r.services) ch.push(r.services ? 'limité aux services affectés' : 'accès à tous les services');
+          if (a.journal !== r.journal) ch.push('journal : ' + minuscule(libJournal(r.journal)));
           if (ch.length) lignes.push('« ' + a.libelle + ' » (' + n + ' compte(s)) : ' + ch.join(' ; ') + '.');
         });
         avant.forEach(function (a) { if (!liste.some(function (r) { return r.code === a.code; })) lignes.push('Rôle « ' + a.libelle + ' » supprimé.'); });

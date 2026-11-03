@@ -653,8 +653,10 @@
     if (focus) return; // ne pas reconstruire derrière une fenêtre ouverte
     if (s.utilisateur && s.utilisateur.mdpProvisoire) return rendre();
     var maintenant = Date.now();
-    var conflits = st().conflits.length;
     var estAdmin = s.roles().indexOf('ADMIN') >= 0;
+    var nivJournal = M.niveauJournal(s.roles(), config());
+    var conflits = nivJournal === 'aucun' ? 0 : conflitsVisibles().length;
+    if (nivJournal === 'aucun' && App.onglet === 'journal') App.onglet = 'tableau';
     if (!estAdmin && App.onglet === 'admin') App.onglet = 'tableau';
     // Pages de tableaux : toute la largeur de l'écran (les pages de réglage gardent une largeur de lecture)
     zoneContenu.classList.toggle('large', ['tableau', 'mesures', 'patients', 'jld', 'surveillance', 'registre', 'journal', 'stats'].indexOf(App.onglet) >= 0);
@@ -690,6 +692,7 @@
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
     ONGLETS.forEach(function (o) {
       if (o[0] === 'admin' && !estAdmin) return;
+      if (o[0] === 'journal' && nivJournal === 'aucun') return;
       nav.appendChild(h('button', { 'aria-current': App.onglet === o[0] ? 'page' : null, onclick: function () { App.onglet = o[0]; rendreContenu(); } },
         lieu(o[1]), o[0] === 'journal' && conflits ? h('span', { class: 'pastille', text: conflits }) : null));
     });
@@ -844,7 +847,12 @@
         !M.optionsPauses(config()).active && !enPause.length ? null : ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant, config()).depassee; }) ? 'bad' : ''),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
         ind(postesIncomplets.length, lieu('Postes CSI incomplets (48 h)'), postesIncomplets.length ? 'warn' : 'ok'),
-        ind(st().conflits.length, 'Saisies en conflit', st().conflits.length ? 'bad' : 'ok'),
+        (function () {
+          // Conflits portant sur les mesures des services de l'agent (tous pour un journal complet)
+          var mesSv = App.session.mesServices(), tous = M.niveauJournal(App.session.roles(), config()) === 'complet';
+          var n = st().conflits.filter(function (c) { return tous || M.servicesSaisie(st(), { type: 'X', data: { mesureId: c.mesureId } }).some(function (x) { return mesSv.indexOf(x) >= 0; }); }).length;
+          return ind(n, 'Saisies en conflit', n ? 'bad' : 'ok');
+        })(),
         ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok'),
         aTracer.length || M.alertesConfig(config()).some(function (r) { return r.active && r.nature === 'information'; }) ? ind(aTracer.length, 'Informations à tracer (alertes de l’établissement)', aTracer.some(function (x) { return x.retard; }) ? 'bad' : aTracer.length ? 'warn' : 'ok') : null),
       vigilance.length ? h('section', { class: 'panneau' }, h('h2', { text: 'Points de vigilance' }), h('ul', { class: 'vigilance' }, vigilance)) : null,
@@ -1112,7 +1120,7 @@
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + lieu(', surveillance hors CSI ') + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
-      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces); }).join(' ; ');
+      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces) + ' ; journal ' + ({ complet: 'complet', services: 'de ses services', siennes: 'de ses saisies', aucun: 'masqué' })[r.journal]; }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return (function (o) { return o.minParPoste + ' par poste ; agents proposés : ' + (o.rolesListe.map(function (r) { return M.libRole(config(), r); }).join(', ') || 'aucun'); })(M.optionsSurveillance(Object.assign({}, config(), { surveillance: v })));
       case 'verrouDossier': return v === true ? 'activé' : 'désactivé';
@@ -1266,15 +1274,27 @@
       } }], { focus: motif });
   }
 
-  function vueJournal() {
+  /** Saisies du journal visibles par l'agent connecté (niveau de ses rôles, Rôles et accès). */
+  function journalVisible() { return M.journalVisible(st(), App.session.utilisateur, config()); }
+  /** Conflits dont les deux saisies sont visibles par l'agent connecté. */
+  function conflitsVisibles() {
     var etat = st();
+    if (M.niveauJournal(App.session.roles(), config()) === 'complet') return etat.conflits;
+    var vis = {}; journalVisible().forEach(function (e) { vis[e.id] = 1; });
+    return etat.conflits.filter(function (c) { return vis[c.retenu] || vis[c.concurrent]; });
+  }
+
+  function vueJournal() {
+    var etat = st(), niveau = M.niveauJournal(App.session.roles(), config());
+    if (niveau === 'aucun') return h('p', { class: 'muted', text: 'Le journal n’est pas accessible avec vos rôles.' });
+    var visibles = journalVisible(), conflitsV = conflitsVisibles();
     var conflitsIds = {};
-    etat.conflits.forEach(function (c) { conflitsIds[c.concurrent] = c; conflitsIds[c.retenu] = c; });
+    conflitsV.forEach(function (c) { conflitsIds[c.concurrent] = c; conflitsIds[c.retenu] = c; });
     var peutArbitrer = App.session.peut('ANNULATION');
-    var blocConflits = etat.conflits.length ? h('section', { class: 'panneau' },
+    var blocConflits = conflitsV.length ? h('section', { class: 'panneau' },
       h('h2', { text: 'Saisies en conflit à arbitrer' }),
       h('p', { class: 'muted', text: 'Deux saisies concurrentes portent sur la même donnée. La première est appliquée ; aucune n’est perdue. Choisissez celle à conserver.' }),
-      etat.conflits.map(function (c) {
+      conflitsV.map(function (c) {
         var a = etat.parId[c.retenu], b = etat.parId[c.concurrent];
         function choix(garder, annuler) {
           return h('button', { class: 'btn petit', disabled: !peutArbitrer, onclick: async function () {
@@ -1286,14 +1306,16 @@
           h('div', {}, h('b', { text: 'Appliquée : ' }), resumeEvt(a), ' — ', App.session.nomAuteur(a.by), ' ', choix(a, b)),
           h('div', {}, h('b', { text: 'Concurrente : ' }), resumeEvt(b), ' — ', App.session.nomAuteur(b.by), ' ', choix(b, a)));
       })) : null;
-    var manquants = etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Détail, réparation depuis une copie ou prise d’acte : Administration → Informations.' }) : null;
-        var rejetes = App.session.rejetes.length ? h('div', { class: 'erreur', text: App.session.rejetes.length + ' fichier(s) illisible(s) ou altéré(s) ignoré(s) : ' + App.session.rejetes.map(function (r) { return r.nom; }).join(', ') }) : null;
+    var complet = niveau === 'complet';
+    var manquants = complet && etat.manquants.length ? h('div', { class: 'erreur', text: etat.manquants.length + ' saisie(s) manquante(s) dans le dossier (fichier supprimé ou non encore synchronisé) : ' + etat.manquants.map(function (x) { return x.manque; }).join(', ') + '. Détail, réparation depuis une copie ou prise d’acte : Administration → Informations.' }) : null;
+    var rejetes = complet && App.session.rejetes.length ? h('div', { class: 'erreur', text: App.session.rejetes.length + ' fichier(s) illisible(s) ou altéré(s) ignoré(s) : ' + App.session.rejetes.map(function (r) { return r.nom; }).join(', ') }) : null;
 
-    var lignes = etat.journal.slice().reverse().slice(0, 400);
+    var lignes = visibles.slice().reverse().slice(0, 400);
+    var portee = complet ? null : h('p', { class: 'muted', text: niveau === 'siennes' ? 'Vous voyez vos propres saisies (réglage de vos rôles).' : 'Vous voyez les saisies concernant vos services et vos propres saisies (réglage de vos rôles).' });
     index();
     return h('div', {},
-      h('div', { class: 'barre' }, h('h1', { text: 'Journal des saisies' }), h('div', { class: 'espace' }), h('small', { class: 'muted', text: etat.journal.length + ' saisies, chacune dans un fichier chiffré distinct, jamais modifié.' })),
-      rejetes, manquants, blocConflits,
+      h('div', { class: 'barre' }, h('h1', { text: 'Journal des saisies' }), h('div', { class: 'espace' }), h('small', { class: 'muted', text: (complet ? etat.journal.length + ' saisies' : visibles.length + ' saisies affichées') + ', chacune dans un fichier chiffré distinct, jamais modifié.' })),
+      portee, rejetes, manquants, blocConflits,
       h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['Saisi le', 'Auteur', 'Action', 'Détail', ''].map(function (t) { return h('th', { text: t }); }))),
         h('tbody', {}, lignes.map(function (e) {
@@ -1306,7 +1328,7 @@
             h('td', {}, annule ? h('span', { class: 'badge', text: 'annulée' }) : null, conflitsIds[e.id] ? h('span', { class: 'badge bad', text: 'conflit' }) : null),
             h('td', { class: 'actions-ligne' }, boutonAnnulationJournal(etat, e)));
         })))),
-      etat.journal.length > 400 ? h('p', { class: 'muted', text: 'Affichage limité aux 400 saisies les plus récentes.' }) : null);
+      visibles.length > 400 ? h('p', { class: 'muted', text: 'Affichage limité aux 400 saisies les plus récentes.' }) : null);
   }
 
   // ================================================================ Fenêtres
