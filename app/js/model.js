@@ -1933,8 +1933,8 @@
     // Export CSV du décompte (fichier nominatif) : proposé seulement si l'établissement l'active.
     exportCSV: false,
     // Mise en forme des titres (demande du porteur) : ligne « établissement — service » et titre de la mesure (le sous-titre
-    // suit l'alignement du titre). taille en points (6 à 36), aligne 'gauche' | 'centre' | 'droite', avant : espace au-dessus (mm, 0 à 120).
-    titres: { etab: { taille: 8.5, aligne: 'gauche', avant: 0 }, titre: { taille: 15, aligne: 'gauche', avant: 0 } }
+    // suit l'alignement du titre ; serviceALaLigne : le service sous l'établissement au lieu de « établissement — service »). taille en points (6 à 36), aligne 'gauche' | 'centre' | 'droite', avant : espace au-dessus (mm, 0 à 120).
+    titres: { etab: { taille: 8.5, aligne: 'gauche', avant: 0, serviceALaLigne: false }, titre: { taille: 15, aligne: 'gauche', avant: 0 } }
   };
   var ALIGNEMENTS_TITRE = ['gauche', 'centre', 'droite'];
 
@@ -1977,6 +1977,7 @@
       r.titres[t] = { taille: isFinite(tl) && tl >= 6 && tl <= 36 ? Math.round(tl * 2) / 2 : d.taille,
         aligne: ALIGNEMENTS_TITRE.indexOf(x.aligne) >= 0 ? x.aligne : d.aligne,
         avant: isFinite(av) ? Math.max(0, Math.min(120, Math.round(av))) : 0 };
+      if (t === 'etab') r.titres.etab.serviceALaLigne = x.serviceALaLigne === true;
     });
     if (['aucune', 'actuelle', 'anterieures', 'les-deux'].indexOf(r.miseEnEvidence) < 0) r.miseEnEvidence = 'aucune';
     r.exportCSV = r.exportCSV === true;

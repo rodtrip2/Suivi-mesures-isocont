@@ -581,13 +581,14 @@ test('Listes, vigilance et affichage de l’établissement : défauts et validat
 
 test('Décompte : mise en forme des titres (taille, position, espace), héritage et valeurs bornées', () => {
   const d = M.masqueDecompte({}, 'U1').titres;
-  assert.deepEqual(d, { etab: { taille: 8.5, aligne: 'gauche', avant: 0 }, titre: { taille: 15, aligne: 'gauche', avant: 0 } });
-  const cfg = { decompte: { '*': { titres: { titre: { taille: 18, aligne: 'centre' } } }, U2: { titres: { etab: { aligne: 'droite', avant: 25 } } } } };
+  assert.deepEqual(d, { etab: { taille: 8.5, aligne: 'gauche', avant: 0, serviceALaLigne: false }, titre: { taille: 15, aligne: 'gauche', avant: 0 } });
+  const cfg = { decompte: { '*': { titres: { titre: { taille: 18, aligne: 'centre' } } }, U2: { titres: { etab: { aligne: 'droite', avant: 25, serviceALaLigne: true } } } } };
   assert.deepEqual(M.masqueDecompte(cfg, 'U1').titres.titre, { taille: 18, aligne: 'centre', avant: 0 });
   const u2 = M.masqueDecompte(cfg, 'U2').titres;
-  assert.deepEqual(u2.etab, { taille: 8.5, aligne: 'droite', avant: 25 });
+  assert.deepEqual(u2.etab, { taille: 8.5, aligne: 'droite', avant: 25, serviceALaLigne: true });
+  assert.equal(M.masqueDecompte(cfg, 'U1').titres.etab.serviceALaLigne, false);
   assert.equal(u2.titre.taille, 18);   // hérité du masque de l'établissement
   const bornes = M.masqueDecompte({ decompte: { '*': { titres: { etab: { taille: 200, aligne: 'milieu', avant: -5 }, titre: { taille: 'x', avant: 999 } } } } }, '*').titres;
-  assert.deepEqual(bornes.etab, { taille: 8.5, aligne: 'gauche', avant: 0 });
+  assert.deepEqual(bornes.etab, { taille: 8.5, aligne: 'gauche', avant: 0, serviceALaLigne: false });
   assert.deepEqual(bornes.titre, { taille: 15, aligne: 'gauche', avant: 120 });
 });
