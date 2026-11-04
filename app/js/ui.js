@@ -672,6 +672,7 @@
     // Rôle « registre seulement » : un seul onglet, le registre tel qu'il s'affiche habituellement
     var anonyme = M.registreSeul(s.roles(), config());
     if (anonyme) App.onglet = 'registre';
+    else if (!M.ongletVisible(s.roles(), config(), App.onglet)) App.onglet = 'tableau';
     var conflits = nivJournal === 'aucun' ? 0 : conflitsVisibles().length;
     if (nivJournal === 'aucun' && App.onglet === 'journal') App.onglet = 'tableau';
     if (!estAdmin && App.onglet === 'admin') App.onglet = 'tableau';
@@ -715,6 +716,7 @@
       if (o[0] === 'admin' && !estAdmin) return;
       if (o[0] === 'journal' && nivJournal === 'aucun') return;
       if (anonyme && o[0] !== 'registre') return;
+      if (!M.ongletVisible(s.roles(), config(), o[0])) return;
       nav.appendChild(h('button', { 'aria-current': App.onglet === o[0] ? 'page' : null, onclick: function () { App.onglet = o[0]; rendreContenu(); } },
         lieu(o[1]), o[0] === 'journal' && conflits ? h('span', { class: 'pastille', text: conflits }) : null));
     });
@@ -852,6 +854,7 @@
           h('td', { class: 'actions-ligne' }, App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { modaleJLD(x.m); } }, 'Saisir') : null));
       })))) : h('div', { class: 'vide', text: 'Aucune échéance JLD en cours.' });
 
+    var voitSurveillance = M.ongletVisible(App.session.roles(), config(), 'surveillance');
     var listePostes = postesIncomplets.length ? h('div', { class: 'postes' }, postesIncomplets.slice(0, 8).map(function (x) {
       return h('div', { class: 'poste incomplet' }, h('div', {}, h('b', { text: x.p.libelle }), h('br'), h('small', { text: fmtJour.format(x.p.debut) })),
         h('div', {}, h('small', { text: libService(x.sv.code) + ' — ' + x.p.professionnels.length + ' / 2 professionnels' })),
@@ -868,7 +871,7 @@
         })(), proches ? 'warn' : 'ok'),
         !M.optionsPauses(config()).active && !enPause.length ? null : ind(enPause.length, 'Mesures en pause (levée temporaire)', enPause.some(function (m) { return M.pauseEnCours(m, maintenant, config()).depassee; }) ? 'bad' : ''),
         ind(tiersARenseigner, 'Tiers à renseigner (cycle en cours)', tiersARenseigner ? 'warn' : 'ok'),
-        ind(postesIncomplets.length, lieu('Postes CSI incomplets (48 h)'), postesIncomplets.length ? 'warn' : 'ok'),
+        voitSurveillance ? ind(postesIncomplets.length, lieu('Postes CSI incomplets (48 h)'), postesIncomplets.length ? 'warn' : 'ok') : null,
         (function () {
           // Conflits portant sur les mesures des services de l'agent (tous pour un journal complet)
           var mesSv = App.session.mesServices(), tous = M.niveauJournal(App.session.roles(), config()) === 'complet';
@@ -878,9 +881,10 @@
         ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok'),
         aTracer.length || M.alertesConfig(config()).some(function (r) { return r.active && r.nature === 'information'; }) ? ind(aTracer.length, 'Informations à tracer (alertes de l’établissement)', aTracer.some(function (x) { return x.retard; }) ? 'bad' : aTracer.length ? 'warn' : 'ok') : null),
       vigilance.length ? h('section', { class: 'panneau' }, h('h2', { text: 'Points de vigilance' }), h('ul', { class: 'vigilance' }, vigilance)) : null,
-      h('div', { class: 'deux-colonnes' },
+      voitSurveillance ? h('div', { class: 'deux-colonnes' },
         h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch),
-        h('section', { class: 'panneau' }, h('h2', { text: lieu('Surveillance en CSI à compléter') }), listePostes)));
+        h('section', { class: 'panneau' }, h('h2', { text: lieu('Surveillance en CSI à compléter') }), listePostes))
+        : h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch));
   }
 
   // ---------------------------------------------------------------- Mesures
@@ -1070,6 +1074,7 @@
 
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
+  var LIB_ONGLET_MASQUABLE = { surveillance: 'Surveillance CSI', registre: 'Registre', stats: 'Statistiques' };
   var LIB_CONFIG = {
     etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', miroir: 'Dossier de secours', verrouDossier: 'Choix du dossier bloqué sur les postes', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
@@ -1142,7 +1147,7 @@
       case 'qualite': var oq = M.optionsQualite({ qualite: v }); return 'motif du recours ' + (oq.motifRecours ? 'proposé (' + oq.motifsRecours.length + ' motifs)' : 'non proposé') + ', ' + oq.nomEntretien.toLowerCase() + ' ' + (oq.entretien ? 'tracé' : 'non tracé') + lieu(', surveillance hors CSI ') + (oq.surveillanceHorsCSI ? 'tracée' : 'non tracée') + ', conservation ' + (oq.conservationAns ? oq.conservationAns + ' ans' : 'non fixée');
       case 'statsMethode': return SIC.ui.methode.resumeConfig(v);
       case 'informateursTiers': return ['psychiatre'].concat((v || []).map(function (x) { return x.libelle; })).join(', ');
-      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.registreSeul ? r.libelle + (r.services ? '' : ' (tous les services)') + ' : registre seulement' : r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces) + ' ; journal ' + ({ complet: 'complet', services: 'de ses services', siennes: 'de ses saisies', aucun: 'masqué' })[r.journal]; }).join(' ; ');
+      case 'roles': return M.rolesConfig({ roles: v }).filter(function (r) { return !r.admin; }).map(function (r) { return r.registreSeul ? r.libelle + (r.services ? '' : ' (tous les services)') + ' : registre seulement' : r.libelle + (r.services ? '' : ' (tous les services)') + ' : ' + SIC.ui.roles.resumeAcces(r.acces) + (r.ongletsMasques.length ? ' ; onglets masqués : ' + r.ongletsMasques.map(function (o) { return lieu(LIB_ONGLET_MASQUABLE[o]); }).join(', ') : '') + ' ; journal ' + ({ complet: 'complet', services: 'de ses services', siennes: 'de ses saisies', aucun: 'masqué' })[r.journal]; }).join(' ; ');
       case 'exports': var oe = M.optionsExports({ exports: v }); return '« ' + oe.dossier + ' », ' + (oe.conservationJours ? 'conservation ' + oe.conservationJours + ' jours' : 'sans purge automatique') + (oe.cheminReseau ? ', chemin réseau ' + oe.cheminReseau : '');
       case 'surveillance': return (function (o) { return o.minParPoste + ' par poste ; agents proposés : ' + (o.rolesListe.map(function (r) { return M.libRole(config(), r); }).join(', ') || 'aucun'); })(M.optionsSurveillance(Object.assign({}, config(), { surveillance: v })));
       case 'verrouDossier': return v === true ? 'activé' : 'désactivé';

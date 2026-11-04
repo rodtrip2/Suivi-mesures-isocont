@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.66.0 — 4 novembre 2026
+
+- **Onglets selon le rôle** (*Administration → Comptes et sécurité → Rôles et accès*, rubrique *Onglets affichés* de chaque rôle) : les onglets *Surveillance CSI*, *Registre* et *Statistiques* peuvent être masqués pour un rôle, par exemple pour la secrétaire. Quand *Surveillance CSI* est masqué, le tableau de bord n'affiche plus les postes de surveillance à compléter.
+- Un agent qui cumule des rôles voit un onglet dès qu'un de ses rôles l'affiche ; l'administrateur voit toujours tout. Par défaut, rien n'est masqué. La liste *Affichage* de l'en-tête permet de vérifier le résultat.
+
 ## 1.65.1 — 4 novembre 2026
 
 - **Rôle « registre seulement »** (anciennement « registre anonymisé seulement ») : les agents qui le portent voient désormais le **registre tel qu'il s'affiche habituellement**. Les patients y sont désignés par leur identifiant (IPP) et leur âge, avec le psychiatre et les soignants chargés de la surveillance ; on peut l'imprimer et l'enregistrer en PDF ou en CSV. Le reste de l'outil leur reste fermé : ni mesures, ni fiches patient, ni journal, ni fenêtre des exports, ni saisie. Un rôle créé en 1.65.0 est repris sans rien changer.

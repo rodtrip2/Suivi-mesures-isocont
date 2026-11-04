@@ -20,6 +20,8 @@
     return code;
   }
 
+  var LIB_ONGLETS = { surveillance: 'Surveillance CSI', registre: 'Registre', stats: 'Statistiques' };
+  function libOnglets(l) { return l.length ? l.map(function (o) { return U.lieu(LIB_ONGLETS[o]); }).join(', ') : 'aucun'; }
   function libJournal(c) { var n = M.NIVEAUX_JOURNAL.filter(function (x) { return x.code === c; })[0]; return n ? n.libelle : c; }
   function minuscule(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
   function resumeAcces(acces) {
@@ -30,7 +32,7 @@
     var cfg = U.config();
     // Copie de travail des rôles réglables (l'administrateur est fixe)
     var liste = M.rolesConfig(cfg).filter(function (r) { return !r.admin; }).map(function (r) {
-      return { code: r.code, libelle: r.libelle, acces: r.acces.slice(), services: r.services, journal: r.journal, registreSeul: !!r.registreSeul, fourni: r.fourni };
+      return { code: r.code, libelle: r.libelle, acces: r.acces.slice(), services: r.services, journal: r.journal, registreSeul: !!r.registreSeul, ongletsMasques: r.ongletsMasques.slice(), fourni: r.fourni };
     });
     var avant = JSON.parse(JSON.stringify(liste));
     var zone = h('div', { class: 'pile' }), zoneErr = h('div');
@@ -56,9 +58,16 @@
       majNote();
       // Rôle « registre seulement » (rôles créés) : remplace les accès et le journal
       var grilleAcces = h('div', { class: 'grille-acces' }, cases), blocJournal = h('label', {}, 'Journal des saisies', selJournal);
+      // Onglets masquables (Surveillance CSI, Registre, Statistiques) : cochés = affichés
+      var blocOnglets = h('div', { class: 'pile' }, h('span', { text: 'Onglets affichés' }), h('div', { class: 'actions gauche' }, M.ONGLETS_MASQUABLES.map(function (o) {
+        var cb = h('input', { type: 'checkbox', checked: r.ongletsMasques.indexOf(o) < 0, onchange: function () {
+          r.ongletsMasques = M.ONGLETS_MASQUABLES.filter(function (x) { return x === o ? !cb.checked : r.ongletsMasques.indexOf(x) >= 0; });
+        } });
+        return h('label', { class: 'case' }, cb, h('span', { text: U.lieu(LIB_ONGLETS[o]) }));
+      })), h('small', { class: 'muted', text: 'Les autres onglets restent affichés. Un agent qui cumule des rôles voit un onglet dès qu’un de ses rôles l’affiche.' }));
       var cbAnonyme = r.fourni ? null : h('input', { type: 'checkbox', checked: !!r.registreSeul, onchange: function () { r.registreSeul = cbAnonyme.checked; majAnonyme(); } });
       var noteAnonyme = h('small', { class: 'muted', text: 'Seul l’onglet Registre est ouvert, tel qu’il s’affiche habituellement (patients désignés par leur identifiant, IPP, et leur âge ; psychiatre et soignants chargés de la surveillance) : ni mesures, ni fiches patient, ni journal, ni fenêtre des exports, aucune saisie. Les agents peuvent l’imprimer et l’enregistrer en PDF ou en CSV. Exemple : membre d’une instance, direction, chargé de qualité.' });
-      function majAnonyme() { var a = !!r.registreSeul; grilleAcces.hidden = a; blocJournal.hidden = a; noteJournal.hidden = a || noteJournal.hidden; noteAnonyme.hidden = !a; }
+      function majAnonyme() { var a = !!r.registreSeul; grilleAcces.hidden = a; blocJournal.hidden = a; blocOnglets.hidden = a; noteJournal.hidden = a || noteJournal.hidden; noteAnonyme.hidden = !a; }
       majAnonyme();
       return h('fieldset', { class: 'role' },
         h('legend', {}, r.libelle || r.code),
@@ -67,10 +76,10 @@
         cbAnonyme ? h('label', { class: 'case' }, cbAnonyme, h('span', { text: 'Accès limité au registre (consultation seule)' })) : null, noteAnonyme,
         grilleAcces,
         h('label', { class: 'case' }, tous, h('span', { text: 'Accès à tous les services (sans affectation de services au compte), par exemple pour une direction des soins' })),
-        blocJournal, noteJournal,
+        blocOnglets, blocJournal, noteJournal,
         h('div', { class: 'actions gauche' },
           r.fourni ? h('button', { class: 'btn petit', type: 'button', onclick: function () {
-            r.acces = M.accesDefaut(r.code); r.services = true; r.libelle = M.ROLES[r.code]; r.journal = M.rolesConfig({}).filter(function (x) { return x.code === r.code; })[0].journal; dessiner();
+            r.acces = M.accesDefaut(r.code); r.ongletsMasques = []; r.services = true; r.libelle = M.ROLES[r.code]; r.journal = M.rolesConfig({}).filter(function (x) { return x.code === r.code; })[0].journal; dessiner();
           } }, 'Rétablir les droits par défaut') : null,
           !r.fourni ? h('button', { class: 'btn petit danger', type: 'button', disabled: n > 0, title: n ? 'Retirez d’abord ce rôle des ' + n + ' compte(s) qui le portent.' : '', onclick: function () {
             liste.splice(liste.indexOf(r), 1); dessiner();
@@ -94,7 +103,7 @@
         var libelle = nomNouveau.value.trim();
         if (!libelle) return U.erreurDans(zoneErr, new Error('Indiquez le libellé du nouveau rôle.'));
         var src = liste.filter(function (x) { return x.code === modele.value; })[0];
-        liste.push({ code: nouveauCode(libelle, liste.map(function (x) { return x.code; }).concat(['ADMIN'])), libelle: libelle, acces: src ? src.acces.slice() : [], services: src ? src.services : true, journal: src ? src.journal : 'services', registreSeul: modele.value === '__anonyme' || !!(src && src.registreSeul), fourni: false });
+        liste.push({ code: nouveauCode(libelle, liste.map(function (x) { return x.code; }).concat(['ADMIN'])), libelle: libelle, acces: src ? src.acces.slice() : [], services: src ? src.services : true, journal: src ? src.journal : 'services', ongletsMasques: src ? src.ongletsMasques.slice() : [], registreSeul: modele.value === '__anonyme' || !!(src && src.registreSeul), fourni: false });
         nomNouveau.value = ''; dessiner();
       } }, '+ Ajouter'));
 
@@ -110,6 +119,7 @@
           if (vus[l.toLowerCase()] || l.toLowerCase() === M.ROLES.ADMIN.toLowerCase()) throw new Error('Deux rôles portent le libellé « ' + l + ' ».');
           vus[l.toLowerCase()] = 1;
           valeur[r.code] = { libelle: l, acces: r.registreSeul ? [] : r.acces.slice(), services: !!r.services, journal: r.journal };
+          if (!r.registreSeul && r.ongletsMasques.length) valeur[r.code].ongletsMasques = r.ongletsMasques.slice();
           if (r.registreSeul) valeur[r.code].registreSeul = true;
         });
         // Résumé des changements, à confirmer
@@ -124,6 +134,7 @@
           if (moins.length) ch.push('accès retirés : ' + resumeAcces(moins));
           if (a.services !== r.services) ch.push(r.services ? 'limité aux services affectés' : 'accès à tous les services');
           if (a.journal !== r.journal && !r.registreSeul) ch.push('journal : ' + minuscule(libJournal(r.journal)));
+          if (!r.registreSeul && a.ongletsMasques.join() !== r.ongletsMasques.join()) ch.push('onglets masqués : ' + libOnglets(r.ongletsMasques));
           if (!!a.registreSeul !== !!r.registreSeul) ch.push(r.registreSeul ? 'accès limité au registre' : 'accès complet rétabli selon les cases cochées');
           if (ch.length) lignes.push('« ' + a.libelle + ' » (' + n + ' compte(s)) : ' + ch.join(' ; ') + '.');
         });

@@ -126,3 +126,19 @@ test('Rôle « registre seulement » : aucun accès ni journal, réservé aux r�
   assert.ok(!M2.registreSeul(['ADMIN', 'R_INSTANCE'], cfg));
   assert.equal(M2.niveauJournal(['R_INSTANCE'], cfg), 'aucun');
 });
+
+test('Onglets Surveillance CSI, Registre et Statistiques masquables par rôle ; le plus large l’emporte', () => {
+  const M2 = require('../app/js/model.js');
+  const cfg = { roles: { SECRETAIRE: { ongletsMasques: ['surveillance', 'stats', 'mesures'] }, R_REG: { libelle: 'Registre (fictif)', registreSeul: true, ongletsMasques: ['registre'] } } };
+  assert.deepEqual(M2.rolesConfig(cfg).find((r) => r.code === 'SECRETAIRE').ongletsMasques, ['surveillance', 'stats']);   // « mesures » ne se masque pas
+  assert.ok(!M2.ongletVisible(['SECRETAIRE'], cfg, 'surveillance'));
+  assert.ok(M2.ongletVisible(['SECRETAIRE'], cfg, 'registre'));
+  assert.ok(!M2.ongletVisible(['SECRETAIRE'], cfg, 'stats'));
+  assert.ok(M2.ongletVisible(['SECRETAIRE'], cfg, 'mesures'));
+  assert.ok(M2.ongletVisible(['SECRETAIRE', 'IDE'], cfg, 'surveillance'));   // l'IDE l'affiche
+  assert.ok(M2.ongletVisible(['ADMIN'], cfg, 'stats'));
+  assert.ok(M2.ongletVisible(['R_REG'], cfg, 'registre'));                   // registre seulement : toujours le registre
+  assert.ok(!M2.ongletVisible(['R_REG'], cfg, 'stats'));
+  assert.ok(M2.ongletVisible(['IDE'], {}, 'stats'));                          // par défaut, rien n'est masqué
+  assert.ok(!M2.ongletVisible([], {}, 'stats'));
+});

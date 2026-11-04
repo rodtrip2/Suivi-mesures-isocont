@@ -92,8 +92,9 @@
       // `registreAnonyme` : nom du réglage en 1.65.0, repris tel quel.
       var anonyme = !fourni && (r.registreSeul === true || r.registreAnonyme === true);
       if (anonyme) { acces = []; types = []; }
+      var masques = anonyme ? [] : (Array.isArray(r.ongletsMasques) ? ONGLETS_MASQUABLES.filter(function (o) { return r.ongletsMasques.indexOf(o) >= 0; }) : []);
       res.push({ code: code, libelle: String(r.libelle || (fourni ? ROLES[code] : code)).trim() || code, acces: acces, types: types,
-        services: svc, journal: anonyme ? 'aucun' : journalDefaut(code, svc, r.journal), registreSeul: anonyme, fourni: fourni, admin: false });
+        services: svc, journal: anonyme ? 'aucun' : journalDefaut(code, svc, r.journal), registreSeul: anonyme, ongletsMasques: masques, fourni: fourni, admin: false });
     });
     res.push({ code: 'ADMIN', libelle: ROLES.ADMIN, acces: [], types: TYPES_ADMIN.slice(), services: false, journal: 'complet', fourni: true, admin: true });
     return res;
@@ -169,6 +170,24 @@
     return st.journal.filter(function (e) {
       if (mien(e)) return true;
       return servicesSaisie(st, e).some(function (x) { return mesSv.indexOf(x) >= 0; });
+    });
+  }
+
+  // Onglets que l'établissement peut masquer rôle par rôle (demande du porteur) ; les autres restent toujours affichés.
+  var ONGLETS_MASQUABLES = ['surveillance', 'registre', 'stats'];
+  /**
+   * Vrai si l'onglet est affiché pour ces rôles : il l'est dès qu'un des rôles l'affiche (le plus large l'emporte) ;
+   * toujours pour l'administrateur ; un rôle « registre seulement » n'affiche que le registre.
+   */
+  function ongletVisible(roles, config, onglet) {
+    if (ONGLETS_MASQUABLES.indexOf(onglet) < 0) return true;
+    var rc = rolesConfig(config);
+    return (roles || []).some(function (c) {
+      var r = rc.filter(function (x) { return x.code === c; })[0];
+      if (!r) return false;
+      if (r.admin) return true;
+      if (r.registreSeul) return onglet === 'registre';
+      return r.ongletsMasques.indexOf(onglet) < 0;
     });
   }
 
@@ -2376,7 +2395,7 @@
   return {
     ROLES: ROLES, DROITS: DROITS, ACCES: ACCES, ROLES_FOURNIS: ROLES_FOURNIS, rolesConfig: rolesConfig, libRole: libRole, accesDefaut: accesDefaut, voitTousServices: voitTousServices, exigeService: exigeService, ROLES_DE_SERVICE: ROLES_DE_SERVICE, accesFormation: accesFormation, CONFIG_DEFAUT: CONFIG_DEFAUT, LIB_CATEGORIES: LIB_CATEGORIES,
     peut: peut, servicesDe: servicesDe, periodesDe: periodesDe, estContrainte: estContrainte,
-    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, commandesRobocopy: commandesRobocopy, cheminWindows: cheminWindows, INTERVALLES_ROBOCOPY: INTERVALLES_ROBOCOPY, registreSeul: registreSeul, NIVEAUX_JOURNAL: NIVEAUX_JOURNAL, niveauJournal: niveauJournal, servicesSaisie: servicesSaisie, journalVisible: journalVisible, GROUPES_REGLAGES: GROUPES_REGLAGES, REGLAGES_EXCLUS: REGLAGES_EXCLUS, exporterReglages: exporterReglages, analyserReglages: analyserReglages, reglagesAImporter: reglagesAImporter, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
+    reduire: reduire, optionsSurveillance: optionsSurveillance, agentsSurveillance: agentsSurveillance, dossierExports: dossierExports, optionsExports: optionsExports, exportsAPurger: exportsAPurger, dossierExportService: dossierExportService, cheminWindowsExports: cheminWindowsExports, DOSSIER_ETABLISSEMENT: DOSSIER_ETABLISSEMENT, CONSERVATION_EXPORTS: CONSERVATION_EXPORTS, annulabilite: annulabilite, profilAnnuelPatient: profilAnnuelPatient, libLieu: libLieu, txtLieu: txtLieu, lieuDetaille: lieuDetaille, listesConfig: listesConfig, libRaccourci: libRaccourci, optionsVigilance: optionsVigilance, optionsAffichage: optionsAffichage, comparerVersions: comparerVersions, commandesRobocopy: commandesRobocopy, cheminWindows: cheminWindows, INTERVALLES_ROBOCOPY: INTERVALLES_ROBOCOPY, registreSeul: registreSeul, ONGLETS_MASQUABLES: ONGLETS_MASQUABLES, ongletVisible: ongletVisible, NIVEAUX_JOURNAL: NIVEAUX_JOURNAL, niveauJournal: niveauJournal, servicesSaisie: servicesSaisie, journalVisible: journalVisible, GROUPES_REGLAGES: GROUPES_REGLAGES, REGLAGES_EXCLUS: REGLAGES_EXCLUS, exporterReglages: exporterReglages, analyserReglages: analyserReglages, reglagesAImporter: reglagesAImporter, LIEUX_ISOLEMENT: LIEUX_ISOLEMENT, cheminEvenement: cheminEvenement, filtrerIntegrite: filtrerIntegrite, trierEvenements: trierEvenements, deplier: deplier,
     listeMesures: listeMesures, suiviJLD: suiviJLD, dureeHeures: dureeHeures,
     tiersCycle: tiersCycle, modeA: modeA, modeRetenu: modeRetenu, estMineur: estMineur, cumulsPatient: cumulsPatient,
     postesSurveillance: postesSurveillance, bornesPeriode: bornesPeriode, dateLocaleISO: dateLocaleISO,
