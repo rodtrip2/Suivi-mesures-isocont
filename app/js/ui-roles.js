@@ -20,7 +20,7 @@
     return code;
   }
 
-  var LIB_ONGLETS = { surveillance: 'Surveillance CSI', registre: 'Registre', stats: 'Statistiques' };
+  var LIB_ONGLETS = { tableau: 'Tableau de bord', mesures: 'Mesures', patients: 'Patients', jld: 'JLD', surveillance: 'Surveillance CSI', registre: 'Registre', stats: 'Statistiques' };
   function libOnglets(l) { return l.length ? l.map(function (o) { return U.lieu(LIB_ONGLETS[o]); }).join(', ') : 'aucun'; }
   function libJournal(c) { var n = M.NIVEAUX_JOURNAL.filter(function (x) { return x.code === c; })[0]; return n ? n.libelle : c; }
   function minuscule(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
@@ -64,7 +64,7 @@
           r.ongletsMasques = M.ONGLETS_MASQUABLES.filter(function (x) { return x === o ? !cb.checked : r.ongletsMasques.indexOf(x) >= 0; });
         } });
         return h('label', { class: 'case' }, cb, h('span', { text: U.lieu(LIB_ONGLETS[o]) }));
-      })), h('small', { class: 'muted', text: 'Les autres onglets restent affichés. Un agent qui cumule des rôles voit un onglet dès qu’un de ses rôles l’affiche.' }));
+      })), h('small', { class: 'muted', text: 'Le journal se règle ci-dessous (« Journal des saisies ») ; l’onglet Administration est réservé à l’administrateur. Un agent qui cumule des rôles voit un onglet dès qu’un de ses rôles l’affiche. Masquer le JLD ou la surveillance retire aussi leurs éléments du tableau de bord.' }));
       var cbAnonyme = r.fourni ? null : h('input', { type: 'checkbox', checked: !!r.registreSeul, onchange: function () { r.registreSeul = cbAnonyme.checked; majAnonyme(); } });
       var noteAnonyme = h('small', { class: 'muted', text: 'Seul l’onglet Registre est ouvert, tel qu’il s’affiche habituellement (patients désignés par leur identifiant, IPP, et leur âge ; psychiatre et soignants chargés de la surveillance) : ni mesures, ni fiches patient, ni journal, ni fenêtre des exports, aucune saisie. Les agents peuvent l’imprimer et l’enregistrer en PDF ou en CSV. Exemple : membre d’une instance, direction, chargé de qualité.' });
       function majAnonyme() { var a = !!r.registreSeul; grilleAcces.hidden = a; blocJournal.hidden = a; blocOnglets.hidden = a; noteJournal.hidden = a || noteJournal.hidden; noteAnonyme.hidden = !a; }
@@ -117,6 +117,7 @@
           var l = String(r.libelle || '').trim();
           if (!l) throw new Error('Un rôle n’a pas de libellé.');
           if (vus[l.toLowerCase()] || l.toLowerCase() === M.ROLES.ADMIN.toLowerCase()) throw new Error('Deux rôles portent le libellé « ' + l + ' ».');
+          if (!r.registreSeul && r.ongletsMasques.length === M.ONGLETS_MASQUABLES.length && r.journal === 'aucun') throw new Error('Le rôle « ' + l + ' » n’affiche aucun onglet : laissez au moins un onglet ou le journal.');
           vus[l.toLowerCase()] = 1;
           valeur[r.code] = { libelle: l, acces: r.registreSeul ? [] : r.acces.slice(), services: !!r.services, journal: r.journal };
           if (!r.registreSeul && r.ongletsMasques.length) valeur[r.code].ongletsMasques = r.ongletsMasques.slice();

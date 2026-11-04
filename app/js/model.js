@@ -173,8 +173,9 @@
     });
   }
 
-  // Onglets que l'établissement peut masquer rôle par rôle (demande du porteur) ; les autres restent toujours affichés.
-  var ONGLETS_MASQUABLES = ['surveillance', 'registre', 'stats'];
+  // Onglets que l'établissement peut masquer rôle par rôle (demande du porteur).
+  // (Journal : réglage « Journal des saisies » du rôle ; Administration : administrateur seulement.)
+  var ONGLETS_MASQUABLES = ['tableau', 'mesures', 'patients', 'jld', 'surveillance', 'registre', 'stats'];
   /**
    * Vrai si l'onglet est affiché pour ces rôles : il l'est dès qu'un des rôles l'affiche (le plus large l'emporte) ;
    * toujours pour l'administrateur ; un rôle « registre seulement » n'affiche que le registre.

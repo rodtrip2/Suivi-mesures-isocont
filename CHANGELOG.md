@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 1.67.0 — 4 novembre 2026
+
+- **Tous les onglets masquables par rôle** : la rubrique *Onglets affichés* de chaque rôle couvre désormais *Tableau de bord*, *Mesures*, *Patients*, *JLD*, *Surveillance CSI*, *Registre* et *Statistiques*. Le *Journal* se règle par *Journal des saisies* ; *Administration* reste réservé à l'administrateur.
+- Un agent dont le tableau de bord est masqué arrive sur le premier onglet affiché. Masquer *JLD* retire aussi les échéances JLD du tableau de bord. Un rôle doit garder au moins un onglet.
+
 ## 1.66.0 — 4 novembre 2026
 
 - **Onglets selon le rôle** (*Administration → Comptes et sécurité → Rôles et accès*, rubrique *Onglets affichés* de chaque rôle) : les onglets *Surveillance CSI*, *Registre* et *Statistiques* peuvent être masqués pour un rôle, par exemple pour la secrétaire. Quand *Surveillance CSI* est masqué, le tableau de bord n'affiche plus les postes de surveillance à compléter.

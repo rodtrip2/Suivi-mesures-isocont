@@ -671,11 +671,15 @@
     var nivJournal = M.niveauJournal(s.roles(), config());
     // Rôle « registre seulement » : un seul onglet, le registre tel qu'il s'affiche habituellement
     var anonyme = M.registreSeul(s.roles(), config());
-    if (anonyme) App.onglet = 'registre';
-    else if (!M.ongletVisible(s.roles(), config(), App.onglet)) App.onglet = 'tableau';
+    // Onglets affichés : réglage des rôles (Rôles et accès), journal selon son niveau, administration pour l'administrateur
+    function affichable(o) {
+      if (o === 'admin') return estAdmin;
+      if (o === 'journal') return nivJournal !== 'aucun' && !anonyme;
+      if (anonyme) return o === 'registre';
+      return M.ongletVisible(s.roles(), config(), o);
+    }
+    if (!affichable(App.onglet)) App.onglet = (ONGLETS.filter(function (o) { return affichable(o[0]); })[0] || ['aucun'])[0];
     var conflits = nivJournal === 'aucun' ? 0 : conflitsVisibles().length;
-    if (nivJournal === 'aucun' && App.onglet === 'journal') App.onglet = 'tableau';
-    if (!estAdmin && App.onglet === 'admin') App.onglet = 'tableau';
     // Pages de tableaux : toute la largeur de l'écran (les pages de réglage gardent une largeur de lecture)
     zoneContenu.classList.toggle('large', ['tableau', 'mesures', 'patients', 'jld', 'surveillance', 'registre', 'journal', 'stats'].indexOf(App.onglet) >= 0);
     if (!s.utilisateur.actif) return verrouiller('Votre compte a été désactivé.');
@@ -713,10 +717,7 @@
     var bl = SIC.ui.miroir.bandeauLocal(); if (bl) zoneEntete.appendChild(bl);
     var nav = h('nav', { class: 'onglets', 'aria-label': 'Sections' });
     ONGLETS.forEach(function (o) {
-      if (o[0] === 'admin' && !estAdmin) return;
-      if (o[0] === 'journal' && nivJournal === 'aucun') return;
-      if (anonyme && o[0] !== 'registre') return;
-      if (!M.ongletVisible(s.roles(), config(), o[0])) return;
+      if (!affichable(o[0])) return;
       nav.appendChild(h('button', { 'aria-current': App.onglet === o[0] ? 'page' : null, onclick: function () { App.onglet = o[0]; rendreContenu(); } },
         lieu(o[1]), o[0] === 'journal' && conflits ? h('span', { class: 'pastille', text: conflits }) : null));
     });
@@ -724,7 +725,7 @@
 
     zoneContenu.style.minHeight = zoneContenu.offsetHeight + 'px';   // évite que la page se replie pendant la reconstruction
     vider(zoneContenu);
-    var vues = { tableau: vueTableau, mesures: vueMesures, jld: vueJLD, surveillance: vueSurveillance, registre: vueRegistre, journal: vueJournal, admin: vueAdmin };
+    var vues = { aucun: function () { return h('p', { class: 'muted', text: 'Aucun onglet n’est ouvert à vos rôles : demandez à l’administrateur de vérifier vos accès.' }); }, tableau: vueTableau, mesures: vueMesures, jld: vueJLD, surveillance: vueSurveillance, registre: vueRegistre, journal: vueJournal, admin: vueAdmin };
     var vue = vues[App.onglet] || SIC.ui.vues[App.onglet] || vueTableau;
     if (!mesSv.length && !estAdmin) { zoneContenu.appendChild(h('div', { class: 'panneau vide', text: 'Aucun service ne vous est affecté. Demandez à l’administrateur de vous en attribuer un.' })); return; }
     try { zoneContenu.appendChild(vue(maintenant)); }
@@ -854,7 +855,7 @@
           h('td', { class: 'actions-ligne' }, App.session.peut('JLD') ? h('button', { class: 'btn petit', onclick: function () { modaleJLD(x.m); } }, 'Saisir') : null));
       })))) : h('div', { class: 'vide', text: 'Aucune échéance JLD en cours.' });
 
-    var voitSurveillance = M.ongletVisible(App.session.roles(), config(), 'surveillance');
+    var voitSurveillance = M.ongletVisible(App.session.roles(), config(), 'surveillance'), voitJLD = M.ongletVisible(App.session.roles(), config(), 'jld');
     var listePostes = postesIncomplets.length ? h('div', { class: 'postes' }, postesIncomplets.slice(0, 8).map(function (x) {
       return h('div', { class: 'poste incomplet' }, h('div', {}, h('b', { text: x.p.libelle }), h('br'), h('small', { text: fmtJour.format(x.p.debut) })),
         h('div', {}, h('small', { text: libService(x.sv.code) + ' — ' + x.p.professionnels.length + ' / 2 professionnels' })),
@@ -864,8 +865,8 @@
     return h('div', {},
       h('div', { class: 'indicateurs' },
         ind(enCours.length, 'Mesures en cours (' + nIso + ' isolement, ' + (enCours.length - nIso) + ' contention)'),
-        ind(depassees, 'Échéances JLD dépassées', depassees ? 'bad' : 'ok'),
-        ind(proches, (function () {
+        voitJLD ? ind(depassees, 'Échéances JLD dépassées', depassees ? 'bad' : 'ok') : null,
+        !voitJLD ? null : ind(proches, (function () {
           var sj = ['Isolement', 'Contention'].map(function (t) { return SIC.rules.params(t, config().parametres).seuilJaune || 12; });
           return sj[0] === sj[1] ? 'Échéances JLD dans les ' + sj[0] + ' h' : 'Échéances JLD proches (' + sj[0] + ' h isolement, ' + sj[1] + ' h contention)';
         })(), proches ? 'warn' : 'ok'),
@@ -881,10 +882,11 @@
         ind(libres.length, 'Mesures chez un patient en soins libres', libres.length ? 'bad' : 'ok'),
         aTracer.length || M.alertesConfig(config()).some(function (r) { return r.active && r.nature === 'information'; }) ? ind(aTracer.length, 'Informations à tracer (alertes de l’établissement)', aTracer.some(function (x) { return x.retard; }) ? 'bad' : aTracer.length ? 'warn' : 'ok') : null),
       vigilance.length ? h('section', { class: 'panneau' }, h('h2', { text: 'Points de vigilance' }), h('ul', { class: 'vigilance' }, vigilance)) : null,
-      voitSurveillance ? h('div', { class: 'deux-colonnes' },
-        h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch),
-        h('section', { class: 'panneau' }, h('h2', { text: lieu('Surveillance en CSI à compléter') }), listePostes))
-        : h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch));
+      (function () {
+        var panneaux = [voitJLD ? h('section', { class: 'panneau' }, h('h2', { text: 'Prochaines échéances JLD' }), tableEch) : null,
+          voitSurveillance ? h('section', { class: 'panneau' }, h('h2', { text: lieu('Surveillance en CSI à compléter') }), listePostes) : null].filter(Boolean);
+        return panneaux.length === 2 ? h('div', { class: 'deux-colonnes' }, panneaux) : panneaux[0] || null;
+      })());
   }
 
   // ---------------------------------------------------------------- Mesures
@@ -1074,7 +1076,7 @@
 
   // ---------------------------------------------------------------- Journal
   // ---------------------------------------------------------------- Journal : libellés lisibles
-  var LIB_ONGLET_MASQUABLE = { surveillance: 'Surveillance CSI', registre: 'Registre', stats: 'Statistiques' };
+  var LIB_ONGLET_MASQUABLE = { tableau: 'Tableau de bord', mesures: 'Mesures', patients: 'Patients', jld: 'JLD', surveillance: 'Surveillance CSI', registre: 'Registre', stats: 'Statistiques' };
   var LIB_CONFIG = {
     etablissement: 'Nom de l’établissement', services: 'Services', exports: 'Dossier des exports', surveillance: 'Surveillance : professionnels attendus par poste', roles: 'Rôles et accès', organisationJLD: 'Organisation des envois au JLD', verificationVersion: 'Vérification de la version (page GitHub)', listes: 'Listes de saisie (fonctions, motifs, raccourcis)', miroir: 'Dossier de secours', verrouDossier: 'Choix du dossier bloqué sur les postes', vigilance: 'Seuils des points de vigilance', affichage: 'Affichage (mesures terminées, connexion, logo)', lieuIsolement: 'Appellation des lieux dédiés à l’isolement', lieuxCSI: 'Chambres de soins intensifs', psychiatres: 'Liste des psychiatres',
     periodes: 'Postes de surveillance par défaut', periodesService: 'Postes de surveillance propres aux services', modesHospitalisation: 'Modes d’hospitalisation',
