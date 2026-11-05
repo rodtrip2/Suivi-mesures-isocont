@@ -34,4 +34,4 @@ Demande : pouvoir enregistrer les données (ou le dossier de secours) ailleurs q
 
 ## Plateforme modulaire Tessera Santé (étudiée le 4 novembre 2026)
 
-Évolution de l'outil en plateforme : socle commun (connexion unique, comptes, services, droits, chiffrement par module) et modules activés par service (isolement et contention, Patients, Agenda). Fiche projet pour la direction des soins : [tessera-sante/fiche-projet-tessera-sante.md](tessera-sante/fiche-projet-tessera-sante.md) ([PDF](tessera-sante/fiche-projet-tessera-sante.pdf)). À développer seulement après validation.
+Évolution de l'outil en plateforme : socle commun (connexion unique, comptes, services, droits, chiffrement par module) et modules activés par service (isolement et contention, Patients, Agenda). Projet suivi dans le dépôt [rodtrip2/tessera-sante](https://github.com/rodtrip2/tessera-sante) (fiche projet, architecture). À développer seulement après validation.
