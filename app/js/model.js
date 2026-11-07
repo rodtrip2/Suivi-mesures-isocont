@@ -348,11 +348,35 @@
   }
 
   // ------------------------------------------------------------- Réduction
+  /**
+   * Ordre d'application des saisies : horodatage, puis, à horodatage égal (même milliseconde), ordre de saisie
+   * donné par le chaînage (une saisie passe après celle qu'elle cite dans `prec`), puis identifiant.
+   * Sans le chaînage, plusieurs saisies enregistrées d'un coup par un agent (ex. fin d'une mesure juste après
+   * son début) pouvaient être appliquées dans le désordre, l'identifiant finissant par une partie aléatoire.
+   * Les saisies d'un lot gardent le rang du lot.
+   */
   function trierEvenements(evts) {
+    var parAt = {};
+    evts.forEach(function (e) { (parAt[e.at] = parAt[e.at] || {})[e.id] = e; });
+    var rangs = {};
+    function rang(e, n) {
+      if (rangs[e.id] !== undefined) return rangs[e.id];
+      var meme = parAt[e.at] || {}, r = 0;
+      if (n < 1000) {
+        if (e.lot && meme[e.lot]) r = rang(meme[e.lot], n + 1);
+        else if (e.prec && meme[e.prec]) r = rang(meme[e.prec], n + 1) + 1;
+      }
+      rangs[e.id] = r;
+      return r;
+    }
     return evts.slice().sort(function (a, b) {
-      return a.at < b.at ? -1 : a.at > b.at ? 1 : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      if (a.at !== b.at) return a.at < b.at ? -1 : 1;
+      var ra = rang(a, 0), rb = rang(b, 0);
+      if (ra !== rb) return ra - rb;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
   }
+
 
   /** Un lot (import, données de démonstration) est un fichier unique contenant plusieurs saisies. */
   function deplier(evts) {

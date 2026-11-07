@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 1.67.1 — 7 novembre 2026
+
+- **Correction : ordre des saisies enregistrées dans la même milliseconde.** À horodatage égal, les saisies étaient classées par leur identifiant, dont la fin est aléatoire : plusieurs saisies enregistrées d'un coup par un même agent (début puis fin d'une mesure, pause d'un isolement et de sa contention, transfert de plusieurs mesures) pouvaient être appliquées dans le désordre, une saisie pouvant alors être ignorée. Elles suivent désormais le chaînage (chaque saisie passe après celle qu'elle cite). Défaut révélé par un test qui échouait environ une fois sur dix et corrigé d'abord dans Tessera Santé (0.1.1) ; nouveau test `tests/ordre-saisies.test.js`.
+
 ## 1.67.0 — 4 novembre 2026
 
 - **Tous les onglets masquables par rôle** : la rubrique *Onglets affichés* de chaque rôle couvre désormais *Tableau de bord*, *Mesures*, *Patients*, *JLD*, *Surveillance CSI*, *Registre* et *Statistiques*. Le *Journal* se règle par *Journal des saisies* ; *Administration* reste réservé à l'administrateur.
